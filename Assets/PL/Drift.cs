@@ -111,6 +111,9 @@ public class DriftCar : MonoBehaviour
     [Tooltip("Affiche les valeurs de pilotage en haut à gauche de l'écran")]
     public bool debugHUD = true;
 
+    [Header("Menu / autopilote")]
+    public bool useExternalInput;
+    public float externalInput;   // -1 gauche, 0 rien, 1 droite
     // ---------- Infos pour le score / l'UI ----------
 
     /// <summary>Vitesse en m/s.</summary>
@@ -205,6 +208,7 @@ public class DriftCar : MonoBehaviour
     // Lit le doigt / la souris / le clavier, avec l'ancien ET le nouveau système d'Input de Unity.
     float ReadInput()
     {
+        if (useExternalInput) return externalInput;
         float half = Screen.width * 0.5f;
 
 #if ENABLE_INPUT_SYSTEM

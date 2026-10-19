@@ -136,6 +136,7 @@ public class DriftGameManager : MonoBehaviour
     /// <summary>Termine la partie. Appelé par la death zone, un DeathZone, ou ton propre code.</summary>
     public void Die()
     {
+
         if (IsDead) return;
         IsDead = true;
 
@@ -162,11 +163,15 @@ public class DriftGameManager : MonoBehaviour
             PlayerPrefs.SetInt(BestScoreKey, BestScore);
             PlayerPrefs.Save();
         }
-
+        PlayerData.AddCoins(Score / 10);
         if (panelDelay > 0f) StartCoroutine(ShowPanelAfterDelay(newRecord));
         else ShowPanel(newRecord);
     }
-
+    public void LoadMenu()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MainMenu");
+    }
     System.Collections.IEnumerator ShowPanelAfterDelay(bool newRecord)
     {
         yield return new WaitForSecondsRealtime(panelDelay);
