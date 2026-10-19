@@ -96,6 +96,10 @@ public class DriftCar : MonoBehaviour
     [Range(0f, 1f)]
     [Tooltip("Vitesse conservée après un choc contre un mur")]
     public float wallSpeedKeep = 0.85f;
+    [Tooltip("Délai minimum entre deux chocs (évite que les frottements répétés arrêtent la voiture)")]
+    public float wallHitCooldown = 0.6f;
+    [Tooltip("Vitesse latérale min contre le mur pour compter comme un choc (m/s)")]
+    public float wallHitMinSpeed = 3f;
 
     [Header("Visuel")]
     public float bodyRollMax = 5f;            // degrés d'inclinaison en virage (vers l'extérieur)
@@ -133,6 +137,7 @@ public class DriftCar : MonoBehaviour
     float rawInput, lastSteerDeg;
     int wallContacts;
     string inputError;
+    float lastWallHitTime = -10f;
 
     Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modèle (ex : -90° des modèles Blender)
     Quaternion bodyTilt = Quaternion.identity;
@@ -376,14 +381,15 @@ public class DriftCar : MonoBehaviour
 
     // ---------- Murs ----------
 
-    // Choc : perte de vitesse, drift annulé (une seule fois par impact)
+    // Choc : perte de vitesse, drift annulé (un vrai impact, pas un simple frottement)
     void OnCollisionEnter(Collision collision)
     {
         if (!TryGetWallNormal(collision, out Vector2 n2)) return;
 
         float into = Vector2.Dot(vel, n2);
-        if (into < -1f)
+        if (into < -wallHitMinSpeed && Time.time - lastWallHitTime > wallHitCooldown)
         {
+            lastWallHitTime = Time.time;
             vel -= n2 * into * 1.2f;   // petit rebond
             vel *= wallSpeedKeep;
             yawRate *= 0.5f;
@@ -403,19 +409,41 @@ public class DriftCar : MonoBehaviour
         if (into < 0f) vel -= n2 * into;
     }
 
-    static bool TryGetWallNormal(Collision collision, out Vector2 normal)
+    // Normale du mur calculée à partir du TRACÉ de la route (et non de la normale de contact de Unity,
+    // qui peut pointer vers l'avant aux jonctions entre chunks et "arrêter" la voiture).
+    bool TryGetWallNormal(Collision collision, out Vector2 normal)
     {
         normal = Vector2.zero;
+        int found = 0;
+
         for (int i = 0; i < collision.contactCount; i++)
         {
-            Vector3 n = collision.GetContact(i).normal;
-            if (n.y > 0.5f) continue; // c'est le sol
+            ContactPoint c = collision.GetContact(i);
+            if (c.normal.y > 0.5f) continue; // c'est le sol
 
-            Vector2 n2 = new Vector2(n.x, n.z);
-            if (n2.sqrMagnitude < 0.0001f) continue;
-            normal += n2.normalized;
+            if (road == null)
+            {
+                Vector2 raw = new Vector2(c.normal.x, c.normal.z);
+                if (raw.sqrMagnitude > 0.0001f) { normal += raw.normalized; found++; }
+                continue;
+            }
+
+            float tz = road.TrackZ(c.point.z);
+            float cx = road.CenterXAt(tz);
+            float side = c.point.x - cx;
+
+            // Contact loin du bord de la route = jonction interne ou autre : on l'ignore
+            if (Mathf.Abs(side) < road.roadWidth * 0.5f - 1f) continue;
+
+            // Direction de la route à cet endroit, puis normale qui pointe vers le centre de la route
+            float dx = (road.CenterXAt(tz + 1f) - road.CenterXAt(tz - 1f)) * 0.5f;
+            Vector2 tangent = new Vector2(dx, 1f).normalized;
+            Vector2 rightN = new Vector2(tangent.y, -tangent.x);
+            normal += side > 0f ? -rightN : rightN;
+            found++;
         }
-        if (normal.sqrMagnitude < 0.0001f) return false;
+
+        if (found == 0 || normal.sqrMagnitude < 0.0001f) return false;
         normal.Normalize();
         return true;
     }
