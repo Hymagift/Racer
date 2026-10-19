@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &338773267878338555
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7861057738907644284}
+  - component: {fileID: 4486893301814498075}
+  m_Layer: 0
+  m_Name: Terrain
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7861057738907644284
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 338773267878338555}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4486893301814498075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 338773267878338555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7708e3a45cda3cd42a409384f097ff84, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  road: {fileID: 0}
+  terrainMaterial: {fileID: 2100000, guid: 42f2a4b4d6dd8a9489aba11ae1b22f8d, type: 2}
+  nearOffsets:
+  - 0
+  - 2.5
+  - 6
+  - 11
+  cellSize: 8
+  halfWidth: 120
+  coarseRowStride: 3
+  viewDistance: 220
+  despawnDistance: 60
+  addCollider: 1
+  seed: 0
+  hillHeight: 6
+  hillWavelength: 80
+  startFlatDistance: 60
+  wallHeight: 22
+  wallRun: 10
+  cliffDepth: 18
+  cliffRun: 12
+  sideRelief: 55
+  sideReliefWavelength: 90
+  sideReliefRamp: 40
+  edgeSink: 0.05
+  heightColors:
+  - {r: 0.3, g: 0.55, b: 0.25, a: 1}
+  - {r: 0.42, g: 0.62, b: 0.28, a: 1}
+  - {r: 0.58, g: 0.58, b: 0.3, a: 1}
+  - {r: 0.5, g: 0.45, b: 0.4, a: 1}
+  - {r: 0.62, g: 0.6, b: 0.58, a: 1}
+  - {r: 0.92, g: 0.94, b: 0.96, a: 1}
