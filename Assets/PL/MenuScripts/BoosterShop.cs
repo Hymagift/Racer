@@ -1,14 +1,14 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
+using static MenuStyle;
 
 /// <summary>
-/// Shop de boosters + Garage (inventaire des voitures à débloquer avec leurs blueprints).
-/// L'UI est créée par code, dans le même style que MainMenu, qui ajoute ce composant tout seul et appelle Build().
+/// Pages Invocations (boosters de blueprints) et Garage (voitures à débloquer) du menu principal.
+/// L'UI est créée par code avec MenuStyle ; MainMenu ajoute ce composant tout seul et appelle Build().
 ///
-/// - Boosters : chaque booster a un prix, un nombre de blueprints et des probabilités par rareté.
+/// - Invocations : chaque booster a un prix, un nombre de blueprints et des probabilités par rareté.
 ///   À l'achat, les cartes sont révélées une par une (voiture, rareté, progression, déblocage ou doublon).
 /// - Garage : toutes les voitures, triées par rareté, avec les blueprints obtenus / nécessaires,
 ///   le nombre de blueprints manquants, et le bouton Équiper pour les voitures débloquées.
@@ -24,11 +24,10 @@ public class BoosterShop : MonoBehaviour
 
     public GameObject ShopPanel { get; private set; }
     public GameObject InventoryPanel { get; private set; }
+    /// <summary>Vrai pendant l'écran d'ouverture d'un booster.</summary>
+    public bool OverlayOpen => overlay != null && overlay.activeSelf;
 
-    Font font;
-    Color buttonColor, accent;
-
-    Text shopCoinsText, garageCountText;
+    Text garageCountText;
     readonly List<(Button button, CarCatalog.Booster booster)> buyButtons = new List<(Button, CarCatalog.Booster)>();
     RectTransform carGrid;
     GridLayoutGroup carGridLayout;
@@ -42,18 +41,17 @@ public class BoosterShop : MonoBehaviour
     Coroutine reveal;
     readonly List<RectTransform> revealCards = new List<RectTransform>();
 
-    /// <summary>Crée les panneaux Boosters et Garage (cachés) dans le canvas du menu.</summary>
-    public void Build(RectTransform canvas, Font font, Color buttonColor, Color accent,
-                      UnityAction showMain, UnityAction showShop, UnityAction showGarage)
+    /// <summary>
+    /// Remplit la page Invocations et la page Garage (zones sous leur titre),
+    /// et crée l'écran d'ouverture des boosters dans overlayParent (le canvas, pour passer devant tout).
+    /// </summary>
+    public void Build(RectTransform invocationsBody, RectTransform garageBody, RectTransform overlayParent)
     {
         if (catalog == null) catalog = CarCatalog.Load();
-        this.font = font != null ? font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        this.buttonColor = buttonColor;
-        this.accent = accent;
 
-        BuildShop(canvas, showMain, showGarage);
-        BuildGarage(canvas, showMain, showShop);
-        BuildOverlay(canvas);
+        BuildInvocations(invocationsBody);
+        BuildGarage(garageBody);
+        BuildOverlay(overlayParent);
 
         PlayerData.OnChanged += Refresh;
         Refresh();
@@ -64,7 +62,7 @@ public class BoosterShop : MonoBehaviour
     // 2 colonnes de cartes qui remplissent la largeur de l'écran, quel que soit son format
     void LateUpdate()
     {
-        if (carGridLayout == null || !InventoryPanel.activeInHierarchy) return;
+        if (carGridLayout == null) return;
         float w = (carGrid.rect.width - carGridLayout.spacing.x) * 0.5f;
         if (w > 1f && Mathf.Abs(carGridLayout.cellSize.x - w) > 0.5f)
             carGridLayout.cellSize = new Vector2(w, carGridLayout.cellSize.y);
@@ -74,8 +72,6 @@ public class BoosterShop : MonoBehaviour
     {
         if (catalog == null) return;
 
-        string coins = PlayerData.Coins + " pièces";
-        if (shopCoinsText != null) shopCoinsText.text = coins;
         foreach (var (button, booster) in buyButtons)
             button.interactable = PlayerData.Coins >= booster.price;
 
@@ -85,21 +81,17 @@ public class BoosterShop : MonoBehaviour
         RefreshAgainButton();
     }
 
-    // ---------- Shop ----------
+    // ---------- Invocations ----------
 
-    void BuildShop(RectTransform canvas, UnityAction showMain, UnityAction showGarage)
+    void BuildInvocations(RectTransform body)
     {
-        var panel = Panel("BoosterShopPanel", canvas, 0.78f);
-        ShopPanel = panel.gameObject;
+        ShopPanel = body.gameObject;
 
-        Place(Label(panel, "Boosters", 96, TextAnchor.MiddleCenter, accent).rectTransform, 0.915f, 150f);
-        shopCoinsText = Label(panel, "", 54, TextAnchor.MiddleCenter, Color.white);
-        Place(shopCoinsText.rectTransform, 0.855f, 80f);
-
-        var list = Scroll(panel, 0.17f, 0.82f);
+        bool debug = Application.isEditor || Debug.isDebugBuild;
+        var list = VerticalScroll(body, 0f, 0f, 1f, debug ? 0.9f : 1f);
         var layout = list.gameObject.AddComponent<VerticalLayoutGroup>();
-        layout.spacing = 28f;
-        layout.padding = new RectOffset(0, 0, 10, 10);
+        layout.spacing = 36f;
+        layout.padding = new RectOffset(6, 6, 16, 30);
         layout.childControlWidth = layout.childControlHeight = true;
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = false;
@@ -109,51 +101,77 @@ public class BoosterShop : MonoBehaviour
         foreach (var booster in catalog.boosters)
             BoosterCard(list, booster);
 
-        var row = Row(panel, 0.08f);
-        MakeButton(row, "Garage", showGarage, buttonColor);
-        if (Application.isEditor || Debug.isDebugBuild)
-            MakeButton(row, "+500", () => PlayerData.AddCoins(500), new Color(0.15f, 0.4f, 0.15f, 0.8f));
-        MakeButton(row, "Retour", showMain, buttonColor);
-
-        ShopPanel.SetActive(false);
+        // Pièces de test (éditeur et builds de développement seulement)
+        if (debug)
+        {
+            var row = Node("Test", body);
+            Area(row, 0.62f, 0.915f, 1f, 1f);
+            var add = CandyButton(row, "+500 (test)", Teal, () => PlayerData.AddCoins(500), 36, 90f, 30f);
+            Stretch((RectTransform)add.transform);
+        }
     }
 
     void BoosterCard(RectTransform parent, CarCatalog.Booster booster)
     {
-        var card = NewRect(booster.displayName, parent);
-        card.gameObject.AddComponent<LayoutElement>().preferredHeight = 310f;
-        card.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+        Color bc = booster.color;
+        var card = Card(booster.displayName, parent, Color.Lerp(Navy, bc, 0.4f), 44f, 12f);
+        card.gameObject.AddComponent<LayoutElement>().preferredHeight = 360f;
 
-        var stripe = NewRect("Stripe", card);
-        stripe.anchorMin = new Vector2(0f, 0f);
-        stripe.anchorMax = new Vector2(0f, 1f);
-        stripe.sizeDelta = new Vector2(20f, 0f);
-        stripe.anchoredPosition = new Vector2(10f, 0f);
-        stripe.gameObject.AddComponent<Image>().color = booster.color;
+        // Liseré clair en haut de la carte
+        var band = Node("Bande", card);
+        Area(band, 0.03f, 0.86f, 0.97f, 0.93f);
+        Rounded(band, WithAlpha(Color.white, 0.12f), 20f);
 
-        Area(Label(card, booster.displayName, 58, TextAnchor.MiddleLeft, booster.color).rectTransform, 0.05f, 0.64f, 0.7f, 0.95f);
-        Area(Label(card, booster.cards + " blueprints", 40, TextAnchor.MiddleLeft, Color.white).rectTransform, 0.05f, 0.44f, 0.7f, 0.64f);
+        // Cristal d'invocation : losange aux couleurs du booster
+        var crystal = Node("Cristal", card);
+        crystal.anchorMin = crystal.anchorMax = new Vector2(0.13f, 0.5f);
+        crystal.sizeDelta = new Vector2(130f, 130f);
+        crystal.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        Rounded(crystal, Darken(bc, 0.6f), 26f);
+        var gem = Node("Gemme", crystal);
+        Stretch(gem);
+        gem.offsetMin = new Vector2(12f, 12f);
+        gem.offsetMax = new Vector2(-12f, -12f);
+        Rounded(gem, bc, 18f);
+        var glint = Node("Reflet", gem);
+        Area(glint, 0.15f, 0.55f, 0.45f, 0.85f);
+        Rounded(glint, WithAlpha(Color.white, 0.6f), 10f);
+
+        var title = FitLabel(card, booster.displayName, 58, 30, TextAnchor.MiddleLeft, Color.white, 4f);
+        Area(title.rectTransform, 0.26f, 0.6f, 0.68f, 0.86f);
+        var count = Label(card, booster.cards + " blueprints", 38, TextAnchor.MiddleLeft, Yellow);
+        Area(count.rectTransform, 0.26f, 0.44f, 0.68f, 0.6f);
 
         // Probabilités, chaque rareté dans sa couleur
         var odds = new System.Text.StringBuilder();
         for (int i = 0; i < RarityInfo.Count; i++)
         {
             var r = (CarRarity)i;
-            float p = booster.Percent(r);
             if (i == 2) odds.Append('\n');
-            else if (i > 0) odds.Append("    ");
+            else if (i > 0) odds.Append("   ");
             odds.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(RarityInfo.Color(r))).Append('>')
-                .Append(RarityInfo.Name(r)).Append(' ').Append(FormatPercent(p)).Append("</color>");
+                .Append(RarityInfo.Name(r)).Append(' ').Append(FormatPercent(booster.Percent(r))).Append("</color>");
         }
-        var oddsText = Label(card, odds.ToString(), 32, TextAnchor.MiddleLeft, Color.white);
-        oddsText.supportRichText = true;
-        Area(oddsText.rectTransform, 0.05f, 0.06f, 0.72f, 0.44f);
+        var oddsText = Label(card, odds.ToString(), 29, TextAnchor.MiddleLeft, Color.white, 2f);
+        Area(oddsText.rectTransform, 0.26f, 0.08f, 0.7f, 0.44f);
 
-        var buy = MakeButton(card, booster.price + "\npièces", () => Open(booster), accent);
-        buy.GetComponent<LayoutElement>().ignoreLayout = true;
-        Area(buy.GetComponent<RectTransform>(), 0.73f, 0.18f, 0.97f, 0.82f);
-        buy.GetComponentInChildren<Text>().fontSize = 46;
+        var buy = PriceButton(card, booster.price, Yellow, () => Open(booster));
+        Area((RectTransform)buy.transform, 0.71f, 0.2f, 0.97f, 0.8f);
         buyButtons.Add((buy, booster));
+    }
+
+    // Bouton avec une pièce et le prix
+    static Button PriceButton(Transform parent, int price, Color color, UnityEngine.Events.UnityAction onClick)
+    {
+        var buy = CandyButton(parent, price.ToString(), color, onClick, 56);
+        buy.GetComponent<LayoutElement>().ignoreLayout = true;
+        var face = buy.transform.Find("Face");
+        var coin = Coin(face, 56f);
+        coin.anchorMin = coin.anchorMax = new Vector2(0f, 0.5f);
+        coin.anchoredPosition = new Vector2(48f, 0f);
+        var text = ButtonText(buy);
+        text.rectTransform.offsetMin = new Vector2(80f, 4f);
+        return buy;
     }
 
     static string FormatPercent(float p)
@@ -163,30 +181,25 @@ public class BoosterShop : MonoBehaviour
 
     // ---------- Garage ----------
 
-    void BuildGarage(RectTransform canvas, UnityAction showMain, UnityAction showShop)
+    void BuildGarage(RectTransform body)
     {
-        var panel = Panel("GaragePanel", canvas, 0.78f);
-        InventoryPanel = panel.gameObject;
+        InventoryPanel = body.gameObject;
 
-        Place(Label(panel, "Garage", 96, TextAnchor.MiddleCenter, accent).rectTransform, 0.915f, 150f);
-        garageCountText = Label(panel, "", 46, TextAnchor.MiddleCenter, Color.white);
-        Place(garageCountText.rectTransform, 0.855f, 80f);
+        var pill = Node("Compteur", body);
+        Area(pill, 0.12f, 0.925f, 0.88f, 1f);
+        Rounded(pill, new Color(0f, 0f, 0f, 0.35f), 40f);
+        garageCountText = FitLabel(pill, "", 40, 24, TextAnchor.MiddleCenter, Color.white, 2f);
+        Stretch(garageCountText.rectTransform);
 
-        carGrid = Scroll(panel, 0.17f, 0.82f);
+        carGrid = VerticalScroll(body, 0f, 0f, 1f, 0.9f);
         var grid = carGridLayout = carGrid.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(430f, 380f); // largeur ajustée à l'écran dans LateUpdate
-        grid.spacing = new Vector2(24f, 24f);
-        grid.padding = new RectOffset(0, 0, 10, 10);
+        grid.cellSize = new Vector2(430f, 420f); // largeur ajustée à l'écran dans LateUpdate
+        grid.spacing = new Vector2(28f, 36f);
+        grid.padding = new RectOffset(0, 0, 16, 30);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
         grid.childAlignment = TextAnchor.UpperCenter;
         carGrid.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        var row = Row(panel, 0.08f);
-        MakeButton(row, "Boosters", showShop, accent);
-        MakeButton(row, "Retour", showMain, buttonColor);
-
-        InventoryPanel.SetActive(false);
     }
 
     void RebuildGarage()
@@ -218,84 +231,117 @@ public class BoosterShop : MonoBehaviour
         Color rc = RarityInfo.Color(car.rarity);
         bool unlocked = car.IsUnlocked;
 
-        var card = NewRect(car.id, parent);
-        card.gameObject.AddComponent<Image>().color = unlocked
-            ? new Color(rc.r * 0.35f, rc.g * 0.35f, rc.b * 0.35f, 0.92f)
-            : new Color(0.07f, 0.07f, 0.09f, 0.9f);
+        var card = Card(car.id, parent, unlocked ? Color.Lerp(Navy, rc, 0.45f) : Color.Lerp(Navy, Color.black, 0.3f), 40f, 10f);
+        if (isEquipped)
+        {
+            var glow = card.Find("Fond").gameObject.AddComponent<Outline>();
+            glow.effectColor = Yellow;
+            glow.effectDistance = new Vector2(6f, -6f);
+        }
 
-        var stripe = NewRect("Stripe", card);
-        Area(stripe, 0f, 0.96f, 1f, 1f);
-        stripe.gameObject.AddComponent<Image>().color = unlocked ? rc : rc * 0.6f;
+        // Étiquette de rareté
+        var tag = Node("Rareté", card);
+        Area(tag, 0.05f, 0.83f, 0.6f, 0.95f);
+        Rounded(tag, unlocked ? rc : Darken(rc, 0.5f), 24f);
+        var tagText = FitLabel(tag, RarityInfo.Name(car.rarity).ToUpper(), 30, 18, TextAnchor.MiddleCenter, Color.white, 2f);
+        Stretch(tagText.rectTransform);
 
         // Aperçu de la couleur de la voiture (assombri tant qu'elle est verrouillée)
-        var swatch = NewRect("Couleur", card);
-        Area(swatch, 0.74f, 0.62f, 0.94f, 0.9f);
+        var swatch = Node("Couleur", card);
+        swatch.anchorMin = swatch.anchorMax = new Vector2(0.8f, 0.82f);
+        swatch.sizeDelta = new Vector2(100f, 100f);
+        var ring = Fill(swatch, Color.white);
+        ring.sprite = Round;
+        var inner = Node("Teinte", swatch);
+        Area(inner, 0.1f, 0.1f, 0.9f, 0.9f);
         Color cc = car.color;
-        swatch.gameObject.AddComponent<Image>().color = unlocked ? cc : new Color(cc.r * 0.3f, cc.g * 0.3f, cc.b * 0.3f, 1f);
-        if (!unlocked) Stretch(Label(swatch, "?", 60, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.6f)).rectTransform);
+        Fill(inner, unlocked ? cc : new Color(cc.r * 0.25f, cc.g * 0.25f, cc.b * 0.25f, 1f)).sprite = Round;
+        if (!unlocked) Stretch(Label(inner, "?", 56, TextAnchor.MiddleCenter, Color.white).rectTransform);
 
-        var nameText = Label(card, car.displayName, 42, TextAnchor.MiddleLeft, unlocked ? Color.white : new Color(0.8f, 0.8f, 0.8f));
-        nameText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        nameText.resizeTextForBestFit = true;
-        nameText.resizeTextMinSize = 26;
-        nameText.resizeTextMaxSize = 42;
-        Area(nameText.rectTransform, 0.06f, 0.74f, 0.72f, 0.93f);
-        Area(Label(card, RarityInfo.Name(car.rarity), 32, TextAnchor.MiddleLeft, rc).rectTransform, 0.06f, 0.6f, 0.72f, 0.74f);
+        var nameText = FitLabel(card, car.displayName, 44, 24, TextAnchor.MiddleLeft, unlocked ? Color.white : new Color(0.75f, 0.75f, 0.8f), 3f);
+        Area(nameText.rectTransform, 0.06f, 0.56f, 0.94f, 0.78f);
 
         // Barre de blueprints
-        var bar = NewRect("Blueprints", card);
-        Area(bar, 0.06f, 0.36f, 0.94f, 0.52f);
-        bar.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.15f);
-        var fill = NewRect("Fill", bar);
+        var bar = Node("Blueprints", card);
+        Area(bar, 0.06f, 0.37f, 0.94f, 0.52f);
+        Rounded(bar, new Color(0f, 0f, 0f, 0.4f), 30f);
         float ratio = car.blueprintsToUnlock > 0 ? car.Blueprints / (float)car.blueprintsToUnlock : 1f;
-        fill.anchorMin = Vector2.zero;
-        fill.anchorMax = new Vector2(Mathf.Clamp01(ratio), 1f);
-        fill.offsetMin = fill.offsetMax = Vector2.zero;
-        fill.gameObject.AddComponent<Image>().color = rc;
-        Stretch(Label(bar, car.Blueprints + " / " + car.blueprintsToUnlock + " blueprints", 30, TextAnchor.MiddleCenter, Color.white).rectTransform);
+        if (ratio > 0f)
+        {
+            var fill = Node("Fill", bar);
+            fill.anchorMin = Vector2.zero;
+            fill.anchorMax = new Vector2(Mathf.Clamp01(ratio), 1f);
+            fill.offsetMin = fill.offsetMax = Vector2.zero;
+            Rounded(fill, unlocked ? Green : rc, 30f);
+        }
+        var barText = FitLabel(bar, car.Blueprints + " / " + car.blueprintsToUnlock, 32, 18, TextAnchor.MiddleCenter, Color.white, 2f);
+        Stretch(barText.rectTransform);
 
         if (unlocked)
         {
-            var b = MakeButton(card, isEquipped ? "Équipée" : "Équiper", () => PlayerData.EquippedCarId = car.id,
-                           isEquipped ? new Color(0.2f, 0.2f, 0.2f, 0.8f) : accent);
+            var b = CandyButton(card, isEquipped ? "ÉQUIPÉE" : "ÉQUIPER", isEquipped ? Yellow : Green, () => Equip(car), 42, 120f, 32f);
             b.GetComponent<LayoutElement>().ignoreLayout = true;
-            Area(b.GetComponent<RectTransform>(), 0.06f, 0.05f, 0.94f, 0.29f);
-            b.GetComponentInChildren<Text>().fontSize = 40;
+            Area((RectTransform)b.transform, 0.06f, 0.05f, 0.94f, 0.31f);
             b.interactable = !isEquipped;
+            if (isEquipped)
+            {
+                // Bouton désactivé mais en couleur : c'est la voiture choisie
+                var colors = b.colors;
+                colors.disabledColor = Color.white;
+                b.colors = colors;
+            }
         }
         else
         {
             int m = car.Missing;
             string missing = "Manque " + m + (m > 1 ? " blueprints" : " blueprint");
-            Area(Label(card, missing, 36, TextAnchor.MiddleCenter, accent).rectTransform, 0.04f, 0.05f, 0.96f, 0.3f);
+            var t = FitLabel(card, missing, 36, 20, TextAnchor.MiddleCenter, Orange, 3f);
+            Area(t.rectTransform, 0.04f, 0.06f, 0.96f, 0.3f);
         }
+    }
+
+    void Equip(CarCatalog.Car car)
+    {
+        PlayerData.EquippedCarId = car.id;
+        // La voiture de la démo en fond prend tout de suite la nouvelle couleur (si elle a un GarageCarApplier)
+        foreach (var applier in FindObjectsByType<GarageCarApplier>(FindObjectsSortMode.None))
+            applier.Apply();
     }
 
     // ---------- Ouverture d'un booster ----------
 
-    void BuildOverlay(RectTransform canvas)
+    void BuildOverlay(RectTransform parent)
     {
-        var panel = Panel("BoosterOpening", canvas, 0.9f);
-        panel.GetComponent<Image>().raycastTarget = true; // bloque les clics vers le menu derrière
+        var panel = Node("BoosterOpening", parent);
+        Stretch(panel);
+        Fill(panel, WithAlpha(Navy, 0.94f)).raycastTarget = true; // bloque les clics vers le menu derrière
         overlay = panel.gameObject;
 
-        overlayTitle = Label(panel, "", 80, TextAnchor.MiddleCenter, accent);
-        Place(overlayTitle.rectTransform, 0.84f, 130f);
+        overlayTitle = Label(panel, "", 84, TextAnchor.MiddleCenter, Yellow, 5f);
+        Place(overlayTitle.rectTransform, 0.84f, 140f);
 
-        overlayCards = NewRect("Cartes", panel);
+        overlayCards = Node("Cartes", panel);
         overlayCards.anchorMin = overlayCards.anchorMax = new Vector2(0.5f, 0.5f);
-        overlayCards.sizeDelta = new Vector2(900f, 830f);
+        overlayCards.sizeDelta = new Vector2(920f, 860f);
         var grid = overlayCards.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(280f, 400f);
-        grid.spacing = new Vector2(24f, 24f);
+        grid.cellSize = new Vector2(280f, 410f);
+        grid.spacing = new Vector2(28f, 32f);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 3;
         grid.childAlignment = TextAnchor.MiddleCenter;
 
-        var row = Row(panel, 0.12f);
-        againButton = MakeButton(row, "", () => { if (lastBooster != null) Open(lastBooster); }, accent);
-        againLabel = againButton.GetComponentInChildren<Text>();
-        MakeButton(row, "OK", CloseOrSkip, buttonColor);
+        var row = Node("Boutons", panel);
+        row.anchorMin = new Vector2(0.06f, 0.12f);
+        row.anchorMax = new Vector2(0.94f, 0.12f);
+        row.sizeDelta = new Vector2(0f, 160f);
+        var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+        layout.spacing = 36f;
+        layout.childControlWidth = layout.childControlHeight = true;
+        layout.childForceExpandWidth = layout.childForceExpandHeight = true;
+
+        againButton = CandyButton(row, "", Purple, () => { if (lastBooster != null) Open(lastBooster); }, 50, 160f);
+        againLabel = ButtonText(againButton);
+        CandyButton(row, "OK", Green, CloseOrSkip, 56, 160f);
 
         overlay.SetActive(false);
     }
@@ -310,7 +356,7 @@ public class BoosterShop : MonoBehaviour
         overlay.transform.SetAsLastSibling();
         overlay.SetActive(true);
         overlayTitle.text = booster.displayName;
-        overlayTitle.color = booster.color;
+        overlayTitle.color = Color.Lerp(booster.color, Color.white, 0.2f);
 
         foreach (Transform child in overlayCards)
         {
@@ -331,14 +377,22 @@ public class BoosterShop : MonoBehaviour
         foreach (var c in revealCards)
         {
             yield return new WaitForSecondsRealtime(revealDelay);
-            // Petit "pop" : 0 -> 1.15 -> 1
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.25f)
+            // Petit "pop" avec un tour : 0 -> 1.15 -> 1
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.3f)
             {
                 float s = t < 0.6f ? Mathf.Lerp(0f, 1.15f, t / 0.6f) : Mathf.Lerp(1.15f, 1f, (t - 0.6f) / 0.4f);
-                if (c != null) c.localScale = Vector3.one * s;
+                if (c != null)
+                {
+                    c.localScale = Vector3.one * s;
+                    c.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-12f, 0f, t));
+                }
                 yield return null;
             }
-            if (c != null) c.localScale = Vector3.one;
+            if (c != null)
+            {
+                c.localScale = Vector3.one;
+                c.localRotation = Quaternion.identity;
+            }
         }
         reveal = null;
         RefreshAgainButton();
@@ -351,11 +405,24 @@ public class BoosterShop : MonoBehaviour
         {
             StopCoroutine(reveal);
             reveal = null;
-            foreach (var c in revealCards) if (c != null) c.localScale = Vector3.one;
+            foreach (var c in revealCards)
+                if (c != null)
+                {
+                    c.localScale = Vector3.one;
+                    c.localRotation = Quaternion.identity;
+                }
             RefreshAgainButton();
             return;
         }
         overlay.SetActive(false);
+    }
+
+    /// <summary>Ferme l'écran d'ouverture (bouton retour du téléphone).</summary>
+    public void CloseOverlay()
+    {
+        if (!OverlayOpen) return;
+        CloseOrSkip();
+        if (reveal == null) overlay.SetActive(false);
     }
 
     void RefreshAgainButton()
@@ -373,136 +440,34 @@ public class BoosterShop : MonoBehaviour
         var car = pull.car;
         Color rc = RarityInfo.Color(pull.rarity);
 
-        var card = NewRect(car.id, parent);
-        card.gameObject.AddComponent<Image>().color = new Color(rc.r * 0.3f, rc.g * 0.3f, rc.b * 0.3f, 0.97f);
-        var outline = card.gameObject.AddComponent<Outline>();
+        var card = Card(car.id, parent, Color.Lerp(Navy, rc, 0.5f), 36f, 10f);
+        var outline = card.Find("Fond").gameObject.AddComponent<Outline>();
         outline.effectColor = rc;
-        outline.effectDistance = new Vector2(5f, -5f);
+        outline.effectDistance = new Vector2(6f, -6f);
 
-        Area(Label(card, RarityInfo.Name(pull.rarity).ToUpper(), 30, TextAnchor.MiddleCenter, rc).rectTransform, 0.04f, 0.84f, 0.96f, 0.96f);
-        var nameText = Label(card, car.displayName, 40, TextAnchor.MiddleCenter, Color.white);
-        nameText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        Area(nameText.rectTransform, 0.04f, 0.6f, 0.96f, 0.84f);
+        var tag = Node("Rareté", card);
+        Area(tag, 0.08f, 0.85f, 0.92f, 0.96f);
+        Rounded(tag, rc, 22f);
+        Stretch(FitLabel(tag, RarityInfo.Name(pull.rarity).ToUpper(), 30, 16, TextAnchor.MiddleCenter, Color.white, 2f).rectTransform);
 
-        var swatch = NewRect("Couleur", card);
-        Area(swatch, 0.25f, 0.36f, 0.75f, 0.58f);
-        swatch.gameObject.AddComponent<Image>().color = car.color;
+        var nameText = FitLabel(card, car.displayName, 40, 22, TextAnchor.MiddleCenter, Color.white, 3f);
+        Area(nameText.rectTransform, 0.05f, 0.62f, 0.95f, 0.83f);
+
+        var swatch = Node("Couleur", card);
+        swatch.anchorMin = swatch.anchorMax = new Vector2(0.5f, 0.47f);
+        swatch.sizeDelta = new Vector2(120f, 120f);
+        Fill(swatch, Color.white).sprite = Round;
+        var inner = Node("Teinte", swatch);
+        Area(inner, 0.1f, 0.1f, 0.9f, 0.9f);
+        Fill(inner, car.color).sprite = Round;
 
         string status;
         Color statusColor = Color.white;
-        if (pull.unlockedNow) { status = "DÉBLOQUÉE !"; statusColor = accent; }
+        if (pull.unlockedNow) { status = "DÉBLOQUÉE !"; statusColor = Yellow; }
         else if (pull.duplicateCoins > 0) status = "Doublon\n+" + pull.duplicateCoins + " pièces";
         else status = "+1 blueprint\n" + pull.blueprints + " / " + car.blueprintsToUnlock;
-        var st = Label(card, status, 34, TextAnchor.MiddleCenter, statusColor);
-        st.horizontalOverflow = HorizontalWrapMode.Wrap;
-        Area(st.rectTransform, 0.04f, 0.04f, 0.96f, 0.34f);
+        var st = FitLabel(card, status, 34, 18, TextAnchor.MiddleCenter, statusColor, 3f);
+        Area(st.rectTransform, 0.05f, 0.04f, 0.95f, 0.3f);
         return card;
-    }
-
-    // ---------- Petits outils d'UI (même style que MainMenu) ----------
-
-    static RectTransform NewRect(string name, Transform parent)
-    {
-        var rt = new GameObject(name, typeof(RectTransform)).GetComponent<RectTransform>();
-        rt.SetParent(parent, false);
-        return rt;
-    }
-
-    static void Stretch(RectTransform rt) => Area(rt, 0f, 0f, 1f, 1f);
-
-    static void Area(RectTransform rt, float xMin, float yMin, float xMax, float yMax)
-    {
-        rt.anchorMin = new Vector2(xMin, yMin);
-        rt.anchorMax = new Vector2(xMax, yMax);
-        rt.offsetMin = rt.offsetMax = Vector2.zero;
-    }
-
-    // Bande horizontale pleine largeur centrée à la hauteur "y" (0 = bas, 1 = haut de l'écran)
-    static void Place(RectTransform rt, float y, float height)
-    {
-        rt.anchorMin = new Vector2(0f, y);
-        rt.anchorMax = new Vector2(1f, y);
-        rt.sizeDelta = new Vector2(0f, height);
-        rt.anchoredPosition = Vector2.zero;
-    }
-
-    static RectTransform Panel(string name, Transform parent, float dim)
-    {
-        var rt = NewRect(name, parent);
-        Stretch(rt);
-        var img = rt.gameObject.AddComponent<Image>();
-        img.color = new Color(0f, 0f, 0f, dim);
-        img.raycastTarget = false;
-        return rt;
-    }
-
-    // Zone qui défile verticalement entre yMin et yMax ; renvoie le contenu (à remplir)
-    static RectTransform Scroll(Transform parent, float yMin, float yMax)
-    {
-        var view = NewRect("Scroll", parent);
-        Area(view, 0.04f, yMin, 0.96f, yMax);
-        view.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0f); // capte le glissé du doigt
-        view.gameObject.AddComponent<RectMask2D>();
-
-        var content = NewRect("Content", view);
-        content.anchorMin = new Vector2(0f, 1f);
-        content.anchorMax = new Vector2(1f, 1f);
-        content.pivot = new Vector2(0.5f, 1f);
-        content.sizeDelta = Vector2.zero;
-        content.anchoredPosition = Vector2.zero;
-
-        var scroll = view.gameObject.AddComponent<ScrollRect>();
-        scroll.content = content;
-        scroll.viewport = view;
-        scroll.horizontal = false;
-        scroll.movementType = ScrollRect.MovementType.Elastic;
-        scroll.scrollSensitivity = 40f;
-        return content;
-    }
-
-    static RectTransform Row(Transform parent, float y)
-    {
-        var rt = NewRect("Boutons", parent);
-        rt.anchorMin = new Vector2(0.04f, y);
-        rt.anchorMax = new Vector2(0.96f, y);
-        rt.sizeDelta = new Vector2(0f, 140f);
-        var layout = rt.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 30f;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlWidth = layout.childControlHeight = true;
-        layout.childForceExpandWidth = layout.childForceExpandHeight = true;
-        return rt;
-    }
-
-    Text Label(Transform parent, string content, int size, TextAnchor anchor, Color color)
-    {
-        var rt = NewRect("Text", parent);
-        var t = rt.gameObject.AddComponent<Text>();
-        t.font = font;
-        t.text = content;
-        t.fontSize = size;
-        t.fontStyle = FontStyle.Bold;
-        t.alignment = anchor;
-        t.color = color;
-        t.horizontalOverflow = HorizontalWrapMode.Overflow;
-        t.verticalOverflow = VerticalWrapMode.Overflow;
-        t.raycastTarget = false;
-        var shadow = rt.gameObject.AddComponent<Shadow>();
-        shadow.effectColor = new Color(0f, 0f, 0f, 0.7f);
-        shadow.effectDistance = new Vector2(3f, -3f);
-        return t;
-    }
-
-    Button MakeButton(Transform parent, string label, UnityAction onClick, Color color)
-    {
-        var rt = NewRect(label, parent);
-        var img = rt.gameObject.AddComponent<Image>();
-        img.color = color;
-        var button = rt.gameObject.AddComponent<Button>();
-        button.targetGraphic = img;
-        button.onClick.AddListener(onClick);
-        rt.gameObject.AddComponent<LayoutElement>().preferredHeight = 140f;
-        Stretch(Label(rt, label, 52, TextAnchor.MiddleCenter, Color.white).rectTransform);
-        return button;
     }
 }
