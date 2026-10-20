@@ -317,6 +317,40 @@ Shader "Coiriergraphics/WorldGrid"
             half4 DepthFrag(DepthVaryings input) : SV_Target { return 0; }
             ENDHLSL
         }
+
+        // Normales pour le contour plein écran (Racer/OutlineFullscreen) : sans cette passe l'objet en serait absent
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormals" }
+            ZWrite On
+            Cull Back
+            HLSLPROGRAM
+            #pragma vertex NormalsVert
+            #pragma fragment NormalsFrag
+            #pragma multi_compile_instancing
+            struct NormalsAttributes
+            {
+                float3 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+            struct NormalsVaryings
+            {
+                float4 positionCS : SV_POSITION;
+                half3 normalWS : TEXCOORD0;
+            };
+            NormalsVaryings NormalsVert(NormalsAttributes input)
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+                NormalsVaryings output;
+                output.positionCS = TransformObjectToHClip(input.positionOS);
+                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                return output;
+            }
+            half4 NormalsFrag(NormalsVaryings input) : SV_Target { return half4(normalize(input.normalWS), 0.0); }
+            ENDHLSL
+        }
     }
     FallBack Off
 }
