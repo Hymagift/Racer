@@ -30,19 +30,19 @@ public class DriftCar : MonoBehaviour
     public ParticleSystem[] tireSmoke;
 
     [Header("Vitesse")]
-    public float startSpeed = 12f;            // m/s au début (~43 km/h)
-    public float maxSpeed = 22f;              // m/s à la fin (~80 km/h)
+    public float startSpeed = 8f;            // m/s au début (~29 km/h)
+    public float maxSpeed = 16f;              // m/s à la fin (~58 km/h)
     [Tooltip("Distance pour passer de startSpeed à maxSpeed")]
-    public float speedRampDistance = 3000f;
+    public float speedRampDistance = 4000f;
     [Tooltip("Accélération max du moteur (m/s²)")]
-    public float engineAccel = 7f;
+    public float engineAccel = 5f;
     [Range(0f, 1f)]
     [Tooltip("Puissance moteur en plus pendant un drift (garde de la vitesse en glisse)")]
-    public float driftBoost = 0.5f;
+    public float driftBoost = 0.3f;
 
     [Header("Châssis")]
     public float mass = 1200f;
-    public float yawInertia = 1600f;
+    public float yawInertia = 2200f;
     [Tooltip("Distance centre de gravité -> essieu avant")]
     public float frontAxle = 1.2f;
     [Tooltip("Distance centre de gravité -> essieu arrière")]
@@ -50,42 +50,42 @@ public class DriftCar : MonoBehaviour
 
     [Header("Pneus")]
     [Tooltip("Raideur latérale (N/rad) : plus haut = réponse plus vive")]
-    public float frontStiffness = 60000f;
-    public float rearStiffness = 60000f;
+    public float frontStiffness = 42000f;
+    public float rearStiffness = 48000f;
     [Tooltip("Adhérence avant (coefficient de friction)")]
-    public float frontGrip = 1.3f;
+    public float frontGrip = 1.15f;
     [Tooltip("Adhérence arrière normale")]
-    public float rearGrip = 1.2f;
+    public float rearGrip = 1.3f;
     [Tooltip("Adhérence arrière en drift. Plus bas = l'arrière glisse plus.")]
-    public float rearDriftGrip = 0.45f;
+    public float rearDriftGrip = 0.55f;
 
     [Header("Direction")]
     [Tooltip("Angle de braquage max à basse vitesse (degrés)")]
-    public float maxSteerLow = 30f;
+    public float maxSteerLow = 26f;
     [Tooltip("Angle de braquage max à haute vitesse (degrés)")]
-    public float maxSteerHigh = 16f;
+    public float maxSteerHigh = 14f;
     [Tooltip("Vitesse à laquelle le volant tourne quand on appuie (par seconde)")]
-    public float steerSpeed = 5f;
+    public float steerSpeed = 3f;
     [Tooltip("Vitesse à laquelle le volant revient au centre quand on relâche (par seconde)")]
-    public float steerReturnSpeed = 4f;
+    public float steerReturnSpeed = 3f;
 
     [Header("Aides au pilotage")]
     [Range(0f, 1.5f)]
     [Tooltip("Contre-braquage automatique en drift (0 = aucun, 1 = les roues suivent la glisse)")]
-    public float countersteerAssist = 0.9f;
+    public float countersteerAssist = 1f;
     [Tooltip("Angle de drift max (degrés). Au-delà, la rotation est freinée en douceur.")]
-    public float maxDriftAngle = 50f;
-    public float angleLimitStrength = 6f;
+    public float maxDriftAngle = 40f;
+    public float angleLimitStrength = 8f;
     [Tooltip("Vitesse à partir de laquelle braquer fort déclenche le drift")]
-    public float minDriftSpeed = 8f;
+    public float minDriftSpeed = 7f;
     [Tooltip("Vitesse à laquelle l'arrière décroche quand on braque")]
-    public float driftEngageRate = 3f;
+    public float driftEngageRate = 2.2f;
     [Tooltip("Vitesse à laquelle l'arrière se raccroche quand on relâche")]
-    public float driftReleaseRate = 1.5f;
+    public float driftReleaseRate = 2.2f;
     [Tooltip("Stabilise la rotation quand on ne touche pas l'écran")]
-    public float yawDampingNoInput = 2.5f;
+    public float yawDampingNoInput = 4f;
     [Tooltip("Rotation max (degrés/s)")]
-    public float maxYawRate = 180f;
+    public float maxYawRate = 120f;
 
     [Header("Simulation")]
     [Range(1, 8)]
@@ -143,6 +143,7 @@ public class DriftCar : MonoBehaviour
     float lastWallHitTime = -10f;
 
     Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modèle (ex : -90° des modèles Blender)
+    Vector3 bodyBaseLocalPos;                            // position d'origine du modèle (compense un pivot mal placé)
     Quaternion bodyTilt = Quaternion.identity;
     float smoothedLatAccel;
     readonly RaycastHit[] groundHits = new RaycastHit[8];
@@ -171,7 +172,11 @@ public class DriftCar : MonoBehaviour
             Debug.LogWarning("[DriftCar] 'Body' doit être un ENFANT (le modèle 3D), pas la voiture elle-même. Champ ignoré.", this);
             body = null;
         }
-        if (body != null) bodyBaseLocalRot = body.localRotation;
+        if (body != null)
+        {
+            bodyBaseLocalRot = body.localRotation;
+            bodyBaseLocalPos = body.localPosition;
+        }
     }
 
     void Start()
@@ -437,7 +442,7 @@ public class DriftCar : MonoBehaviour
             float side = c.point.x - cx;
 
             // Contact loin du bord de la route = jonction interne ou autre : on l'ignore
-            if (Mathf.Abs(side) < road.roadWidth * 0.5f - 1f) continue;
+            if (Mathf.Abs(side) < road.HalfWidthXAt(tz) - 1f) continue;
 
             // Direction de la route à cet endroit, puis normale qui pointe vers le centre de la route
             float dx = (road.CenterXAt(tz + 1f) - road.CenterXAt(tz - 1f)) * 0.5f;
@@ -506,6 +511,10 @@ public class DriftCar : MonoBehaviour
             Transform parent = body.parent != null ? body.parent : transform;
             Quaternion localTilt = Quaternion.Inverse(parent.rotation) * bodyTilt * parent.rotation;
             body.localRotation = localTilt * bodyBaseLocalRot;
+
+            // Le modèle pivote autour du centre de la voiture (son parent), pas autour de son propre pivot :
+            // si le pivot du mesh est loin de la carrosserie (origine Blender mal placée), le mesh reste sur la route.
+            body.localPosition = localTilt * bodyBaseLocalPos;
         }
 
         if (tireSmoke != null)
@@ -538,4 +547,4 @@ public class DriftCar : MonoBehaviour
     }
 
     void LateUpdate() => wallContacts = 0;
-}
+}
