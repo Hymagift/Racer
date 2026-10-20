@@ -109,7 +109,9 @@ public class ConeSpawner : MonoBehaviour
 
     void SpawnGroup(float z)
     {
-        float halfUsable = Mathf.Max(0f, road.roadWidth * 0.5f - edgeMargin);
+        // Demi-largeur mesurée en X (plus grande dans les diagonales), marge comprise
+        float halfX = road.HalfWidthXAt(z);
+        float halfUsable = Mathf.Max(0f, halfX - edgeMargin * halfX / (road.roadWidth * 0.5f));
         int count = rng.Next(1, Mathf.Max(1, maxConesPerGroup) + 1);
 
         float centerX = road.CenterXAt(z);
