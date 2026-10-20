@@ -45,6 +45,8 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public float minCornerRadius = 8f;
     [Tooltip("Au-delà de cet écart latéral (m), les virages ramènent la route vers le centre")]
     public float recenterDistance = 40f;
+    [Tooltip("Une courte ligne droite de répit toutes les N figures environ (0 = jamais). Plus grand = plus dur")]
+    public int figuresBetweenBreaks = 8;
 
     [Header("Touge")]
     [Tooltip("-1 = falaise à gauche (montagne à droite), 1 = falaise à droite, 0 = montagne des deux côtés")]
@@ -273,6 +275,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 cornerGrip = cornerGrip,
                 minRadius = minCornerRadius,
                 recenterDistance = recenterDistance,
+                figuresBetweenBreaks = figuresBetweenBreaks,
                 speedAt = car == null ? null : (Func<double, float>)(z =>
                     Mathf.Lerp(car.startSpeed, car.maxSpeed, (float)(z / Math.Max(1f, car.speedRampDistance)))),
             };

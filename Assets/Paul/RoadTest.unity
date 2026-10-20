@@ -742,6 +742,10 @@ PrefabInstance:
       propertyPath: road
       value: 
       objectReference: {fileID: 2028527755}
+    - target: {fileID: 957184219413428352, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
+      propertyPath: rearGrip
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 1669350826270330535, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

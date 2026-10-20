@@ -23,6 +23,8 @@ public class MainMenu : MonoBehaviour
     [Header("Panneaux (vides = UI créée automatiquement)")]
     public GameObject mainPanel;
     public GameObject shopPanel;
+    [Tooltip("Garage : inventaire des voitures et des blueprints")]
+    public GameObject garagePanel;
     public GameObject optionsPanel;
 
     [Header("Scène de jeu")]
@@ -102,6 +104,7 @@ public class MainMenu : MonoBehaviour
 
     public void ShowMain() => ShowOnly(mainPanel);
     public void OpenShop() => ShowOnly(shopPanel);
+    public void OpenGarage() => ShowOnly(garagePanel);
     public void OpenOptions() => ShowOnly(optionsPanel);
 
     public void Quit()
@@ -117,6 +120,7 @@ public class MainMenu : MonoBehaviour
     {
         if (mainPanel != null) mainPanel.SetActive(mainPanel == panel);
         if (shopPanel != null) shopPanel.SetActive(shopPanel == panel);
+        if (garagePanel != null) garagePanel.SetActive(garagePanel == panel);
         if (optionsPanel != null) optionsPanel.SetActive(optionsPanel == panel);
     }
 
@@ -178,18 +182,16 @@ public class MainMenu : MonoBehaviour
         var mainButtons = CreateColumn(main, 0.32f);
         CreateButton(mainButtons, "Jouer", Play).GetComponent<Image>().color = accentColor;
         CreateButton(mainButtons, "Shop", OpenShop);
+        CreateButton(mainButtons, "Garage", OpenGarage);
         CreateButton(mainButtons, "Options", OpenOptions);
         CreateButton(mainButtons, "Quitter", Quit);
 
-        // Shop : le vrai shop (ShopManager + ShopCatalog) se branche à la place de ce panneau
-        var shop = CreatePanel("ShopPanel", canvasRt, 0.6f);
-        shopPanel = shop.gameObject;
-        Place(CreateText(shop, "Shop", 100, TextAnchor.MiddleCenter).rectTransform, 0.78f, 160f);
-        var shopCoins = CreateText(shop, "", 54, TextAnchor.MiddleCenter);
-        Place(shopCoins.rectTransform, 0.68f, 80f);
-        autoCoinsTexts.Add(shopCoins);
-        Place(CreateText(shop, "Bientôt disponible", 48, TextAnchor.MiddleCenter).rectTransform, 0.55f, 80f);
-        CreateButton(CreateColumn(shop, 0.25f), "Retour", ShowMain);
+        // Shop de boosters + Garage (inventaire des blueprints) : voir BoosterShop et CarCatalog
+        var boosterShop = GetComponent<BoosterShop>();
+        if (boosterShop == null) boosterShop = gameObject.AddComponent<BoosterShop>();
+        boosterShop.Build(canvasRt, font, buttonColor, accentColor, ShowMain, OpenShop, OpenGarage);
+        shopPanel = boosterShop.ShopPanel;
+        garagePanel = boosterShop.InventoryPanel;
 
         // Options : volume + réinitialiser
         var options = CreatePanel("OptionsPanel", canvasRt, 0.6f);
