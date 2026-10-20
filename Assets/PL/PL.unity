@@ -232,8 +232,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 567790128}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.41693074, y: 0.000000008281657, z: -0.000000003798803, w: 0.9089383}
-  m_LocalPosition: {x: 0, y: 8.47, z: -7.29}
+  m_LocalRotation: {x: 0.37881565, y: 6.5186923e-15, z: -2.6269242e-15, w: 0.9254722}
+  m_LocalPosition: {x: 0, y: 11.07, z: -9.04}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -261,7 +261,7 @@ MonoBehaviour:
       Size: {x: 0.8, y: 0.8}
       Offset: {x: 0, y: 0}
   CenterOnActivate: 1
-  TargetOffset: {x: 0, y: 0, z: 0}
+  TargetOffset: {x: 0, y: 2.18, z: 0}
   Damping: {x: 0.5, y: 0.5}
   Lookahead:
     Enabled: 0
@@ -286,7 +286,7 @@ MonoBehaviour:
     AngularDampingMode: 0
     RotationDamping: {x: 1, y: 1, z: 1}
     QuaternionDamping: 1
-  FollowOffset: {x: 0, y: 8.47, z: -7.29}
+  FollowOffset: {x: 0, y: 11.07, z: -9.04}
 --- !u!114 &567790132
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -311,7 +311,7 @@ MonoBehaviour:
     LookAtTarget: {fileID: 0}
     CustomLookAtTarget: 0
   Lens:
-    FieldOfView: 60
+    FieldOfView: 80
     OrthographicSize: 5
     NearClipPlane: 0.3
     FarClipPlane: 1000
@@ -666,7 +666,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
+  field of view: 80
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
@@ -692,8 +692,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1556911647}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.41693074, y: 0.000000008281657, z: -0.000000003798803, w: 0.9089383}
-  m_LocalPosition: {x: 0, y: 9.033, z: -7.29}
+  m_LocalRotation: {x: 0.37881568, y: 6.539008e-15, z: -2.6765568e-15, w: 0.92547214}
+  m_LocalPosition: {x: 0, y: 11.632999, z: -9.04}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -755,6 +755,10 @@ PrefabInstance:
       propertyPath: road
       value: 
       objectReference: {fileID: 2028527755}
+    - target: {fileID: 2103015982619995114, guid: 179e377b83650ff4e8e6ed32c5941404, type: 3}
+      propertyPath: startSpeed
+      value: 15
+      objectReference: {fileID: 0}
     - target: {fileID: 4275946500730262091, guid: 179e377b83650ff4e8e6ed32c5941404, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -990,6 +994,7 @@ MonoBehaviour:
   cornerGrip: 8
   minCornerRadius: 8
   recenterDistance: 40
+  figuresBetweenBreaks: 8
   cliffSide: -1
   segmentLength: 2
   segmentsPerChunk: 15
@@ -1082,7 +1087,7 @@ MonoBehaviour:
   - _end
   wheelRadius: 0
   steerMultiplier: 1
-  maxVisualSteer: 35
+  maxVisualSteer: 55
   steerSmoothing: 15
   invertSteer: 1
 --- !u!1001 &3161198494467592926
