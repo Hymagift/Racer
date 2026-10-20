@@ -45,7 +45,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   road: {fileID: 0}
-  terrainMaterial: {fileID: 2100000, guid: 42f2a4b4d6dd8a9489aba11ae1b22f8d, type: 2}
+  terrainMaterial: {fileID: 2100000, guid: 2bf9efd24b0a4f71b0d7702d7f8afbfa, type: 2}
   nearOffsets:
   - 0
   - 2.5

@@ -3,8 +3,9 @@
 //
 // Principe : on compare la profondeur et les normales des pixels voisins (croix de Roberts).
 // Une forte différence = une arête -> on dessine le contour.
-// La route est exclue : son shader (Racer/RoadLines) écrit alpha = 1 dans la texture des normales,
-// les pixels de route ne reçoivent donc jamais de contour (mais la voiture posée dessus, si).
+// Exclusions lues dans l'alpha de la texture des normales (voir RacerPasses.hlsl) :
+//   1   = route (Racer/RoadLines) : ses pixels ne reçoivent jamais de contour (mais la voiture posée dessus, si) ;
+//   0.5 = cône (Racer/TrafficCone) : pas de contour noir autour, il a son propre contour orange.
 Shader "Racer/OutlineFullscreen"
 {
     Properties
@@ -16,7 +17,7 @@ Shader "Racer/OutlineFullscreen"
         _NormalThreshold ("Seuil normales", Range(0.01, 1)) = 0.35
         _FadeStart ("Début fondu (m)", Float) = 60
         _FadeEnd ("Fin fondu (m)", Float) = 140
-        _Desaturate ("Noir et blanc (0 = couleurs d'origine)", Range(0, 1)) = 1
+        _Desaturate ("Noir et blanc forcé (0 = laisser les materials faire la DA)", Range(0, 1)) = 0
         _Contrast ("Contraste", Range(0.5, 2)) = 1.1
     }
 
@@ -65,7 +66,7 @@ Shader "Racer/OutlineFullscreen"
                 color.rgb = lerp(color.rgb, bw.xxx, _Desaturate);
 
                 float4 n0raw = SampleNormalsRaw(uv);
-                if (n0raw.a > 0.5) return color; // pixel de route : pas de contour
+                if (n0raw.a > 0.75) return color; // pixel de route : pas de contour
 
                 float2 t = _CameraDepthTexture_TexelSize.xy * _Thickness;
                 float2 uv1 = uv + float2(-t.x,  t.y);
@@ -76,9 +77,14 @@ Shader "Racer/OutlineFullscreen"
                 float d0 = EyeDepth(uv);
                 float d1 = EyeDepth(uv1), d2 = EyeDepth(uv2), d3 = EyeDepth(uv3), d4 = EyeDepth(uv4);
 
+                float4 r1 = SampleNormalsRaw(uv1), r2 = SampleNormalsRaw(uv2);
+                float4 r3 = SampleNormalsRaw(uv3), r4 = SampleNormalsRaw(uv4);
+                // Cône sur ce pixel ou juste à côté : on laisse son contour orange tranquille
+                float4 coneMask = abs(float4(r1.a, r2.a, r3.a, r4.a) - 0.5);
+                if (abs(n0raw.a - 0.5) < 0.25 || any(coneMask < 0.25)) return color;
+
                 float3 n0 = n0raw.xyz;
-                float3 n1 = SampleNormalsRaw(uv1).xyz, n2 = SampleNormalsRaw(uv2).xyz;
-                float3 n3 = SampleNormalsRaw(uv3).xyz, n4 = SampleNormalsRaw(uv4).xyz;
+                float3 n1 = r1.xyz, n2 = r2.xyz, n3 = r3.xyz, n4 = r4.xyz;
 
                 // Sur un sol vu de biais la profondeur varie vite : on tolère plus de différence (évite les fausses lignes)
                 float3 posWS = ComputeWorldSpacePosition(uv, SampleSceneDepth(uv), UNITY_MATRIX_I_VP);

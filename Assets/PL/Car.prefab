@@ -184,6 +184,8 @@ GameObject:
   - component: {fileID: 7575885088910961289}
   - component: {fileID: 7950052872516396795}
   - component: {fileID: 2103015982619995114}
+  - component: {fileID: 3904417262016011001}
+  - component: {fileID: 3904417262016011002}
   m_Layer: 0
   m_Name: Car
   m_TagString: Untagged
@@ -400,3 +402,37 @@ MonoBehaviour:
       BarrelClipping: 0.25
       Anamorphism: 0
   BlendHint: 0
+--- !u!114 &3904417262016011001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1983388146718347200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b6864ad1094411cb06447d293ec92f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  material: {fileID: 2100000, guid: 4be4e1107fe100e4594b6611567274d4, type: 2}
+--- !u!114 &3904417262016011002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1983388146718347200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 783d5458ac92453fb51ed3d45db21193, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shadowMaterial: {fileID: 2100000, guid: 87c15666bf4f49d0b41fdd898be42ef3, type: 2}
+  size: {x: 2.4, y: 4.6}
+  offset: {x: 0, y: 0}
+  groundOffset: 0.03
+  fadeHeight: 3
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  disableCarShadows: 1

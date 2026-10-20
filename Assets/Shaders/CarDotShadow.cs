@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 /// Mise en place : ajoute ce script sur la voiture et assigne le material "DotShadow".
 /// Un Quad est créé tout seul. À chaque image il est posé sur le sol sous la voiture (raycast),
 /// orienté comme la voiture et incliné comme la route, et il s'efface quand la voiture décolle.
-/// Pense à couper l'ombre classique de la voiture (Cast Shadows = Off sur ses MeshRenderer) si tu ne veux que les points.
+/// L'ombre classique de la voiture est coupée (option "Disable Car Shadows") pour ne garder que les points.
 /// </summary>
 public class CarDotShadow : MonoBehaviour
 {
@@ -23,6 +23,8 @@ public class CarDotShadow : MonoBehaviour
     public float fadeHeight = 3f;
     [Tooltip("Couches considérées comme le sol")]
     public LayerMask groundMask = ~0;
+    [Tooltip("Coupe l'ombre portée classique des modèles de la voiture")]
+    public bool disableCarShadows = true;
 
     static readonly int OpacityId = Shader.PropertyToID("_Opacity");
 
@@ -40,6 +42,10 @@ public class CarDotShadow : MonoBehaviour
             enabled = false;
             return;
         }
+
+        if (disableCarShadows)
+            foreach (Renderer r in GetComponentsInChildren<Renderer>())
+                r.shadowCastingMode = ShadowCastingMode.Off;
 
         GameObject go = GameObject.CreatePrimitive(PrimitiveType.Quad);
         go.name = "DotShadow";

@@ -2,24 +2,24 @@
 
 | Fichier | Rôle |
 |---|---|
-| `OutlineFullscreen.shader` + `Outline.mat` | Contours sur les arêtes de tous les modèles 3D, sauf la route. Passe aussi l'image en noir et blanc (`_Desaturate`). |
-| `RoadLines.shader` + `RoadLines.mat` | Asphalte sombre + bandes blanches émissives (bords pleins, centre en pointillés), calées sur les UV du générateur. |
+| `OutlineFullscreen.shader` + `Outline.mat` | Contours noirs sur les arêtes de tous les modèles 3D, sauf la route et les cônes. Branché sur `Mobile_Renderer` et `PC_Renderer`. |
+| `ShadedBW.shader` | Noir et blanc à nuances franches (cel shading). `MatCar` (voiture), `EnvBW` (terrain), `RailBW` (glissières). |
+| `RoadLines.shader` + `RoadLines.mat` | Asphalte sombre + bandes blanches émissives calées sur les UV du générateur de route. |
+| `TrafficCone.shader` + `TrafficCone.mat` + `ConeLook.cs` | Cône de chantier : corps noir, contour orange, deux bandes orange fluo émissives. |
 | `DotShadow.shader` + `DotShadow.mat` + `CarDotShadow.cs` | Ombre de la voiture en points blancs. |
+| `ApplyMaterial.cs` | Met un material sur tous les modèles enfants au lancement (la voiture FBX n'a pas de material). |
+| `RacerPasses.hlsl` | Passes communes (ombres, normales pour le contour). |
 
-## À faire dans l'éditeur
+## Déjà branché
+- Renderer Feature *Full Screen Pass* (`Outline`, Before Rendering Post Processing, Depth + Normal) sur les deux Renderers.
+- Bloom activé dans `Settings/DefaultVolumeProfile` (Threshold 1, Intensity 1) et Post Processing sur la Main Camera de la scène `PL`.
+- Scène `PL` : fond uni gris très sombre + brouillard linéaire assorti (60 à 150 m, cache l'apparition des chunks).
+- `PL/Car.prefab` : `ApplyMaterial` (MatCar) + `CarDotShadow` (ombre en points, ombre classique coupée).
+- `PL/Cone.prefab` : le cube est remplacé par `cone.fbx` (enfant `Visual`, échelle 2.5, posé sur la route) + `ConeLook`.
+- Terrain, route et glissières : `EnvBW`, `RoadLines`, `RailBW` dans la scène `PL` et les prefabs de Paul.
 
-1. **Contours** : sur `Settings/Mobile_Renderer` **et** `Settings/PC_Renderer`, *Add Renderer Feature > Full Screen Pass Renderer Feature*.
-   - Pass Material : `Outline`
-   - Injection Point : `Before Rendering Post Processing`
-   - Requirements : `Depth` + `Normal` (cocher les deux)
-   - Fetch Color Buffer : coché
-2. **Lignes émissives qui brillent** : dans le Volume de la scène, ajouter *Bloom* (Threshold ~1, Intensity ~1) et cocher *Post Processing* sur la caméra. Le HDR est déjà activé dans les RP Assets.
-3. **Route** : `RoadLines.mat` est déjà assigné dans `Paul/RoadGenerator.prefab` et dans la scène `PL`. Si tu changes `roadWidth` ou `uvTileLength` du générateur, mets les mêmes valeurs dans `_RoadWidth` / `_UVTileLength` du material.
-   `Pointillés par longueur d'UV` doit rester un entier (sinon les pointillés sautent au rebase du TrackRoot).
-4. **Ombre en points** : ajouter `CarDotShadow` sur la voiture, y mettre `DotShadow.mat`, régler `Size` à l'empreinte de la voiture. Mettre *Cast Shadows = Off* sur les MeshRenderer de la voiture pour ne garder que les points.
-5. **Autres shaders maison** : un objet n'a de contour que si son shader a une passe `DepthNormals` (URP/Lit l'a déjà, elle a été ajoutée à `WorldGrid`).
-
-## À vérifier
-- Pas de fausses lignes sur le sol vu de biais : sinon monter `Tolérance sols rasants` ou `Seuil profondeur`.
-- Pas de contour sur la route, mais la voiture et les glissières sont bien détourées.
-- Les pointillés restent continus en roulant longtemps (plus de 500 m, rebase du TrackRoot).
+## Réglages utiles
+- Plus ou moins de nuances : `Nombre de nuances` sur les materials ShadedBW.
+- Fausses lignes sur le sol vu de biais : monter `Tolérance sols rasants` ou `Seuil profondeur` sur `Outline`.
+- Route : `_RoadWidth` / `_UVTileLength` doivent valoir `roadWidth` / `uvTileLength` du générateur. `Pointillés par longueur d'UV` doit rester un entier.
+- Cône : position/épaisseur des bandes en hauteur normalisée (0 = base, 1 = pointe), épaisseur du contour en mètres.

@@ -31,7 +31,7 @@ Material:
     - _NormalThreshold: 0.35
     - _FadeStart: 60
     - _FadeEnd: 140
-    - _Desaturate: 1
+    - _Desaturate: 0
     - _Contrast: 1.1
     m_Colors:
     - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}

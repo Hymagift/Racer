@@ -65,7 +65,7 @@ MonoBehaviour:
   wallThickness: 0.5
   frictionlessRoad: 1
   showWalls: 0
-  wallMaterial: {fileID: 0}
+  wallMaterial: {fileID: 2100000, guid: f8b2b62950874dcabe89abe4e91c2654, type: 2}
   rebaseDistance: 500
   debugLogs: 1
 --- !u!54 &2853139493792787121
