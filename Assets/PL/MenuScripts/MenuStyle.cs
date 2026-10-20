@@ -3,24 +3,31 @@ using UnityEngine.Events;
 using UnityEngine.UI;
 
 /// <summary>
-/// Style "jeu mobile" du menu : couleurs vives, coins arrondis, gros boutons en relief.
-/// Tout est généré par code (aucune image à importer) : les sprites arrondis et dégradés sont créés au lancement.
+/// Style du menu, DA "drift" rouge / blanc / bleu : textes gras en italique, boutons penchés bordés de blanc,
+/// bandes blanches façon piste, trame de points, volants en filigrane.
+/// Tout est généré par code (aucune image à importer) : les sprites (arrondis, dégradé, trame, volant, roue crantée)
+/// sont créés au lancement.
 /// Utilisé par MainMenu et BoosterShop.
 /// </summary>
 public static class MenuStyle
 {
     // ---------- Couleurs ----------
 
+    public static readonly Color Red = Hex(0xE0243C);      // couleur principale
+    public static readonly Color DarkRed = Hex(0xA3122A);
+    public static readonly Color Blue = Hex(0x1F6BFF);     // boutons d'action
+    public static readonly Color LightBlue = Hex(0x4FA8FF);
+    public static readonly Color Yellow = Hex(0xFFD23F);
     public static readonly Color Orange = Hex(0xFF8A1F);
-    public static readonly Color Green = Hex(0x3EDB5A);
-    public static readonly Color Purple = Hex(0xA34BFF);
-    public static readonly Color Blue = Hex(0x2E9BFF);
+    public static readonly Color Green = Hex(0x2FCB5A);
+    public static readonly Color Purple = Hex(0x8A4BFF);
     public static readonly Color Teal = Hex(0x1FC7A0);
     public static readonly Color Pink = Hex(0xFF4F9A);
-    public static readonly Color Red = Hex(0xFF4B4B);
-    public static readonly Color Yellow = Hex(0xFFD23F);
-    public static readonly Color Navy = Hex(0x1B1446);
-    public static readonly Color Ink = Hex(0x120B30); // contours des textes
+    public static readonly Color Navy = Hex(0x6E0B1E);     // fond des cartes (rouge très sombre)
+    public static readonly Color Ink = Hex(0x0A1A44);      // contours des textes (bleu nuit)
+
+    /// <summary>Inclinaison par défaut des boutons et bandeaux (degrés).</summary>
+    public const float SkewAngle = 10f;
 
     public static Color Hex(int rgb, float a = 1f)
     {
@@ -48,7 +55,7 @@ public static class MenuStyle
     const int RoundSize = 66;      // texture carrée (rayon 33 : un cercle en mode Simple)
     const float RoundBorder = 32f; // bord du 9-slice (le rayon des coins)
 
-    static Sprite round, gradient;
+    static Sprite round, gradient, halftone, wheel, gear;
 
     /// <summary>Cercle blanc anti-aliasé, utilisable en 9-slice (Sliced) pour faire des rectangles arrondis.</summary>
     public static Sprite Round
@@ -97,6 +104,125 @@ public static class MenuStyle
             gradient.name = "MenuGradient";
             return gradient;
         }
+    }
+
+    /// <summary>Trame de points blancs, petits en haut, gros en bas (à teinter avec la couleur de l'Image).</summary>
+    public static Sprite HalftoneSprite
+    {
+        get
+        {
+            if (halftone != null) return halftone;
+            const int w = 256, h = 256, step = 8;
+            var px = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int row = y / step;
+                    float ox = (row % 2 == 0) ? 0f : step * 0.5f; // rangées décalées
+                    float cx = Mathf.Floor((x - ox) / step) * step + ox + step * 0.5f;
+                    float cy = row * step + step * 0.5f;
+                    float t = 1f - cy / h;                        // 0 en haut, 1 en bas
+                    float r = Mathf.Lerp(0.3f, step * 0.62f, t * t);
+                    float d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                    px[y * w + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(r - d + 0.5f) * 255f));
+                }
+            halftone = MakeSprite("MenuHalftone", w, h, px);
+            return halftone;
+        }
+    }
+
+    /// <summary>Volant blanc (cercle, moyeu et trois branches), pour décorer le fond.</summary>
+    public static Sprite WheelSprite
+    {
+        get
+        {
+            if (wheel != null) return wheel;
+            const int n = 128;
+            var px = new Color32[n * n];
+            float c = (n - 1) * 0.5f, R = n * 0.5f;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x - c) / R, dy = (y - c) / R;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float a = Band(d, 0.74f, 0.97f) ;           // jante
+                    a = Mathf.Max(a, Band(d, -1f, 0.24f));       // moyeu
+                    if (d < 0.8f)                                 // branches à 90°, 210° et 330°
+                        for (int i = 0; i < 3; i++)
+                        {
+                            float ang = (90f + 120f * i) * Mathf.Deg2Rad;
+                            float along = dx * Mathf.Cos(ang) + dy * Mathf.Sin(ang);
+                            float across = Mathf.Abs(-dx * Mathf.Sin(ang) + dy * Mathf.Cos(ang));
+                            if (along > 0f) a = Mathf.Max(a, Mathf.Clamp01((0.11f - across) * R));
+                        }
+                    px[y * n + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            wheel = MakeSprite("MenuWheel", n, n, px);
+            return wheel;
+        }
+    }
+
+    /// <summary>Roue crantée blanche (icône des options).</summary>
+    public static Sprite GearSprite
+    {
+        get
+        {
+            if (gear != null) return gear;
+            const int n = 128;
+            var px = new Color32[n * n];
+            float c = (n - 1) * 0.5f, R = n * 0.5f;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x - c) / R, dy = (y - c) / R;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float ang = Mathf.Atan2(dy, dx);
+                    // 8 dents : le rayon extérieur passe de 0.72 à 0.96 sur chaque dent
+                    float tooth = Mathf.Clamp01((Mathf.Cos(ang * 8f) - 0.15f) * 3f);
+                    float outer = Mathf.Lerp(0.72f, 0.96f, tooth);
+                    px[y * n + x] = new Color32(255, 255, 255, (byte)(Band(d, 0.3f, outer) * 255f));
+                }
+            gear = MakeSprite("MenuGear", n, n, px);
+            return gear;
+        }
+    }
+
+    // Opacité d'un anneau entre les rayons a et b (en fraction du rayon), bord adouci
+    static float Band(float d, float a, float b)
+    {
+        const float soft = 0.025f;
+        return Mathf.Clamp01((d - a) / soft) * Mathf.Clamp01((b - d) / soft);
+    }
+
+    static Sprite MakeSprite(string name, int w, int h, Color32[] px)
+    {
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        tex.SetPixels32(px);
+        tex.Apply(false, true);
+        var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
+        sprite.name = name;
+        return sprite;
+    }
+
+    /// <summary>Image blanche d'un sprite décoratif (raycastTarget désactivé).</summary>
+    public static Image Icon(Transform parent, Sprite sprite, Color color, float size)
+    {
+        var rt = Node(sprite.name, parent);
+        rt.sizeDelta = new Vector2(size, size);
+        var img = Fill(rt, color);
+        img.sprite = sprite;
+        img.preserveAspect = true;
+        return img;
+    }
+
+    /// <summary>Penche un graphique (voir UISkew).</summary>
+    public static UISkew Skew(Graphic g, float angle = SkewAngle)
+    {
+        var skew = g.gameObject.AddComponent<UISkew>();
+        skew.angle = angle;
+        return skew;
     }
 
     // ---------- Rects ----------
@@ -180,7 +306,7 @@ public static class MenuStyle
 
     // ---------- Textes ----------
 
-    /// <summary>Texte gras blanc avec contour sombre façon cartoon.</summary>
+    /// <summary>Texte gras italique avec contour bleu nuit façon cartoon.</summary>
     public static Text Label(Transform parent, string content, int size, TextAnchor anchor, Color color, float outline = 3f)
     {
         var rt = Node("Text", parent);
@@ -188,7 +314,7 @@ public static class MenuStyle
         t.font = UIFont;
         t.text = content;
         t.fontSize = size;
-        t.fontStyle = FontStyle.Bold;
+        t.fontStyle = FontStyle.BoldAndItalic;
         t.alignment = anchor;
         t.color = color;
         t.supportRichText = true;
@@ -222,11 +348,11 @@ public static class MenuStyle
     // ---------- Boutons ----------
 
     /// <summary>
-    /// Gros bouton "bonbon" : face colorée arrondie, relief plus foncé dessous, reflet en haut, rebond quand on appuie.
+    /// Gros bouton penché : face colorée bordée de blanc, relief plus foncé dessous, reflet en haut, rebond quand on appuie.
     /// La taille vient du parent (layout ou ancres) ; preferredHeight sert dans les layouts.
     /// </summary>
     public static Button CandyButton(Transform parent, string label, Color color, UnityAction onClick,
-                                     int fontSize = 56, float preferredHeight = 150f, float radius = 40f)
+                                     int fontSize = 56, float preferredHeight = 150f, float radius = 18f, float skew = SkewAngle)
     {
         var rt = Node(label, parent);
         rt.gameObject.AddComponent<LayoutElement>().preferredHeight = preferredHeight;
@@ -234,17 +360,21 @@ public static class MenuStyle
         float depth = Mathf.Clamp(preferredHeight * 0.09f, 6f, 14f);
         var side = Node("Relief", rt);
         Stretch(side);
-        Rounded(side, Darken(color, 0.62f), radius);
+        Skew(Rounded(side, Ink, radius), skew);
 
         var face = Node("Face", rt);
         Stretch(face);
         face.offsetMin = new Vector2(0f, depth);
         var faceImg = Rounded(face, color, radius);
         faceImg.raycastTarget = true;
+        var border = face.gameObject.AddComponent<Outline>(); // liseré blanc
+        border.effectColor = Color.white;
+        border.effectDistance = new Vector2(5f, -5f);
+        Skew(faceImg, skew);
 
         var shine = Node("Reflet", face);
-        Area(shine, 0.04f, 0.55f, 0.96f, 0.92f);
-        Rounded(shine, new Color(1f, 1f, 1f, 0.22f), radius * 0.7f);
+        Area(shine, 0.05f, 0.55f, 0.95f, 0.9f);
+        Skew(Rounded(shine, new Color(1f, 1f, 1f, 0.2f), radius * 0.7f), skew);
 
         var text = FitLabel(face, label, fontSize, Mathf.Max(16, fontSize / 2), TextAnchor.MiddleCenter, Color.white, 3f);
         Stretch(text.rectTransform);

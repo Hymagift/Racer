@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -106,7 +106,7 @@ public class BoosterShop : MonoBehaviour
         {
             var row = Node("Test", body);
             Area(row, 0.62f, 0.915f, 1f, 1f);
-            var add = CandyButton(row, "+500 (test)", Teal, () => PlayerData.AddCoins(500), 36, 90f, 30f);
+            var add = CandyButton(row, "+500 (test)", Blue, () => PlayerData.AddCoins(500), 36, 90f, 16f);
             Stretch((RectTransform)add.transform);
         }
     }
@@ -114,7 +114,10 @@ public class BoosterShop : MonoBehaviour
     void BoosterCard(RectTransform parent, CarCatalog.Booster booster)
     {
         Color bc = booster.color;
-        var card = Card(booster.displayName, parent, Color.Lerp(Navy, bc, 0.4f), 44f, 12f);
+        var card = Card(booster.displayName, parent, Color.Lerp(Navy, bc, 0.4f), 24f, 12f);
+        var rim = card.Find("Fond").gameObject.AddComponent<Outline>(); // liseré blanc
+        rim.effectColor = WithAlpha(Color.white, 0.9f);
+        rim.effectDistance = new Vector2(4f, -4f);
         card.gameObject.AddComponent<LayoutElement>().preferredHeight = 360f;
 
         // Liseré clair en haut de la carte
@@ -231,7 +234,7 @@ public class BoosterShop : MonoBehaviour
         Color rc = RarityInfo.Color(car.rarity);
         bool unlocked = car.IsUnlocked;
 
-        var card = Card(car.id, parent, unlocked ? Color.Lerp(Navy, rc, 0.45f) : Color.Lerp(Navy, Color.black, 0.3f), 40f, 10f);
+        var card = Card(car.id, parent, unlocked ? Color.Lerp(Navy, rc, 0.45f) : Color.Lerp(Navy, Color.black, 0.3f), 24f, 10f);
         if (isEquipped)
         {
             var glow = card.Find("Fond").gameObject.AddComponent<Outline>();
@@ -279,7 +282,7 @@ public class BoosterShop : MonoBehaviour
 
         if (unlocked)
         {
-            var b = CandyButton(card, isEquipped ? "ÉQUIPÉE" : "ÉQUIPER", isEquipped ? Yellow : Green, () => Equip(car), 42, 120f, 32f);
+            var b = CandyButton(card, isEquipped ? "ÉQUIPÉE" : "ÉQUIPER", isEquipped ? Yellow : Blue, () => Equip(car), 42, 120f, 16f);
             b.GetComponent<LayoutElement>().ignoreLayout = true;
             Area((RectTransform)b.transform, 0.06f, 0.05f, 0.94f, 0.31f);
             b.interactable = !isEquipped;
@@ -339,9 +342,9 @@ public class BoosterShop : MonoBehaviour
         layout.childControlWidth = layout.childControlHeight = true;
         layout.childForceExpandWidth = layout.childForceExpandHeight = true;
 
-        againButton = CandyButton(row, "", Purple, () => { if (lastBooster != null) Open(lastBooster); }, 50, 160f);
+        againButton = CandyButton(row, "", Red, () => { if (lastBooster != null) Open(lastBooster); }, 50, 160f);
         againLabel = ButtonText(againButton);
-        CandyButton(row, "OK", Green, CloseOrSkip, 56, 160f);
+        CandyButton(row, "OK", Blue, CloseOrSkip, 56, 160f);
 
         overlay.SetActive(false);
     }
@@ -440,7 +443,7 @@ public class BoosterShop : MonoBehaviour
         var car = pull.car;
         Color rc = RarityInfo.Color(pull.rarity);
 
-        var card = Card(car.id, parent, Color.Lerp(Navy, rc, 0.5f), 36f, 10f);
+        var card = Card(car.id, parent, Color.Lerp(Navy, rc, 0.5f), 24f, 10f);
         var outline = card.Find("Fond").gameObject.AddComponent<Outline>();
         outline.effectColor = rc;
         outline.effectDistance = new Vector2(6f, -6f);

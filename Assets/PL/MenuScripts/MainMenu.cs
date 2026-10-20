@@ -55,10 +55,9 @@ public class MainMenu : MonoBehaviour
     // Éléments animés ou mis à jour de l'UI automatique
     Text autoBestText, autoCoinsText, carNameText, resetLabel;
     Image carDot;
-    RectTransform titleRect, swipeHint;
+    RectTransform titleRect, swipeHint, gearIcon;
     ButtonBounce playBounce;
-    readonly List<(ButtonBounce bounce, Image face, Image side, Text label, Color color)> tabs =
-        new List<(ButtonBounce, Image, Image, Text, Color)>();
+    readonly List<(ButtonBounce bounce, Image face, Text label)> tabs = new List<(ButtonBounce, Image, Text)>();
     float resetArmedUntil, tabWidth;
     bool starting;
 
@@ -193,22 +192,23 @@ public class MainMenu : MonoBehaviour
 
         float t = Time.unscaledTime;
 
-        // Titre qui se balance, bouton Jouer qui "respire", indice de glissé qui clignote
+        // Titre qui se balance, JOUER qui "respire", indice de glissé qui clignote
         titleRect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.6f) * 3f);
         titleRect.localScale = Vector3.one * (1f + Mathf.Sin(t * 2.2f) * 0.03f);
         playBounce.extraScale = 1f + Mathf.Sin(t * 4f) * 0.035f;
         swipeHint.anchoredPosition = new Vector2(Mathf.Sin(t * 3f) * 12f, 0f);
 
-        // Onglets : celui de la page affichée est plus grand et en couleur, les autres sont plus sombres
+        // Roue crantée qui tourne doucement
+        gearIcon.localRotation = Quaternion.Euler(0f, 0f, -t * 25f);
+
+        // Onglets : celui de la page affichée est plus grand, blanc avec le texte rouge ; les autres sont rouges
         for (int i = 0; i < tabs.Count; i++)
         {
             float k = Mathf.Clamp01(1f - Mathf.Abs(pager.Position - i));
             var tab = tabs[i];
             tab.bounce.extraScale = 1f + 0.14f * k;
-            Color dim = Color.Lerp(Navy, tab.color, 0.35f);
-            tab.face.color = Color.Lerp(dim, tab.color, k);
-            tab.side.color = Darken(tab.face.color, 0.6f);
-            tab.label.color = Color.Lerp(new Color(1f, 1f, 1f, 0.6f), Color.white, k);
+            tab.face.color = Color.Lerp(Red, Color.white, k);
+            tab.label.color = Color.Lerp(Color.white, Red, k);
         }
 
         if (resetLabel != null)
@@ -284,20 +284,7 @@ public class MainMenu : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
         canvasRt.gameObject.AddComponent<GraphicRaycaster>();
 
-        // Dégradés sombres en haut et en bas : la partie en fond reste visible au milieu
-        var top = Node("Dégradé haut", canvasRt);
-        top.anchorMin = new Vector2(0f, 1f);
-        top.anchorMax = Vector2.one;
-        top.sizeDelta = new Vector2(0f, 420f);
-        top.anchoredPosition = new Vector2(0f, -210f);
-        top.localScale = new Vector3(1f, -1f, 1f); // retourné : opaque en haut
-        Fill(top, WithAlpha(Navy, 0.8f)).sprite = GradientSprite;
-        var bottom = Node("Dégradé bas", canvasRt);
-        bottom.anchorMin = Vector2.zero;
-        bottom.anchorMax = new Vector2(1f, 0f);
-        bottom.pivot = new Vector2(0.5f, 0f);
-        bottom.sizeDelta = new Vector2(0f, 560f);
-        Fill(bottom, WithAlpha(Navy, 0.9f)).sprite = GradientSprite;
+        BuildBackdrop(canvasRt);
 
         safeArea = Node("SafeArea", canvasRt);
         Stretch(safeArea);
@@ -313,9 +300,9 @@ public class MainMenu : MonoBehaviour
 
         var playPage = pager.AddPage("Jouer");
         BuildPlayPage(playPage);
-        var invocations = SheetPage(pager.AddPage("Invocations"), "INVOCATIONS", Purple);
-        var garage = SheetPage(pager.AddPage("Garage"), "GARAGE", Blue);
-        BuildOptionsPage(SheetPage(pager.AddPage("Options"), "OPTIONS", Teal));
+        var invocations = SheetPage(pager.AddPage("Invocations"), "INVOCATIONS");
+        var garage = SheetPage(pager.AddPage("Garage"), "GARAGE");
+        BuildOptionsPage(SheetPage(pager.AddPage("Options"), "OPTIONS"));
 
         BuildTopBar(safeArea);
         BuildTabBar(safeArea);
@@ -331,53 +318,135 @@ public class MainMenu : MonoBehaviour
         pager.GoTo(PagePlay, true);
     }
 
+    // Décor derrière les pages, façon affiche de drift : haut et bas rouges, bandes blanches de piste,
+    // trame de points et volants en filigrane. Le milieu reste dégagé pour voir la partie de démo.
+    static void BuildBackdrop(RectTransform canvas)
+    {
+        var deco = Node("Décor", canvas);
+        Stretch(deco);
+
+        var top = Node("Rouge haut", deco);
+        top.anchorMin = new Vector2(0f, 1f);
+        top.anchorMax = Vector2.one;
+        top.sizeDelta = new Vector2(0f, 820f);
+        top.anchoredPosition = new Vector2(0f, -410f);
+        top.localScale = new Vector3(1f, -1f, 1f); // retourné : opaque en haut
+        Fill(top, WithAlpha(Red, 0.95f)).sprite = GradientSprite;
+
+        var bottom = Node("Rouge bas", deco);
+        bottom.anchorMin = Vector2.zero;
+        bottom.anchorMax = new Vector2(1f, 0f);
+        bottom.pivot = new Vector2(0.5f, 0f);
+        bottom.sizeDelta = new Vector2(0f, 900f);
+        Fill(bottom, WithAlpha(Red, 0.97f)).sprite = GradientSprite;
+
+        // Volants en filigrane
+        Wheel(deco, new Vector2(0.06f, 0.9f), 300f, -15f);
+        Wheel(deco, new Vector2(0.95f, 0.78f), 260f, 20f);
+        Wheel(deco, new Vector2(0.9f, 0.16f), 280f, -30f);
+        Wheel(deco, new Vector2(0.04f, 0.3f), 240f, 10f);
+
+        // Bandes blanches de piste qui partent du haut à gauche et s'effacent vers le bas
+        Stripe(deco, 0.12f, 190f);
+        Stripe(deco, 0.4f, 110f);
+
+        // Trame de points blancs, dense en haut de la zone et qui s'efface vers le bas
+        var dots = Node("Trame", deco);
+        dots.anchorMin = new Vector2(0f, 0.12f);
+        dots.anchorMax = new Vector2(1f, 0.42f);
+        dots.offsetMin = dots.offsetMax = Vector2.zero;
+        dots.localScale = new Vector3(1f, -1f, 1f);
+        Fill(dots, WithAlpha(Color.white, 0.35f)).sprite = HalftoneSprite;
+    }
+
+    static void Stripe(RectTransform parent, float x, float width)
+    {
+        var stripe = Node("Bande", parent);
+        stripe.anchorMin = stripe.anchorMax = new Vector2(x, 1f);
+        // Pivot en bas + retourné : la bande pend sous le bord du haut, opaque en haut et effacée en bas
+        stripe.pivot = new Vector2(0.5f, 0f);
+        stripe.localScale = new Vector3(1f, -1f, 1f);
+        stripe.sizeDelta = new Vector2(width, 1500f);
+        stripe.anchoredPosition = new Vector2(0f, 60f);
+        stripe.localRotation = Quaternion.Euler(0f, 0f, 20f); // le bas part vers la droite
+        Fill(stripe, WithAlpha(Color.white, 0.92f)).sprite = GradientSprite;
+    }
+
+    static void Wheel(RectTransform parent, Vector2 anchor, float size, float angle)
+    {
+        var img = Icon(parent, WheelSprite, WithAlpha(Color.white, 0.1f), size);
+        var rt = img.rectTransform;
+        rt.anchorMin = rt.anchorMax = anchor;
+        rt.localRotation = Quaternion.Euler(0f, 0f, angle);
+    }
+
     void BuildPlayPage(RectTransform page)
     {
-        var titleText = Label(page, title, 200, TextAnchor.MiddleCenter, Yellow, 8f);
+        var titleText = Label(page, title, 170, TextAnchor.MiddleCenter, Color.white, 7f);
         titleRect = titleText.rectTransform;
-        titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.8f);
-        titleRect.sizeDelta = new Vector2(1000f, 260f);
-        var outer = titleText.gameObject.AddComponent<Outline>(); // deuxième contour, coloré, pour un titre bien épais
-        outer.effectColor = Orange;
+        titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.82f);
+        titleRect.sizeDelta = new Vector2(1000f, 240f);
+        var outer = titleText.gameObject.AddComponent<Outline>(); // deuxième contour, bleu, pour un titre bien épais
+        outer.effectColor = Blue;
         outer.effectDistance = new Vector2(-6f, 6f);
 
         // Voiture équipée
         var carPill = Node("Voiture", page);
-        carPill.anchorMin = carPill.anchorMax = new Vector2(0.5f, 0.6f);
-        carPill.sizeDelta = new Vector2(620f, 110f);
-        Rounded(carPill, WithAlpha(Navy, 0.8f), 55f);
+        carPill.anchorMin = carPill.anchorMax = new Vector2(0.5f, 0.66f);
+        carPill.sizeDelta = new Vector2(560f, 100f);
+        Skew(Rounded(carPill, WithAlpha(Color.white, 0.95f), 18f));
         var dot = Node("Couleur", carPill);
         dot.anchorMin = dot.anchorMax = new Vector2(0f, 0.5f);
-        dot.sizeDelta = new Vector2(76f, 76f);
-        dot.anchoredPosition = new Vector2(62f, 0f);
-        Fill(dot, Color.white).sprite = Round;
+        dot.sizeDelta = new Vector2(70f, 70f);
+        dot.anchoredPosition = new Vector2(60f, 0f);
+        Fill(dot, Ink).sprite = Round;
         var dotInner = Node("Teinte", dot);
-        Area(dotInner, 0.12f, 0.12f, 0.88f, 0.88f);
+        Area(dotInner, 0.14f, 0.14f, 0.86f, 0.86f);
         carDot = Fill(dotInner, Color.white);
         carDot.sprite = Round;
-        carNameText = FitLabel(carPill, "", 46, 24, TextAnchor.MiddleLeft, Color.white, 3f);
+        carNameText = FitLabel(carPill, "", 44, 24, TextAnchor.MiddleLeft, Ink, 0f);
         Stretch(carNameText.rectTransform);
-        carNameText.rectTransform.offsetMin = new Vector2(120f, 8f);
+        carNameText.rectTransform.offsetMin = new Vector2(115f, 8f);
         carNameText.rectTransform.offsetMax = new Vector2(-30f, -8f);
 
-        var play = CandyButton(page, "JOUER", Green, Play, 110, 260f, 70f);
-        var playRt = (RectTransform)play.transform;
-        playRt.anchorMin = playRt.anchorMax = new Vector2(0.5f, 0.3f);
-        playRt.sizeDelta = new Vector2(700f, 260f);
-        playBounce = play.GetComponent<ButtonBounce>();
+        // JOUER : gros texte bleu bordé de blanc sur une lueur, comme sur l'affiche
+        var play = Node("Jouer", page);
+        play.anchorMin = play.anchorMax = new Vector2(0.5f, 0.26f);
+        play.sizeDelta = new Vector2(820f, 260f);
+        var hit = Fill(play, Color.clear);
+        hit.raycastTarget = true;
+        var glow = Node("Lueur", play);
+        Area(glow, -0.1f, 0.05f, 1.1f, 0.95f);
+        Fill(glow, WithAlpha(Color.white, 0.35f)).sprite = Round;
+        var playText = Label(play, "JOUER", 170, TextAnchor.MiddleCenter, Blue, 0f);
+        Stretch(playText.rectTransform);
+        var white = playText.gameObject.AddComponent<Outline>();
+        white.effectColor = Color.white;
+        white.effectDistance = new Vector2(9f, -9f);
+        var depth = playText.gameObject.AddComponent<Shadow>();
+        depth.effectColor = Ink;
+        depth.effectDistance = new Vector2(4f, -16f);
+        Skew(playText, 8f);
+        var button = play.gameObject.AddComponent<Button>();
+        button.targetGraphic = playText;
+        button.onClick.AddListener(Play);
+        playBounce = play.gameObject.AddComponent<ButtonBounce>();
 
         var hintRow = Node("Indice", page);
-        Place(hintRow, 0.08f, 70f);
+        Place(hintRow, 0.06f, 70f);
         swipeHint = Node("Glisse", hintRow);
         Stretch(swipeHint);
-        Stretch(Label(swipeHint, "Glisse pour les invocations  »", 38, TextAnchor.MiddleCenter, WithAlpha(Color.white, 0.85f), 2f).rectTransform);
+        Stretch(Label(swipeHint, "Glisse pour les invocations  »", 38, TextAnchor.MiddleCenter, Color.white, 3f).rectTransform);
     }
 
     // Page avec un grand panneau coloré semi-transparent et un bandeau titre ; renvoie la zone sous le titre
-    static RectTransform SheetPage(RectTransform page, string heading, Color color)
+    static RectTransform SheetPage(RectTransform page, string heading)
     {
-        var sheet = Card("Panneau", page, WithAlpha(Color.Lerp(Navy, color, 0.3f), 0.88f), 56f, 14f);
+        var sheet = Card("Panneau", page, WithAlpha(DarkRed, 0.92f), 40f, 14f);
         Area(sheet, 0.035f, 0.02f, 0.965f, 0.95f);
+        var rim = sheet.Find("Fond").gameObject.AddComponent<Outline>(); // liseré blanc
+        rim.effectColor = Color.white;
+        rim.effectDistance = new Vector2(5f, -5f);
 
         var banner = Node("Bandeau", sheet);
         banner.anchorMin = banner.anchorMax = new Vector2(0.5f, 1f);
@@ -386,13 +455,17 @@ public class MainMenu : MonoBehaviour
         var side = Node("Relief", banner);
         Stretch(side);
         side.offsetMin = side.offsetMax = new Vector2(0f, -12f);
-        Rounded(side, Darken(color, 0.6f), 50f);
+        Skew(Rounded(side, Ink, 18f));
         var face = Node("Face", banner);
         Stretch(face);
-        Rounded(face, color, 50f);
+        var faceImg = Rounded(face, Blue, 18f);
+        var border = faceImg.gameObject.AddComponent<Outline>();
+        border.effectColor = Color.white;
+        border.effectDistance = new Vector2(6f, -6f);
+        Skew(faceImg);
         var shine = Node("Reflet", face);
         Area(shine, 0.04f, 0.55f, 0.96f, 0.9f);
-        Rounded(shine, WithAlpha(Color.white, 0.2f), 30f);
+        Skew(Rounded(shine, WithAlpha(Color.white, 0.2f), 14f));
         Stretch(FitLabel(face, heading, 72, 36, TextAnchor.MiddleCenter, Color.white, 4f).rectTransform);
 
         var body = Node("Contenu", sheet);
@@ -420,11 +493,11 @@ public class MainMenu : MonoBehaviour
 
         var volumeLabel = Label(column, "VOLUME", 56, TextAnchor.MiddleLeft, Color.white, 3f);
         volumeLabel.gameObject.AddComponent<LayoutElement>().preferredHeight = 80f;
-        volumeSlider = CandySlider(column, Teal);
+        volumeSlider = CandySlider(column, LightBlue);
 
         Spacer(column, 40f);
         resetLabel = ButtonText(CandyButton(column, "RÉINITIALISER", Red, ResetButton, 52, 150f));
-        CandyButton(column, "QUITTER", Pink, Quit, 52, 150f);
+        CandyButton(column, "QUITTER", Blue, Quit, 52, 150f);
 
         var version = Label(body, "Version " + Application.version, 30, TextAnchor.MiddleCenter, WithAlpha(Color.white, 0.5f), 0f);
         Place(version.rectTransform, 0.04f, 50f);
@@ -443,33 +516,49 @@ public class MainMenu : MonoBehaviour
         bar.pivot = new Vector2(0.5f, 1f);
         bar.sizeDelta = new Vector2(0f, TopBarHeight);
 
-        // Record (à gauche)
-        var best = Pill(bar, new Vector2(0.27f, 0.5f), Orange);
-        var bestTitle = Label(best, "RECORD", 28, TextAnchor.MiddleLeft, Orange, 2f);
+        // Record et pièces (pastilles blanches penchées, à gauche)
+        var best = Pill(bar, new Vector2(0.2f, 0.5f), 360f);
+        var bestTitle = Label(best, "RECORD", 28, TextAnchor.MiddleLeft, Red, 0f);
         Area(bestTitle.rectTransform, 0.1f, 0.52f, 0.95f, 0.95f);
-        autoBestText = FitLabel(best, "0", 46, 24, TextAnchor.MiddleLeft, Color.white, 3f);
+        autoBestText = FitLabel(best, "0", 46, 24, TextAnchor.MiddleLeft, Ink, 0f);
         Area(autoBestText.rectTransform, 0.1f, 0.05f, 0.95f, 0.6f);
 
-        // Pièces (à droite), avec une grosse pièce qui dépasse
-        var coins = Pill(bar, new Vector2(0.73f, 0.5f), Yellow);
-        var coin = Coin(coins, 96f);
+        var coins = Pill(bar, new Vector2(0.56f, 0.5f), 320f);
+        var coin = Coin(coins, 90f);
         coin.anchorMin = coin.anchorMax = new Vector2(0f, 0.5f);
-        coin.anchoredPosition = new Vector2(10f, 0f);
-        autoCoinsText = FitLabel(coins, "0", 50, 24, TextAnchor.MiddleRight, Color.white, 3f);
+        coin.anchoredPosition = new Vector2(14f, 0f);
+        autoCoinsText = FitLabel(coins, "0", 50, 24, TextAnchor.MiddleRight, Ink, 0f);
         Stretch(autoCoinsText.rectTransform);
         autoCoinsText.rectTransform.offsetMin = new Vector2(70f, 6f);
         autoCoinsText.rectTransform.offsetMax = new Vector2(-34f, -6f);
+
+        // Roue crantée (à droite) : va aux options
+        var gear = Node("Options", bar);
+        gear.anchorMin = gear.anchorMax = new Vector2(0.9f, 0.5f);
+        gear.sizeDelta = new Vector2(124f, 124f);
+        var disc = Fill(gear, WithAlpha(DarkRed, 0.8f));
+        disc.sprite = Round;
+        disc.raycastTarget = true;
+        var icon = Icon(gear, GearSprite, Color.white, 92f);
+        var gearButton = gear.gameObject.AddComponent<Button>();
+        gearButton.targetGraphic = icon;
+        gearButton.onClick.AddListener(OpenOptions);
+        gear.gameObject.AddComponent<ButtonBounce>();
+        gearIcon = icon.rectTransform;
     }
 
-    static RectTransform Pill(Transform parent, Vector2 anchor, Color border)
+    static RectTransform Pill(Transform parent, Vector2 anchor, float width)
     {
         var pill = Node("Pastille", parent);
         pill.anchorMin = pill.anchorMax = anchor;
-        pill.sizeDelta = new Vector2(400f, 110f);
-        var img = Rounded(pill, WithAlpha(Navy, 0.85f), 55f);
-        var outline = img.gameObject.AddComponent<Outline>();
-        outline.effectColor = WithAlpha(border, 0.8f);
-        outline.effectDistance = new Vector2(4f, -4f);
+        pill.sizeDelta = new Vector2(width, 106f);
+        var shadow = Node("Ombre", pill);
+        Stretch(shadow);
+        shadow.offsetMin = shadow.offsetMax = new Vector2(0f, -8f);
+        Skew(Rounded(shadow, Ink, 16f));
+        var face = Node("Face", pill);
+        Stretch(face);
+        Skew(Rounded(face, Color.white, 16f));
         return pill;
     }
 
@@ -486,10 +575,10 @@ public class MainMenu : MonoBehaviour
         Stretch(bg);
         bg.offsetMin = new Vector2(-20f, -300f);
         bg.offsetMax = new Vector2(20f, -20f);
-        var bgImg = Rounded(bg, WithAlpha(Navy, 0.92f), 60f);
+        var bgImg = Rounded(bg, WithAlpha(DarkRed, 0.95f), 40f);
         var rim = bgImg.gameObject.AddComponent<Outline>();
-        rim.effectColor = WithAlpha(Color.white, 0.15f);
-        rim.effectDistance = new Vector2(0f, 5f);
+        rim.effectColor = Color.white;
+        rim.effectDistance = new Vector2(0f, 6f);
 
         var row = Node("Boutons", bar);
         Stretch(row);
@@ -501,20 +590,20 @@ public class MainMenu : MonoBehaviour
         layout.childControlWidth = layout.childControlHeight = true;
         layout.childForceExpandWidth = layout.childForceExpandHeight = true;
 
-        Tab(row, "JOUER", Orange, PagePlay);
-        Tab(row, "INVOCATIONS", Purple, PageInvocations);
-        Tab(row, "GARAGE", Blue, PageGarage);
-        Tab(row, "OPTIONS", Teal, PageOptions);
+        Tab(row, "JOUER", PagePlay);
+        Tab(row, "INVOCATIONS", PageInvocations);
+        Tab(row, "GARAGE", PageGarage);
+        Tab(row, "OPTIONS", PageOptions);
     }
 
-    void Tab(Transform row, string label, Color color, int page)
+    void Tab(Transform row, string label, int page)
     {
-        var b = CandyButton(row, label, color, () => pager.GoTo(page), 34, 140f, 34f);
+        var b = CandyButton(row, label, Red, () => pager.GoTo(page), 34, 140f, 16f, 8f);
         var rt = (RectTransform)b.transform;
         rt.pivot = new Vector2(0.5f, 0f); // grossit vers le haut quand l'onglet est actif
         var text = ButtonText(b);
         text.resizeTextForBestFit = false; // taille réglée par FitTabLabels
         text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        tabs.Add((b.GetComponent<ButtonBounce>(), (Image)b.targetGraphic, rt.Find("Relief").GetComponent<Image>(), text, color));
+        tabs.Add((b.GetComponent<ButtonBounce>(), (Image)b.targetGraphic, text));
     }
 }
