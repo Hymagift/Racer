@@ -17,6 +17,9 @@ using UnityEngine.SceneManagement;
 ///    (score, meilleur score) et un bouton "Rejouer". Glisse-les dans les champs ci-dessous.
 /// 3. Sur le bouton : OnClick -> GameManager -> DriftGameManager.Restart().
 /// 4. Ajoute ta scène dans File > Build Profiles (Scene List), sinon Restart ne pourra pas la recharger.
+///
+/// Sans écran de fin assigné, la mort fait un fondu au noir puis retourne au menu.
+/// Dans la partie de démo du menu (MenuBackground), la mort relance juste la démo : ni pièces ni record.
 /// </summary>
 public class DriftGameManager : MonoBehaviour
 {
@@ -43,6 +46,12 @@ public class DriftGameManager : MonoBehaviour
     public float offRoadMargin = 3f;
     [Tooltip("Délai avant d'afficher l'écran de fin (secondes, temps réel)")]
     public float panelDelay = 0.6f;
+
+    [Header("Menu")]
+    [Tooltip("Nom exact de la scène du menu (elle doit être dans Build Profiles > Scene List)")]
+    public string menuSceneName = "Menu";
+    [Tooltip("Sans écran de fin : délai après la mort avant le fondu au noir et le retour au menu")]
+    public float backToMenuDelay = 1.5f;
 
     /// <summary>Vrai une fois la partie perdue.</summary>
     public bool IsDead { get; private set; }
@@ -95,9 +104,6 @@ public class DriftGameManager : MonoBehaviour
         if (IsDead) return;
         IsDead = true;
 
-        // Score figé (le drift en cours est perdu) + record enregistré
-        bool newRecord = score.EndRun();
-
         // Arrête la voiture et le défilement du décor
         if (car != null) car.enabled = false; // DriftCar remet le défilement à 0 quand il est désactivé
         if (road != null) road.ScrollSpeed = 0f;
@@ -108,16 +114,34 @@ public class DriftGameManager : MonoBehaviour
             carRb.isKinematic = true;
         }
 
+        // Partie de démo derrière le menu : on laisse le menu faire le fondu et relancer
+        if (MenuBackground.DemoRunning)
+        {
+            MenuBackground.NotifyRunEnded();
+            return;
+        }
+
+        // Score figé (le drift en cours est perdu) + record enregistré
+        bool newRecord = score.EndRun();
         PlayerData.AddCoins(score.IntScore / 10);
 
-        if (panelDelay > 0f) StartCoroutine(ShowPanelAfterDelay(newRecord));
+        if (gameOverPanel == null) StartCoroutine(FadeAndLoad(menuSceneName, backToMenuDelay));
+        else if (panelDelay > 0f) StartCoroutine(ShowPanelAfterDelay(newRecord));
         else ShowPanel(newRecord);
     }
 
+    /// <summary>Fondu au noir puis retour au menu. À brancher sur un bouton "Menu".</summary>
     public void LoadMenu()
     {
+        StartCoroutine(FadeAndLoad(menuSceneName, 0f));
+    }
+
+    System.Collections.IEnumerator FadeAndLoad(string sceneName, float delay)
+    {
+        if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
+        yield return ScreenFader.Instance.Fade(1f);
         Time.timeScale = 1f;
-        SceneManager.LoadScene("MainMenu");
+        SceneManager.LoadScene(sceneName);
     }
 
     System.Collections.IEnumerator ShowPanelAfterDelay(bool newRecord)
