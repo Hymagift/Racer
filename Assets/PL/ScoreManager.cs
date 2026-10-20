@@ -67,6 +67,10 @@ public class ScoreManager : MonoBehaviour
     public TMP_Text hudDriftText;
     public TMP_Text hudDistanceText;
 
+    [Header("HUD stylé")]
+    [Tooltip("Crée au lancement le HUD dans la DA du menu (ScoreHUD : score, anneau du multiplicateur, drift) quand aucun texte TextMeshPro n'est assigné")]
+    public bool styledHUD = true;
+
     [Header("Affichage de secours")]
     [Tooltip("Affiche le score avec OnGUI tant qu'aucun texte TextMeshPro n'est assigné")]
     public bool showHUD = true;
@@ -94,6 +98,7 @@ public class ScoreManager : MonoBehaviour
     float timeSinceCone;
     bool angleActive;
     float angleLostTimer;
+    ScoreHUD styled;
 
     void Awake()
     {
@@ -111,6 +116,14 @@ public class ScoreManager : MonoBehaviour
         if (road == null) road = FindFirstObjectByType<ZigzagRoadGenerator>();
 
         if (road != null) lastRoadDistance = road.TotalDistance;
+
+        // HUD stylé : pas dans la partie de démo du menu (MenuBackground y met showHUD à faux avant ce Start)
+        if (showHUD && styledHUD && hudScoreText == null && !MenuBackground.DemoRunning)
+        {
+            styled = GetComponent<ScoreHUD>();
+            if (styled == null) styled = gameObject.AddComponent<ScoreHUD>();
+            styled.score = this;
+        }
 
         if (car != null)
         {
@@ -270,7 +283,7 @@ public class ScoreManager : MonoBehaviour
 
     void OnGUI()
     {
-        if (!showHUD || hudScoreText != null) return;
+        if (!showHUD || hudScoreText != null || styled != null) return;
 
         int size = Mathf.Max(20, Screen.height / 25);
         var style = new GUIStyle(GUI.skin.label)
