@@ -32,15 +32,20 @@ public class ScreenFader : MonoBehaviour
     [Tooltip("Durée d'un fondu par défaut (secondes, temps réel)")]
     public float defaultDuration = 0.6f;
 
+    Canvas canvas;
     Image image;
     int fadeId; // chaque nouveau fondu annule le précédent
+    bool belowUI;
+
+    /// <summary>Vrai si le fader existe déjà (sans le créer).</summary>
+    public static bool HasInstance => instance != null;
 
     /// <summary>Opacité actuelle du noir (0 = transparent, 1 = noir).</summary>
     public float Alpha => image.color.a;
 
     void Awake()
     {
-        var canvas = gameObject.AddComponent<Canvas>();
+        canvas = gameObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 1000; // au-dessus de toute l'UI
         gameObject.AddComponent<GraphicRaycaster>();
@@ -74,6 +79,17 @@ public class ScreenFader : MonoBehaviour
         Apply(alpha);
     }
 
+    /// <summary>
+    /// Vrai : le noir passe SOUS le reste de l'UI et ne bloque plus les clics.
+    /// Utilisé par la démo du menu : le menu reste affiché et cliquable pendant les fondus entre deux parties.
+    /// </summary>
+    public void SetBelowUI(bool below)
+    {
+        belowUI = below;
+        canvas.sortingOrder = below ? -100 : 1000;
+        Apply(Alpha);
+    }
+
     /// <summary>Fondu vers l'opacité voulue (1 = noir). À utiliser avec "yield return" pour attendre la fin.</summary>
     public Coroutine Fade(float target, float duration = -1f)
     {
@@ -95,6 +111,6 @@ public class ScreenFader : MonoBehaviour
     void Apply(float alpha)
     {
         image.color = new Color(0f, 0f, 0f, alpha);
-        image.raycastTarget = alpha > 0.01f; // bloque les clics pendant le fondu
+        image.raycastTarget = !belowUI && alpha > 0.01f; // bloque les clics pendant le fondu (sauf sous l'UI)
     }
 }

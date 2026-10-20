@@ -11,6 +11,7 @@ using UnityEngine.SceneManagement;
 /// La scène de jeu est chargée par-dessus le menu (en additif), la voiture reçoit le DriftAutoPilot
 /// et l'UI de la partie est cachée. Quand la voiture meurt (ou après maxRunTime), fondu au noir,
 /// la scène de jeu est rechargée, puis retour de l'image.
+/// Le noir de ces fondus passe sous le menu : le menu reste affiché et cliquable pendant tout ce temps.
 /// Pendant la démo, DriftGameManager ne donne ni pièces ni record.
 /// </summary>
 public class MenuBackground : MonoBehaviour
@@ -40,6 +41,7 @@ public class MenuBackground : MonoBehaviour
     IEnumerator Start()
     {
         var fader = ScreenFader.Instance;
+        fader.SetBelowUI(true); // le menu reste visible et cliquable pendant les fondus de la démo
         fader.SetAlpha(1f);
 
         while (true)
@@ -66,12 +68,14 @@ public class MenuBackground : MonoBehaviour
     public void StopDemo()
     {
         StopAllCoroutines();
+        ScreenFader.Instance.SetBelowUI(false); // le fondu vers la vraie partie recouvre tout, menu compris
     }
 
     void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
         DemoRunning = false;
+        if (ScreenFader.HasInstance) ScreenFader.Instance.SetBelowUI(false);
     }
 
     IEnumerator LoadDemo()
