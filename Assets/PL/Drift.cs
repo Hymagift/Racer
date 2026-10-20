@@ -118,6 +118,10 @@ public class DriftCar : MonoBehaviour
 
     /// <summary>Vitesse en m/s.</summary>
     public float Speed => vel.magnitude;
+    /// <summary>Vitesse dans l'axe de la voiture en m/s (sert à faire tourner les roues).</summary>
+    public float ForwardSpeed => Vector2.Dot(vel, new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)));
+    /// <summary>Angle de braquage des roues avant (degrés, positif = à droite), contre-braquage compris.</summary>
+    public float SteerAngle => lastSteerDeg;
     /// <summary>Angle entre le nez de la voiture et sa direction de déplacement (degrés, signé).</summary>
     public float DriftAngle { get; private set; }
     /// <summary>Vrai quand la voiture glisse franchement.</summary>

@@ -7,6 +7,7 @@ using UnityEngine;
 ///
 /// Les cônes sont enfants du TrackRoot de la route : ils défilent avec elle.
 /// Ils sont réutilisés (pool) : Cone.OnEnable les remet "neufs", donc chaque cône peut redonner du multiplicateur.
+/// Un cône touché quitte le TrackRoot le temps de son vol (voir Cone), puis y revient une fois posé.
 ///
 /// Mise en place : GameObject vide "ConeSpawner" avec ce script, et assigne le prefab Cone (Assets/PL/Cone.prefab).
 /// La route est trouvée automatiquement. Sans prefab, un cube orange avec le script Cone est créé.
@@ -90,7 +91,8 @@ public class ConeSpawner : MonoBehaviour
         {
             Cone c = active[i];
             if (c == null) { active.RemoveAt(i); continue; }
-            if (c.transform.localPosition.z < pz - despawnDistance)
+            // Position monde convertie en Z piste : marche aussi pour un cône en plein vol (sorti du TrackRoot)
+            if (road.TrackZ(c.transform.position.z) < pz - despawnDistance)
             {
                 c.gameObject.SetActive(false);
                 active.RemoveAt(i);
@@ -102,8 +104,9 @@ public class ConeSpawner : MonoBehaviour
     // La route a ramené le TrackRoot à 0 : on décale nos cônes (invisible, même position monde)
     void HandleTrackRebased(float shift)
     {
+        // Un cône en plein vol n'est plus enfant du TrackRoot : sa position monde ne change pas, on n'y touche pas
         foreach (Cone c in active)
-            if (c != null) c.transform.localPosition -= new Vector3(0f, 0f, shift);
+            if (c != null && c.transform.parent == road.TrackRoot) c.transform.localPosition -= new Vector3(0f, 0f, shift);
         nextZ -= shift;
     }
 
@@ -143,7 +146,10 @@ public class ConeSpawner : MonoBehaviour
         while (pool.Count > 0)
         {
             Cone pooled = pool.Pop();
-            if (pooled != null) return pooled;
+            if (pooled == null) continue;
+            // Recyclé en plein vol : on le remet dans le TrackRoot avant de le replacer
+            if (pooled.transform.parent != road.TrackRoot) pooled.transform.SetParent(road.TrackRoot, false);
+            return pooled;
         }
 
         Cone c = conePrefab != null ? Instantiate(conePrefab) : CreateFallbackCone();
