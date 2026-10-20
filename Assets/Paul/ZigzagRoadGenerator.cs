@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Route infinie en zigzag de type TOUGE, générée par "chunks" devant le joueur.
@@ -142,6 +143,10 @@ public class ZigzagRoadGenerator : MonoBehaviour
 
     void Start()
     {
+        // Chargée en additif (fond du menu) : le TrackRoot créé dans Awake peut atterrir dans la scène active
+        if (trackRoot.gameObject.scene != gameObject.scene)
+            SceneManager.MoveGameObjectToScene(trackRoot.gameObject, gameObject.scene);
+
         if (player == null)
         {
             Debug.LogError("[ZigzagRoad] Le champ 'Player' n'est pas assigné.", this);
