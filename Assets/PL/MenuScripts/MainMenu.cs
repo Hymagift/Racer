@@ -53,7 +53,7 @@ public class MainMenu : MonoBehaviour
     Rect lastSafeArea;
 
     // Éléments animés ou mis à jour de l'UI automatique
-    Text autoBestText, autoCoinsText, carNameText, resetLabel;
+    Text autoBestText, autoCoinsText, autoRubisText, carNameText, resetLabel;
     Image carDot;
     RectTransform titleRect, swipeHint;
     ButtonBounce playBounce;
@@ -92,6 +92,7 @@ public class MainMenu : MonoBehaviour
         if (coinsText != null) coinsText.text = PlayerData.Coins.ToString();
         if (autoBestText != null) autoBestText.text = PlayerData.BestScore.ToString();
         if (autoCoinsText != null) autoCoinsText.text = PlayerData.Coins.ToString();
+        if (autoRubisText != null) autoRubisText.text = PlayerData.Rubis.ToString();
 
         if (carNameText != null)
         {
@@ -444,14 +445,34 @@ public class MainMenu : MonoBehaviour
         bar.sizeDelta = new Vector2(0f, TopBarHeight);
 
         // Record (à gauche)
-        var best = Pill(bar, new Vector2(0.27f, 0.5f), Orange);
+        var best = Pill(bar, new Vector2(0.18f, 0.5f), Orange, 300f);
         var bestTitle = Label(best, "RECORD", 28, TextAnchor.MiddleLeft, Orange, 2f);
         Area(bestTitle.rectTransform, 0.1f, 0.52f, 0.95f, 0.95f);
         autoBestText = FitLabel(best, "0", 46, 24, TextAnchor.MiddleLeft, Color.white, 3f);
         Area(autoBestText.rectTransform, 0.1f, 0.05f, 0.95f, 0.6f);
 
+        // Rubis (au milieu) : un appui ouvre la boutique
+        var rubis = Pill(bar, new Vector2(0.5f, 0.5f), RubyRed, 290f);
+        var gem = Ruby(rubis, 100f);
+        gem.anchorMin = gem.anchorMax = new Vector2(0f, 0.5f);
+        gem.anchoredPosition = new Vector2(12f, 0f);
+        autoRubisText = FitLabel(rubis, "0", 50, 24, TextAnchor.MiddleRight, Color.white, 3f);
+        Stretch(autoRubisText.rectTransform);
+        autoRubisText.rectTransform.offsetMin = new Vector2(70f, 6f);
+        autoRubisText.rectTransform.offsetMax = new Vector2(-70f, -6f);
+        var plus = Node("Plus", rubis);
+        plus.anchorMin = plus.anchorMax = new Vector2(1f, 0.5f);
+        plus.sizeDelta = new Vector2(62f, 62f);
+        plus.anchoredPosition = new Vector2(-38f, 0f);
+        Fill(plus, Green).sprite = Round;
+        Stretch(Label(plus, "+", 50, TextAnchor.MiddleCenter, Color.white, 3f).rectTransform);
+        rubis.GetComponent<Image>().raycastTarget = true;
+        var rubisButton = rubis.gameObject.AddComponent<Button>();
+        rubisButton.onClick.AddListener(OpenBoutique);
+        rubis.gameObject.AddComponent<ButtonBounce>();
+
         // Pièces (à droite), avec une grosse pièce qui dépasse
-        var coins = Pill(bar, new Vector2(0.73f, 0.5f), Yellow);
+        var coins = Pill(bar, new Vector2(0.82f, 0.5f), Yellow, 300f);
         var coin = Coin(coins, 96f);
         coin.anchorMin = coin.anchorMax = new Vector2(0f, 0.5f);
         coin.anchoredPosition = new Vector2(10f, 0f);
@@ -461,11 +482,19 @@ public class MainMenu : MonoBehaviour
         autoCoinsText.rectTransform.offsetMax = new Vector2(-34f, -6f);
     }
 
-    static RectTransform Pill(Transform parent, Vector2 anchor, Color border)
+    /// <summary>Ouvre la boutique (rubis, pilote auto) dans la page Invocations.</summary>
+    public void OpenBoutique()
+    {
+        MenuFx.Play(MenuFx.Sfx.Tick, 1.2f);
+        OpenInvocations();
+        if (boosterShop != null) boosterShop.ShowBoutique();
+    }
+
+    static RectTransform Pill(Transform parent, Vector2 anchor, Color border, float width = 400f)
     {
         var pill = Node("Pastille", parent);
         pill.anchorMin = pill.anchorMax = anchor;
-        pill.sizeDelta = new Vector2(400f, 110f);
+        pill.sizeDelta = new Vector2(width, 110f);
         var img = Rounded(pill, WithAlpha(Navy, 0.85f), 55f);
         var outline = img.gameObject.AddComponent<Outline>();
         outline.effectColor = WithAlpha(border, 0.8f);

@@ -71,6 +71,9 @@ public class DriftGameManager : MonoBehaviour
         if (score == null) score = gameObject.AddComponent<ScoreManager>();
 
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
+
+        // Pilote auto proposé au début de chaque partie (voir AutopilotBoost, inactif dans la démo du menu)
+        if (GetComponent<AutopilotBoost>() == null) gameObject.AddComponent<AutopilotBoost>();
     }
 
     void Update()

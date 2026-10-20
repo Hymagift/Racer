@@ -47,11 +47,26 @@ MonoBehaviour:
   car: {fileID: 0}
   road: {fileID: 0}
   pointsPerMeter: 1
-  multiplierPerCone: 0.5
-  maxMultiplier: 10
+  multiplierPerCone: 0.1
+  maxMultiplier: 2
   decayDelay: 5
   decayPerSecond: 1
   resetOnWallHit: 1
   conePoints: 50
+  coneSmoothSpeed: 2
+  driftMinAngle: 15
+  driftFullAngle: 40
+  driftRiseMin: 0.1
+  driftRiseMax: 0.5
+  maxDriftMultiplier: 2
+  driftMinSpeed: 5
+  driftHoldTime: 2
+  driftFallSpeed: 0.5
+  wallHitSkipsHold: 1
   addDriftPoints: 1
+  hudScoreText: {fileID: 0}
+  hudMultiplierText: {fileID: 0}
+  hudDriftText: {fileID: 0}
+  hudDistanceText: {fileID: 0}
+  showComboRing: 1
   showHUD: 1

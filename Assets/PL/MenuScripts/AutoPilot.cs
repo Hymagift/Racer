@@ -54,9 +54,23 @@ public class DriftAutoPilot : MonoBehaviour
     {
         car = GetComponent<DriftCar>();
         rb = GetComponent<Rigidbody>();
-        car.useExternalInput = true;
-        car.debugHUD = false;
+        if (MenuBackground.DemoRunning) car.debugHUD = false;
         if (road == null) road = FindFirstObjectByType<ZigzagRoadGenerator>();
+    }
+
+    // Activé / désactivé en cours de partie par AutopilotBoost : on prend puis on rend le volant au joueur
+    void OnEnable()
+    {
+        if (car == null) car = GetComponent<DriftCar>();
+        car.useExternalInput = true;
+        hasLastVx = false;
+    }
+
+    void OnDisable()
+    {
+        if (car == null) return;
+        car.useExternalInput = false;
+        car.externalInput = 0f;
     }
 
     void FixedUpdate()

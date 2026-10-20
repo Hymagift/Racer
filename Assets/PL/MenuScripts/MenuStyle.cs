@@ -178,6 +178,55 @@ public static class MenuStyle
         return rt;
     }
 
+    public static readonly Color RubyRed = Hex(0xFF2E63);
+
+    /// <summary>Rubis dessiné (losange rouge à facettes) : la monnaie achetée avec de l'argent réel.</summary>
+    public static RectTransform Ruby(Transform parent, float size)
+    {
+        var rt = Node("Rubis", parent);
+        rt.sizeDelta = new Vector2(size, size);
+        var gem = Node("Gemme", rt);
+        gem.anchorMin = gem.anchorMax = new Vector2(0.5f, 0.5f);
+        gem.sizeDelta = new Vector2(size * 0.72f, size * 0.72f);
+        gem.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        Rounded(gem, Darken(RubyRed, 0.55f), size * 0.12f);
+        var inner = Node("Face", gem);
+        Area(inner, 0.12f, 0.12f, 0.88f, 0.88f);
+        Rounded(inner, RubyRed, size * 0.08f);
+        var facet = Node("Facette", inner);
+        Area(facet, 0f, 0.5f, 0.5f, 1f);
+        Rounded(facet, new Color(1f, 1f, 1f, 0.35f), size * 0.05f);
+        var shine = Node("Reflet", inner);
+        Area(shine, 0.15f, 0.6f, 0.38f, 0.85f);
+        Rounded(shine, new Color(1f, 1f, 1f, 0.85f), size * 0.04f);
+        return rt;
+    }
+
+    /// <summary>Volant dessiné (icône du pilote auto).</summary>
+    public static RectTransform Wheel(Transform parent, float size, Color color)
+    {
+        var rt = Node("Volant", parent);
+        rt.sizeDelta = new Vector2(size, size);
+        Fill(rt, color).sprite = Round;
+        var hole = Node("Intérieur", rt);
+        Area(hole, 0.14f, 0.14f, 0.86f, 0.86f);
+        Fill(hole, Darken(color, 0.3f)).sprite = Round;
+        for (int i = 0; i < 3; i++)
+        {
+            var spoke = Node("Branche", rt);
+            spoke.anchorMin = spoke.anchorMax = new Vector2(0.5f, 0.5f);
+            spoke.pivot = new Vector2(0.5f, 0f);
+            spoke.sizeDelta = new Vector2(size * 0.14f, size * 0.4f);
+            spoke.localRotation = Quaternion.Euler(0f, 0f, 90f + i * 120f);
+            Rounded(spoke, color, size * 0.05f);
+        }
+        var hub = Node("Centre", rt);
+        hub.anchorMin = hub.anchorMax = new Vector2(0.5f, 0.5f);
+        hub.sizeDelta = new Vector2(size * 0.3f, size * 0.3f);
+        Fill(hub, color).sprite = Round;
+        return rt;
+    }
+
     // ---------- Textes ----------
 
     /// <summary>Texte gras blanc avec contour sombre façon cartoon.</summary>

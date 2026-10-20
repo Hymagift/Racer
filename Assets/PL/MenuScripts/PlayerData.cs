@@ -40,6 +40,80 @@ public static class PlayerData
         OnChanged?.Invoke();
     }
 
+    // ---------- Rubis (monnaie achetée avec de l'argent réel, voir PremiumStore) ----------
+
+    const string RubisKey = "DriftRubis";
+    const string StarterPackKey = "DriftStarterPack";
+
+    public static int Rubis => PlayerPrefs.GetInt(RubisKey, 0);
+
+    public static void AddRubis(int amount, bool save = true)
+    {
+        PlayerPrefs.SetInt(RubisKey, Mathf.Max(0, Rubis + amount));
+        if (save) SaveAndNotify();
+    }
+
+    public static bool TrySpendRubis(int amount, bool save = true)
+    {
+        if (Rubis < amount) return false;
+        AddRubis(-amount, save);
+        return true;
+    }
+
+    /// <summary>Pack de démarrage (achat unique) déjà acheté.</summary>
+    public static bool StarterPackBought
+    {
+        get => PlayerPrefs.GetInt(StarterPackKey, 0) == 1;
+        set
+        {
+            PlayerPrefs.SetInt(StarterPackKey, value ? 1 : 0);
+            SaveAndNotify();
+        }
+    }
+
+    // ---------- Pilote auto (réserve, voir AutopilotBoost) ----------
+
+    const string AutopilotKey = "DriftAutopilots";
+    const string AutopilotGiftKey = "DriftAutopilotGift";
+    /// <summary>Pilotes auto offerts au tout premier lancement, pour essayer.</summary>
+    public const int WelcomeAutopilots = 2;
+
+    /// <summary>Pilotes auto en réserve (les pilotes offerts sont ajoutés à la première lecture).</summary>
+    public static int Autopilots
+    {
+        get
+        {
+            GrantWelcomeAutopilots();
+            return PlayerPrefs.GetInt(AutopilotKey, 0);
+        }
+    }
+
+    /// <summary>Vrai si les pilotes auto de bienvenue viennent d'être offerts (pour l'afficher une fois).</summary>
+    public static bool WelcomeAutopilotsJustGranted { get; private set; }
+
+    static void GrantWelcomeAutopilots()
+    {
+        if (PlayerPrefs.GetInt(AutopilotGiftKey, 0) == 1) return;
+        PlayerPrefs.SetInt(AutopilotGiftKey, 1);
+        PlayerPrefs.SetInt(AutopilotKey, PlayerPrefs.GetInt(AutopilotKey, 0) + WelcomeAutopilots);
+        PlayerPrefs.Save();
+        WelcomeAutopilotsJustGranted = true;
+    }
+
+    public static void AddAutopilots(int count, bool save = true)
+    {
+        PlayerPrefs.SetInt(AutopilotKey, Mathf.Max(0, Autopilots + count));
+        if (save) SaveAndNotify();
+    }
+
+    /// <summary>Prend un pilote auto dans la réserve. Faux si elle est vide.</summary>
+    public static bool TryUseAutopilot()
+    {
+        if (Autopilots <= 0) return false;
+        AddAutopilots(-1);
+        return true;
+    }
+
     // ---------- Garage : blueprints et voitures (voir CarCatalog) ----------
 
     const string BlueprintPrefix = "DriftBlueprints_";

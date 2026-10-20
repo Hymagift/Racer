@@ -3,7 +3,12 @@ using UnityEngine;
 
 /// <summary>
 /// SEUL script qui gère le score : points à la distance parcourue, multiplicateur gagné en touchant des cônes,
-/// multiplicateur d'angle, bonus à la fin d'un drift, et meilleur score sauvegardé (PlayerPrefs).
+/// multiplicateur de drift, bonus à la fin d'un drift, et meilleur score sauvegardé (PlayerPrefs).
+///
+/// Multiplicateur total = cônes x drift. Les deux bougent progressivement :
+/// - drift : monte petit à petit pendant qu'on drifte (plus vite si l'angle est fort), reste en place un moment
+///   entre deux drifts (pour enchaîner), puis redescend lentement ;
+/// - cônes : chaque cône ajoute un bonus qui arrive en douceur ; il redescend lentement si on n'en touche plus.
 ///
 /// À mettre sur un objet vide "ScoreManager" dans la scène (un seul par scène).
 /// S'il n'y en a pas, DriftGameManager en ajoute un automatiquement.
@@ -33,27 +38,31 @@ public class ScoreManager : MonoBehaviour
     public float decayDelay = 5f;
     [Tooltip("Baisse du multiplicateur par seconde une fois le délai écoulé (0 = ne baisse jamais)")]
     public float decayPerSecond = 1f;
-    [Tooltip("Remettre le multiplicateur à 1 quand on tape un mur")]
+    [Tooltip("Remettre le multiplicateur des cônes à 1 quand on tape un mur (il redescend en douceur, pas d'un coup)")]
     public bool resetOnWallHit = true;
     [Tooltip("Points bonus à chaque cône (avant multiplicateur)")]
     public float conePoints = 50f;
+    [Tooltip("Vitesse (par seconde) à laquelle le multiplicateur des cônes rejoint sa valeur : le bonus d'un cône arrive en douceur")]
+    public float coneSmoothSpeed = 2f;
 
-    [Header("Multiplicateur d'angle")]
-    [Tooltip("Angle de drift (degrés) à partir duquel le multiplicateur d'angle s'active")]
-    public float angleThreshold = 30f;
-    [Tooltip("Multiplicateur appliqué pile à l'angle seuil")]
-    public float angleBaseMultiplier = 1.5f;
-    [Tooltip("Multiplicateur ajouté par degré au-dessus du seuil")]
-    public float angleMultiplierPerDegree = 0.05f;
-    public float maxAngleMultiplier = 5f;
-    [Tooltip("Vitesse minimale (m/s) pour que le multiplicateur d'angle soit actif")]
-    public float angleMinSpeed = 5f;
-    [Tooltip("Une fois actif, il faut descendre de (seuil - cette valeur) degrés pour commencer à le perdre")]
-    public float angleHysteresis = 6f;
-    [Tooltip("Secondes passées sous la limite avant de perdre vraiment le multiplicateur d'angle")]
-    public float angleGraceTime = 0.5f;
-    [Tooltip("Vitesse de descente du multiplicateur d'angle quand il se désactive (par seconde)")]
-    public float angleFallSpeed = 6f;
+    [Header("Multiplicateur de drift")]
+    [Tooltip("Angle de drift (degrés) à partir duquel le multiplicateur monte")]
+    public float driftMinAngle = 15f;
+    [Tooltip("Angle de drift (degrés) à partir duquel il monte le plus vite")]
+    public float driftFullAngle = 40f;
+    [Tooltip("Montée par seconde de drift à l'angle min")]
+    public float driftRiseMin = 0.4f;
+    [Tooltip("Montée par seconde de drift à l'angle max")]
+    public float driftRiseMax = 1f;
+    public float maxDriftMultiplier = 5f;
+    [Tooltip("Vitesse minimale (m/s) pour que le drift fasse monter le multiplicateur")]
+    public float driftMinSpeed = 5f;
+    [Tooltip("Secondes sans drifter pendant lesquelles le multiplicateur ne bouge pas (pour enchaîner les drifts)")]
+    public float driftHoldTime = 2f;
+    [Tooltip("Descente par seconde une fois l'attente écoulée (0.35 : de x5 à x1 en ~11 s)")]
+    public float driftFallSpeed = 0.35f;
+    [Tooltip("Taper un mur annule l'attente : le multiplicateur de drift commence tout de suite à redescendre")]
+    public bool wallHitSkipsHold = true;
 
     [Header("Drift")]
     [Tooltip("Ajouter les points de drift au score (multipliés) à la fin de chaque drift")]
@@ -67,9 +76,16 @@ public class ScoreManager : MonoBehaviour
     public TMP_Text hudDriftText;
     public TMP_Text hudDistanceText;
 
+    [Header("Cercle de combo")]
+    [Tooltip("Multiplicateur au centre de l'écran dans un cercle qui se remplit, points du combo en dessous (voir ComboHUD)")]
+    public bool showComboRing = true;
+
     [Header("Affichage de secours")]
-    [Tooltip("Affiche le score avec OnGUI tant qu'aucun texte TextMeshPro n'est assigné")]
+    [Tooltip("Affiche le score avec OnGUI tant qu'aucun texte TextMeshPro n'est assigné. Faux = aucun HUD (démo du menu)")]
     public bool showHUD = true;
+
+    /// <summary>Appelé quand un drift est encaissé, avec les points ajoutés au score (déjà multipliés).</summary>
+    public event System.Action<float> OnDriftBanked;
 
     /// <summary>Score en cours (à virgule).</summary>
     public float Score { get; private set; }
@@ -77,12 +93,12 @@ public class ScoreManager : MonoBehaviour
     public int IntScore => Mathf.FloorToInt(Score);
     /// <summary>Meilleur score sauvegardé.</summary>
     public int BestScore { get; private set; }
-    /// <summary>Multiplicateur gagné avec les cônes.</summary>
+    /// <summary>Multiplicateur gagné avec les cônes (suit coneTarget en douceur).</summary>
     public float Multiplier { get; private set; } = 1f;
-    /// <summary>Multiplicateur d'angle en direct (1 = inactif).</summary>
-    public float AngleMultiplier { get; private set; } = 1f;
-    /// <summary>Multiplicateur final appliqué au score (cônes x angle).</summary>
-    public float TotalMultiplier => Multiplier * AngleMultiplier;
+    /// <summary>Multiplicateur de drift : monte en driftant, redescend lentement quand on arrête.</summary>
+    public float DriftMultiplier { get; private set; } = 1f;
+    /// <summary>Multiplicateur final appliqué au score (cônes x drift).</summary>
+    public float TotalMultiplier => Multiplier * DriftMultiplier;
     /// <summary>Distance parcourue (m).</summary>
     public float Distance { get; private set; }
     /// <summary>Points (multipliés) que rapporterait le drift en cours s'il se terminait maintenant.</summary>
@@ -92,8 +108,8 @@ public class ScoreManager : MonoBehaviour
 
     double lastRoadDistance;
     float timeSinceCone;
-    bool angleActive;
-    float angleLostTimer;
+    float coneTarget = 1f;     // valeur que le multiplicateur des cônes rejoint progressivement
+    float timeSinceDrift = 999f;
 
     void Awake()
     {
@@ -117,6 +133,8 @@ public class ScoreManager : MonoBehaviour
             car.OnDriftEnded += HandleDriftEnded;
             car.OnWallHit += HandleWallHit;
         }
+
+        if (showComboRing && GetComponent<ComboHUD>() == null) gameObject.AddComponent<ComboHUD>();
     }
 
     void OnDestroy()
@@ -133,9 +151,8 @@ public class ScoreManager : MonoBehaviour
     {
         if (!IsRunning) return;
 
-        // Multiplicateur d'angle en direct, avec hystérésis + délai de grâce pour éviter qu'il
-        // saute à x1 quand l'angle oscille un instant autour du seuil pendant un drift.
-        UpdateAngleMultiplier();
+        UpdateDriftMultiplier();
+        UpdateConeMultiplier();
 
         // Points à la distance parcourue (on utilise la distance du décor, la voiture ne bouge pas en Z)
         if (road != null)
@@ -148,68 +165,66 @@ public class ScoreManager : MonoBehaviour
             Score += delta * pointsPerMeter * TotalMultiplier;
         }
 
-        // Le multiplicateur redescend doucement si on ne touche plus de cônes
-        timeSinceCone += Time.deltaTime;
-        if (decayPerSecond > 0f && Multiplier > 1f && timeSinceCone > decayDelay)
-            Multiplier = Mathf.Max(1f, Multiplier - decayPerSecond * Time.deltaTime);
-
         UpdateHUD();
     }
 
-    void UpdateAngleMultiplier()
+    // Drift : monte petit à petit pendant le drift, attend un peu quand on arrête, puis redescend lentement
+    void UpdateDriftMultiplier()
     {
-        float target = 1f;
+        float dt = Time.deltaTime;
+        float angle = car != null ? Mathf.Abs(car.DriftAngle) : 0f;
+        bool drifting = car != null && angle >= driftMinAngle && car.Speed >= driftMinSpeed;
 
-        if (car != null)
+        if (drifting)
         {
-            float angle = Mathf.Abs(car.DriftAngle);
-            bool fastEnough = car.Speed >= angleMinSpeed;
-
-            // Une fois actif, la limite basse est abaissée (hystérésis)
-            float limit = angleActive ? angleThreshold - angleHysteresis : angleThreshold;
-
-            if (angle >= limit && fastEnough)
-            {
-                angleActive = true;
-                angleLostTimer = 0f;
-            }
-            else if (angleActive)
-            {
-                angleLostTimer += Time.deltaTime;
-                if (angleLostTimer > angleGraceTime || !fastEnough) angleActive = false;
-            }
-
-            if (angleActive)
-            {
-                // max(angle, seuil) : pendant la grâce, on ne descend pas sous le multiplicateur de base
-                float a = Mathf.Max(angle, angleThreshold);
-                float m = angleBaseMultiplier + (a - angleThreshold) * angleMultiplierPerDegree;
-                target = Mathf.Clamp(m, 1f, maxAngleMultiplier);
-            }
+            float rise = Mathf.Lerp(driftRiseMin, driftRiseMax, Mathf.InverseLerp(driftMinAngle, driftFullAngle, angle));
+            DriftMultiplier = Mathf.Min(maxDriftMultiplier, DriftMultiplier + rise * dt);
+            timeSinceDrift = 0f;
         }
+        else
+        {
+            timeSinceDrift += dt;
+            if (timeSinceDrift > driftHoldTime)
+                DriftMultiplier = Mathf.Max(1f, DriftMultiplier - driftFallSpeed * dt);
+        }
+    }
 
-        // Monte instantanément (en direct), redescend vite mais sans à-coup
-        if (target >= AngleMultiplier) AngleMultiplier = target;
-        else AngleMultiplier = Mathf.MoveTowards(AngleMultiplier, target, angleFallSpeed * Time.deltaTime);
+    // Cônes : la valeur visée change d'un coup (cône, mur), le multiplicateur la rejoint en douceur
+    void UpdateConeMultiplier()
+    {
+        float dt = Time.deltaTime;
+        timeSinceCone += dt;
+        if (decayPerSecond > 0f && coneTarget > 1f && timeSinceCone > decayDelay)
+            coneTarget = Mathf.Max(1f, coneTarget - decayPerSecond * dt);
+
+        float speed = Mathf.Max(0.01f, coneSmoothSpeed);
+        // La descente normale (decayPerSecond) ne doit pas être ralentie par le lissage
+        if (coneTarget < Multiplier) speed = Mathf.Max(speed, decayPerSecond);
+        Multiplier = Mathf.MoveTowards(Multiplier, coneTarget, speed * dt);
     }
 
     /// <summary>Appelé par un cône quand la voiture le touche.</summary>
     public void OnConeHit()
     {
         if (!IsRunning) return;
-        Multiplier = Mathf.Min(maxMultiplier, Multiplier + multiplierPerCone);
+        coneTarget = Mathf.Min(maxMultiplier, coneTarget + multiplierPerCone);
         Score += conePoints * TotalMultiplier;
         timeSinceCone = 0f;
     }
 
     void HandleDriftEnded(float points)
     {
-        if (IsRunning && addDriftPoints) Score += points * TotalMultiplier;
+        if (!IsRunning || !addDriftPoints) return;
+        float gained = points * TotalMultiplier;
+        Score += gained;
+        OnDriftBanked?.Invoke(gained);
     }
 
     void HandleWallHit()
     {
-        if (IsRunning && resetOnWallHit) Multiplier = 1f;
+        if (!IsRunning) return;
+        if (resetOnWallHit) coneTarget = 1f;                     // redescend en douceur (coneSmoothSpeed)
+        if (wallHitSkipsHold) timeSinceDrift = driftHoldTime;    // le drift commence à redescendre tout de suite
     }
 
     // ---------- Fin de partie ----------
@@ -236,9 +251,9 @@ public class ScoreManager : MonoBehaviour
     {
         Score = 0f;
         Distance = 0f;
-        Multiplier = 1f;
-        AngleMultiplier = 1f;
-        angleActive = false;
+        Multiplier = coneTarget = 1f;
+        DriftMultiplier = 1f;
+        timeSinceDrift = 999f;
         timeSinceCone = 0f;
         IsRunning = true;
         if (road != null) lastRoadDistance = road.TotalDistance;
@@ -280,10 +295,14 @@ public class ScoreManager : MonoBehaviour
             fontStyle = FontStyle.Bold
         };
 
-        string txt = $"{IntScore}\nx{TotalMultiplier:F1}   {Mathf.FloorToInt(Distance)} m";
+        // Avec le cercle de combo, multiplicateur et points du drift sont au centre : ici seulement score et distance
+        bool ring = showComboRing && GetComponent<ComboHUD>() != null;
+        string txt = ring
+            ? $"{IntScore}\n{Mathf.FloorToInt(Distance)} m"
+            : $"{IntScore}\nx{TotalMultiplier:F1}   {Mathf.FloorToInt(Distance)} m";
         float pending = PendingDriftPoints;
-        if (pending > 0f) txt += $"\nDrift +{Mathf.FloorToInt(pending)}";
-        if (AngleMultiplier > 1f) txt += $"\nAngle x{AngleMultiplier:F1}";
+        if (!ring && pending > 0f) txt += $"\nDrift +{Mathf.FloorToInt(pending)}";
+        if (!ring && DriftMultiplier > 1f) txt += $"\nDrift x{DriftMultiplier:F1}";
         GUI.Label(new Rect(Screen.width - 20 - size * 12, 15, size * 12, size * 4f), txt, style);
     }
 }

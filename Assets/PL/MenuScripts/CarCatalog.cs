@@ -77,6 +77,8 @@ public class CarCatalog : ScriptableObject
         [Tooltip("Probabilités (en %) de chaque rareté pour chaque carte : Commune, Rare, Épique, Légendaire")]
         public float[] odds = { 70f, 24f, 5f, 1f };
         public Color color = Color.white;
+        [Tooltip("Phrase affichée sous le booster dans le shop")]
+        public string tagline = "";
 
         public float Odds(CarRarity r)
         {
@@ -261,10 +263,9 @@ public class CarCatalog : ScriptableObject
         Add("ryujin", "Ryujin GT-X", CarRarity.Legendaire, new Color(1f, 0.75f, 0.1f));
         Add("kitsune", "Kitsune Zero", CarRarity.Legendaire, new Color(0.08f, 0.08f, 0.1f));
 
-        cat.boosters.Add(new Booster { id = "bronze", displayName = "Booster Bronze", price = 100, cards = 3, odds = new[] { 70f, 24f, 5f, 1f }, color = new Color(0.8f, 0.5f, 0.25f) });
-        cat.boosters.Add(new Booster { id = "argent", displayName = "Booster Argent", price = 300, cards = 4, odds = new[] { 45f, 38f, 13f, 4f }, color = new Color(0.78f, 0.82f, 0.88f) });
-        cat.boosters.Add(new Booster { id = "or", displayName = "Booster Or", price = 750, cards = 5, odds = new[] { 15f, 45f, 28f, 12f }, color = new Color(1f, 0.8f, 0.2f) });
-        cat.boosters.Add(new Booster { id = "diamant", displayName = "Booster Diamant", price = 1500, cards = 5, odds = new[] { 0f, 15f, 45f, 40f }, color = new Color(0.45f, 0.9f, 1f) });
+        cat.boosters.Add(new Booster { id = "bronze", displayName = "Booster Bronze", price = 100, cards = 3, odds = new[] { 70f, 24f, 5f, 1f }, tagline = "Le meilleur rapport pour les Rares", color = new Color(0.8f, 0.5f, 0.25f) });
+        cat.boosters.Add(new Booster { id = "or", displayName = "Booster Or", price = 750, cards = 5, odds = new[] { 15f, 45f, 28f, 12f }, tagline = "Plus d'une chance sur quatre d'avoir une Épique", color = new Color(1f, 0.8f, 0.2f) });
+        cat.boosters.Add(new Booster { id = "diamant", displayName = "Booster Diamant", price = 1500, cards = 5, odds = new[] { 0f, 15f, 45f, 40f }, tagline = "40 % de Légendaire, zéro Commune", color = new Color(0.45f, 0.9f, 1f) });
         return cat;
     }
 }
