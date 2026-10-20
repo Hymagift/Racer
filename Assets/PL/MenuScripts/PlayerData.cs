@@ -11,12 +11,12 @@ public static class PlayerData
     const string EquippedKey = "DriftEquipped";
     const string VolumeKey = "DriftVolume";
     const string OwnedPrefix = "DriftOwned_";
-    const string BestScoreKey = "DriftBestScore"; // même clé que DriftGameManager
 
     /// <summary>Déclenché dès que les pièces, achats ou l'objet équipé changent.</summary>
     public static event Action OnChanged;
 
-    public static int BestScore => PlayerPrefs.GetInt(BestScoreKey, 0);
+    /// <summary>Meilleur score (enregistré par le ScoreManager).</summary>
+    public static int BestScore => PlayerPrefs.GetInt(ScoreManager.BestScoreKey, 0);
     public static int Coins => PlayerPrefs.GetInt(CoinsKey, 0);
 
     public static void AddCoins(int amount)
@@ -70,4 +70,4 @@ public static class PlayerData
         PlayerPrefs.Save();
         OnChanged?.Invoke();
     }
-}
+}

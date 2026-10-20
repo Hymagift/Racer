@@ -3,10 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Gère le score, la mort et l'écran de fin.
-///
-/// SCORE = distance parcourue x pointsPerMeter + points de drift validés x driftMultiplier.
-/// Le meilleur score est sauvegardé sur le téléphone (PlayerPrefs).
+/// Gère la mort et l'écran de fin. Le score est géré UNIQUEMENT par le ScoreManager
+/// (ajouté automatiquement sur cet objet s'il n'y en a pas dans la scène).
 ///
 /// MORT :
 /// - Death zone automatique : la voiture tombe sous la route (falaise) de plus de "fallDepth" mètres.
@@ -14,7 +12,7 @@ using UnityEngine.SceneManagement;
 /// - Tout objet avec le composant DeathZone (trigger) tue aussi la voiture.
 ///
 /// Mise en place :
-/// 1. GameObject vide "GameManager" avec ce script (la voiture et la route sont trouvées automatiquement).
+/// 1. GameObject vide "GameManager" avec ce script (la voiture, la route et le score sont trouvés automatiquement).
 /// 2. Dans ton Canvas, crée un objet vide "GameOverPanel" avec dedans des textes TextMeshPro
 ///    (score, meilleur score) et un bouton "Rejouer". Glisse-les dans les champs ci-dessous.
 /// 3. Sur le bouton : OnClick -> GameManager -> DriftGameManager.Restart().
@@ -25,6 +23,7 @@ public class DriftGameManager : MonoBehaviour
     [Header("Références (trouvées automatiquement si vides)")]
     public DriftCar car;
     public ZigzagRoadGenerator road;
+    public ScoreManager score;
 
     [Header("UI - écran de fin")]
     [Tooltip("L'objet vide qui contient l'UI de fin. Il est caché au début et affiché à la mort.")]
@@ -33,15 +32,6 @@ public class DriftGameManager : MonoBehaviour
     public TMP_Text bestScoreText;
     [Tooltip("Optionnel : objet affiché seulement en cas de nouveau record")]
     public GameObject newRecordObject;
-
-    [Header("UI - pendant la partie (optionnel)")]
-    public TMP_Text hudScoreText;
-    [Tooltip("Points du drift en cours, affiché seulement pendant un drift")]
-    public TMP_Text hudDriftText;
-
-    [Header("Score")]
-    public float pointsPerMeter = 1f;
-    public float driftMultiplier = 1f;
 
     [Header("Mort")]
     [Tooltip("Meurt si la voiture tombe sous le niveau de la route")]
@@ -54,16 +44,9 @@ public class DriftGameManager : MonoBehaviour
     [Tooltip("Délai avant d'afficher l'écran de fin (secondes, temps réel)")]
     public float panelDelay = 0.6f;
 
-    const string BestScoreKey = "DriftBestScore";
-
     /// <summary>Vrai une fois la partie perdue.</summary>
     public bool IsDead { get; private set; }
-    /// <summary>Score actuel (points de drift validés + distance).</summary>
-    public int Score { get; private set; }
-    /// <summary>Meilleur score sauvegardé.</summary>
-    public int BestScore { get; private set; }
 
-    float driftBank;      // points de drift validés
     Rigidbody carRb;
 
     void Awake()
@@ -75,42 +58,15 @@ public class DriftGameManager : MonoBehaviour
         if (car == null || road == null)
             Debug.LogError("[DriftGameManager] Voiture ou route introuvable dans la scène.", this);
 
-        BestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
+        if (score == null) score = FindFirstObjectByType<ScoreManager>();
+        if (score == null) score = gameObject.AddComponent<ScoreManager>();
 
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
-        if (hudDriftText != null) hudDriftText.gameObject.SetActive(false);
-    }
-
-    void OnEnable()
-    {
-        if (car != null) car.OnDriftEnded += HandleDriftEnded;
-    }
-
-    void OnDisable()
-    {
-        if (car != null) car.OnDriftEnded -= HandleDriftEnded;
-    }
-
-    void HandleDriftEnded(float points)
-    {
-        if (!IsDead) driftBank += points * driftMultiplier;
     }
 
     void Update()
     {
         if (IsDead || car == null || road == null) return;
-
-        Score = Mathf.FloorToInt((float)road.TotalDistance * pointsPerMeter + driftBank);
-
-        // HUD
-        if (hudScoreText != null) hudScoreText.text = Score.ToString();
-        if (hudDriftText != null)
-        {
-            bool show = car.IsDrifting && car.CurrentDriftPoints > 0f;
-            if (hudDriftText.gameObject.activeSelf != show) hudDriftText.gameObject.SetActive(show);
-            if (show) hudDriftText.text = "+" + Mathf.FloorToInt(car.CurrentDriftPoints * driftMultiplier);
-        }
-
         CheckDeath();
     }
 
@@ -136,12 +92,11 @@ public class DriftGameManager : MonoBehaviour
     /// <summary>Termine la partie. Appelé par la death zone, un DeathZone, ou ton propre code.</summary>
     public void Die()
     {
-
         if (IsDead) return;
         IsDead = true;
 
-        // Score final : seuls les drifts terminés comptent
-        Score = Mathf.FloorToInt((float)road.TotalDistance * pointsPerMeter + driftBank);
+        // Score figé (le drift en cours est perdu) + record enregistré
+        bool newRecord = score.EndRun();
 
         // Arrête la voiture et le défilement du décor
         if (car != null) car.enabled = false; // DriftCar remet le défilement à 0 quand il est désactivé
@@ -153,25 +108,18 @@ public class DriftGameManager : MonoBehaviour
             carRb.isKinematic = true;
         }
 
-        if (hudDriftText != null) hudDriftText.gameObject.SetActive(false);
+        PlayerData.AddCoins(score.IntScore / 10);
 
-        // Meilleur score
-        bool newRecord = Score > BestScore;
-        if (newRecord)
-        {
-            BestScore = Score;
-            PlayerPrefs.SetInt(BestScoreKey, BestScore);
-            PlayerPrefs.Save();
-        }
-        PlayerData.AddCoins(Score / 10);
         if (panelDelay > 0f) StartCoroutine(ShowPanelAfterDelay(newRecord));
         else ShowPanel(newRecord);
     }
+
     public void LoadMenu()
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene("MainMenu");
     }
+
     System.Collections.IEnumerator ShowPanelAfterDelay(bool newRecord)
     {
         yield return new WaitForSecondsRealtime(panelDelay);
@@ -180,8 +128,8 @@ public class DriftGameManager : MonoBehaviour
 
     void ShowPanel(bool newRecord)
     {
-        if (finalScoreText != null) finalScoreText.text = "Score : " + Score;
-        if (bestScoreText != null) bestScoreText.text = "Meilleur score : " + BestScore;
+        if (finalScoreText != null) finalScoreText.text = "Score : " + score.IntScore;
+        if (bestScoreText != null) bestScoreText.text = "Meilleur score : " + score.BestScore;
         if (newRecordObject != null) newRecordObject.SetActive(newRecord);
         if (gameOverPanel != null) gameOverPanel.SetActive(true);
     }
@@ -191,13 +139,5 @@ public class DriftGameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
-
-    /// <summary>Remet le meilleur score à 0 (utile pour tester).</summary>
-    [ContextMenu("Reset meilleur score")]
-    public void ResetBestScore()
-    {
-        BestScore = 0;
-        PlayerPrefs.DeleteKey(BestScoreKey);
     }
 }

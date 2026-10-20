@@ -118,17 +118,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 4670957688905719025}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e186ed711b03a54da2b7bbddd93f53b, type: 3}
+  m_Script: {fileID: 11500000, guid: 09c10aaa879fd5348bbf61449d2a68fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  car: {fileID: 0}
-  road: {fileID: 0}
-  pointsPerMeter: 1
-  multiplierPerCone: 0.5
-  maxMultiplier: 10
-  decayDelay: 5
-  decayPerSecond: 1
-  resetOnWallHit: 1
-  conePoints: 50
-  addDriftPoints: 1
-  showHUD: 1
