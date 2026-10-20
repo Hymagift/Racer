@@ -5,7 +5,8 @@ using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Route infinie en zigzag de type TOUGE, générée par "chunks" devant le joueur.
+/// Route infinie de type TOUGE, générée par "chunks" devant le joueur.
+/// Le tracé (épingles, enchaînements en S, virages serrés, courbes, lignes droites) vient de TougeLayout.
 ///
 /// MODE DÉFILEMENT : la voiture ne bouge pas en Z, c'est le décor (la route + le terrain) qui défile sous elle.
 /// Tous les chunks sont enfants d'un objet "TrackRoot" (Rigidbody cinématique) déplacé en continu vers -Z.
@@ -26,18 +27,24 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public LowPolyTerrainGenerator terrain;
 
     [Header("Forme de la route")]
+    [Tooltip("Largeur de la route (mesurée perpendiculairement à la route, même dans les diagonales)")]
     public float roadWidth = 8f;
-    [Tooltip("Distance (en Z) entre deux virages du zigzag")]
-    public float zigzagLength = 30f;
-    [Tooltip("Décalage latéral max au début")]
-    public float startAmplitude = 3f;
-    [Tooltip("Décalage latéral max une fois la difficulté au maximum")]
-    public float maxAmplitude = 12f;
-    [Tooltip("Distance parcourue pour atteindre la difficulté max")]
-    public float distanceToMaxDifficulty = 2000f;
-    [Range(0f, 1f)]
-    [Tooltip("0 = virages très doux (courbes en S), 1 = virages secs (lignes droites + angles)")]
-    public float sharpness = 0.5f;
+
+    [Header("Tracé touge")]
+    [Tooltip("Ligne droite au départ (m)")]
+    public float straightStart = 50f;
+    [Tooltip("Angle max de la route (degrés) au début. Plus grand = virages plus prononcés")]
+    [Range(10f, 70f)] public float maxAngleStart = 40f;
+    [Tooltip("Angle max de la route (degrés) à la difficulté max. Une épingle fait 2x cet angle (60 -> 120°)")]
+    [Range(10f, 70f)] public float maxAngleEnd = 60f;
+    [Tooltip("Distance parcourue pour atteindre la difficulté max (angles max, épingles et S fréquents)")]
+    public float distanceToMaxDifficulty = 1500f;
+    [Tooltip("Accélération latérale visée dans les virages (m/s²). Rayon = vitesse² / cornerGrip. Plus grand = virages plus serrés (plus dur)")]
+    public float cornerGrip = 8f;
+    [Tooltip("Rayon de virage minimum (m)")]
+    public float minCornerRadius = 8f;
+    [Tooltip("Au-delà de cet écart latéral (m), les virages ramènent la route vers le centre")]
+    public float recenterDistance = 40f;
 
     [Header("Touge")]
     [Tooltip("-1 = falaise à gauche (montagne à droite), 1 = falaise à droite, 0 = montagne des deux côtés")]
@@ -107,14 +114,13 @@ public class ZigzagRoadGenerator : MonoBehaviour
     bool LeftHasRail => cliffSide <= 0;
     bool RightHasRail => cliffSide >= 0;
 
-    readonly List<float> turnX = new List<float>(); // décalage X à chaque point de virage (index absolu)
+    TougeLayout layout;          // tracé de la route (créé à la première utilisation)
     readonly Queue<GameObject> chunks = new Queue<GameObject>();
     float nextChunkZ;            // position Z (locale au TrackRoot) du prochain chunk
     double originZ;              // décalage cumulé des rebases : z absolu = originZ + z local
     double distanceScrolled;
     float scrollSpeed;
     bool scrollWasSet, warnedNoScroll;
-    System.Random rng;
 
     Transform trackRoot;
     Rigidbody trackRb;
@@ -154,11 +160,6 @@ public class ZigzagRoadGenerator : MonoBehaviour
             return;
         }
 
-        rng = seed == 0 ? new System.Random() : new System.Random(seed);
-
-        // Premiers points de virage au centre pour que la route démarre droite sous la voiture
-        turnX.Add(0f);
-        turnX.Add(0f);
         nextChunkZ = -ChunkLength; // un chunk derrière le départ
 
         roadMat = roadMaterial != null ? roadMaterial : CreateFallbackMaterial(new Color(0.22f, 0.22f, 0.25f));
@@ -253,35 +254,39 @@ public class ZigzagRoadGenerator : MonoBehaviour
 
     // ---------- Tracé de la route (fonction déterministe de la position) ----------
 
-    float GetCenterX(float z)
+    TougeLayout Layout
     {
-        double index = (originZ + z) / zigzagLength;
-        long i = (long)Math.Floor(index);
-        float t = (float)(index - i);
-        if (i < 0) return 0f;
+        get
+        {
+            if (layout != null) return layout;
 
-        int a = (int)i; // index absolu du point de virage
-        EnsureTurnPoints(a + 2);
+            // Les rayons des virages dépendent de la vitesse de la voiture à chaque endroit (pour rester faisables)
+            DriftCar car = player != null ? player.GetComponentInParent<DriftCar>() : null;
+            if (car == null) car = FindFirstObjectByType<DriftCar>();
 
-        // Mélange entre transition lissée (courbe en S) et linéaire (virage sec)
-        float smooth = t * t * (3f - 2f * t);
-        float k = Mathf.Lerp(smooth, t, sharpness);
-        return Mathf.Lerp(turnX[a], turnX[a + 1], k);
+            layout = new TougeLayout(seed)
+            {
+                straightStart = straightStart,
+                maxAngleStart = maxAngleStart,
+                maxAngleEnd = maxAngleEnd,
+                distanceToMaxDifficulty = distanceToMaxDifficulty,
+                cornerGrip = cornerGrip,
+                minRadius = minCornerRadius,
+                recenterDistance = recenterDistance,
+                speedAt = car == null ? null : (Func<double, float>)(z =>
+                    Mathf.Lerp(car.startSpeed, car.maxSpeed, (float)(z / Math.Max(1f, car.speedRampDistance)))),
+            };
+            return layout;
+        }
     }
 
-    void EnsureTurnPoints(int upToIndex)
-    {
-        while (turnX.Count <= upToIndex)
-        {
-            int n = turnX.Count;
-            float difficulty = Mathf.Clamp01(n * zigzagLength / distanceToMaxDifficulty);
-            float amp = Mathf.Lerp(startAmplitude, maxAmplitude, difficulty);
+    float GetCenterX(float z) => Layout.CenterX(originZ + z);
 
-            // Alterne gauche/droite pour un vrai zigzag, avec un peu de hasard sur l'amplitude
-            float side = (n % 2 == 0) ? 1f : -1f;
-            float magnitude = Mathf.Lerp(0.5f, 1f, (float)rng.NextDouble()) * amp;
-            turnX.Add(side * magnitude);
-        }
+    // Les bords sont décalés en X pur : dans une diagonale il faut élargir en X pour garder roadWidth perpendiculairement
+    float WidthScale(float z)
+    {
+        float s = Layout.Slope(originZ + z);
+        return Mathf.Sqrt(1f + s * s);
     }
 
     // ---------- Construction des chunks ----------
@@ -339,17 +344,18 @@ public class ZigzagRoadGenerator : MonoBehaviour
 
         // Décalage d'UV pour que la texture reste continue malgré les rebases (calculé en double)
         float uvOffset = (float)(originZ % uvTileLength);
-        float hw = roadWidth * 0.5f;
-
         for (int r = 0; r < rows; r++)
         {
             float z = startZ + r * segmentLength;
             float x = GetCenterX(z);
             float y = RoadHeightAt(z); // la route suit le relief (plate dans la largeur)
+            float k = WidthScale(z);
+            float hw = roadWidth * 0.5f * k;
 
             // Les bords de la route sont décalés en X pur : le terrain utilise exactement les mêmes points,
             // donc la roche et la falaise se raccordent parfaitement au bord de la route.
-            rightDir[r] = Vector3.right;
+            // (élargi de k en X pour que la largeur et l'épaisseur des murs restent constantes dans les diagonales)
+            rightDir[r] = Vector3.right * k;
             left[r] = new Vector3(x - hw, y, z - startZ);
             right[r] = new Vector3(x + hw, y, z - startZ);
 
@@ -525,9 +531,15 @@ public class ZigzagRoadGenerator : MonoBehaviour
     /// <summary>Position X du centre de la route à un Z "piste" (le X monde = le X piste, rien ne défile en X).</summary>
     public float CenterXAt(float trackZ) => GetCenterX(trackZ);
 
+    /// <summary>
+    /// Demi-largeur de la route mesurée en X à un Z "piste". Égale à roadWidth / 2 en ligne droite,
+    /// plus grande dans les diagonales (les bords sont décalés en X pur). À utiliser à la place de roadWidth * 0.5f.
+    /// </summary>
+    public float HalfWidthXAt(float trackZ) => roadWidth * 0.5f * WidthScale(trackZ);
+
     /// <summary>Altitude de la route à un Z "piste". 0 s'il n'y a pas de terrain.</summary>
     public float RoadHeightAt(float trackZ) => terrain != null ? terrain.BaseHeight(GetCenterX(trackZ), trackZ) : 0f;
 
     /// <summary>Distance latérale entre un point monde (la voiture) et le centre de la route (pour détecter une sortie de route).</summary>
     public float LateralOffset(Vector3 worldPos) => worldPos.x - GetCenterX(TrackZ(worldPos.z));
-}
+}

@@ -580,71 +580,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fae3c4903973df847b055aa6d884fd93, type: 3}
   m_PrefabInstance: {fileID: 182324846}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &2098587317
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 1773511058397406729, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: car
-      value: 
-      objectReference: {fileID: 2103015982074112429}
-    - target: {fileID: 1773511058397406729, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: road
-      value: 
-      objectReference: {fileID: 2028527755}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5788101572139136000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6470085805346555860, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
-      propertyPath: m_Name
-      value: ScoreManager (1)
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
 --- !u!114 &2103015982074112429 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 957184219413428352, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
@@ -807,14 +742,6 @@ PrefabInstance:
       propertyPath: road
       value: 
       objectReference: {fileID: 2028527755}
-    - target: {fileID: 957184219413428352, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
-      propertyPath: steerSpeed
-      value: 5
-      objectReference: {fileID: 0}
-    - target: {fileID: 957184219413428352, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
-      propertyPath: frontStiffness
-      value: 30000
-      objectReference: {fileID: 0}
     - target: {fileID: 1669350826270330535, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -855,6 +782,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1868665966313590012, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
+      propertyPath: m_Size.z
+      value: 3.3192527
+      objectReference: {fileID: 0}
+    - target: {fileID: 1868665966313590012, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
+      propertyPath: m_Center.z
+      value: 0.08965552
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 7133713194563434137, guid: cedad3ddabdfebe4ea7492025ad72d2a, type: 3}
@@ -875,4 +810,3 @@ SceneRoots:
   - {fileID: 4308465699075222871}
   - {fileID: 1428262304}
   - {fileID: 1909472535}
-  - {fileID: 2098587317}

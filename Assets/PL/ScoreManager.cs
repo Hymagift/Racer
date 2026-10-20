@@ -40,7 +40,7 @@ public class ScoreManager : MonoBehaviour
 
     [Header("Multiplicateur d'angle")]
     [Tooltip("Angle de drift (degrés) à partir duquel le multiplicateur d'angle s'active")]
-    public float angleThreshold = 45f;
+    public float angleThreshold = 30f;
     [Tooltip("Multiplicateur appliqué pile à l'angle seuil")]
     public float angleBaseMultiplier = 1.5f;
     [Tooltip("Multiplicateur ajouté par degré au-dessus du seuil")]
@@ -49,7 +49,7 @@ public class ScoreManager : MonoBehaviour
     [Tooltip("Vitesse minimale (m/s) pour que le multiplicateur d'angle soit actif")]
     public float angleMinSpeed = 5f;
     [Tooltip("Une fois actif, il faut descendre de (seuil - cette valeur) degrés pour commencer à le perdre")]
-    public float angleHysteresis = 8f;
+    public float angleHysteresis = 6f;
     [Tooltip("Secondes passées sous la limite avant de perdre vraiment le multiplicateur d'angle")]
     public float angleGraceTime = 0.5f;
     [Tooltip("Vitesse de descente du multiplicateur d'angle quand il se désactive (par seconde)")]

@@ -92,7 +92,7 @@ public class DriftGameManager : MonoBehaviour
             return;
         }
 
-        if (dieOffRoad && Mathf.Abs(road.LateralOffset(p)) > road.roadWidth * 0.5f + offRoadMargin)
+        if (dieOffRoad && Mathf.Abs(road.LateralOffset(p)) > road.HalfWidthXAt(road.TrackZ(p.z)) + offRoadMargin)
             Die();
     }
 
