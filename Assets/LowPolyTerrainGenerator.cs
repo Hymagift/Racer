@@ -312,7 +312,8 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         while (stride > 1 && rows % stride != 0) stride--;
 
         int cols = offsets.Count;
-        float hw = road.roadWidth * 0.5f;
+        // Demi-largeur en X de la route à chaque ligne (plus grande dans les diagonales, comme le mesh de la route)
+        var hws = new float[rows + 1];
 
         // Centre et altitude de la route à chaque ligne (mêmes valeurs que celles utilisées par le mesh de la route)
         var cxs = new float[rows + 1];
@@ -321,6 +322,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         {
             float z = startZ + r * dz;
             cxs[r] = road.CenterXAt(z);
+            hws[r] = road.HalfWidthXAt(z);
             roadYs[r] = road.RoadHeightAt(z);
         }
 
@@ -341,7 +343,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
                     if (!fine && r % stride != 0) continue; // interpolé plus bas
 
                     float z = startZ + r * dz;
-                    float x = cxs[r] + sgn * (hw + e);
+                    float x = cxs[r] + sgn * (hws[r] + e);
                     double az = road.OriginZ + z;
                     float fade = Mathf.SmoothStep(0f, 1f, (float)(az / startFlatDistance));
 
@@ -431,4 +433,4 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         mesh.RecalculateBounds();
         return mesh;
     }
-}
+}

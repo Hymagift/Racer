@@ -99,32 +99,32 @@ MonoBehaviour:
   road: {fileID: 0}
   body: {fileID: 8229966985255123616}
   tireSmoke: []
-  startSpeed: 10
-  maxSpeed: 20
-  speedRampDistance: 3000
-  engineAccel: 7
-  driftBoost: 0.5
+  startSpeed: 8
+  maxSpeed: 16
+  speedRampDistance: 4000
+  engineAccel: 5
+  driftBoost: 0.3
   mass: 1200
-  yawInertia: 1600
+  yawInertia: 2200
   frontAxle: 1.2
   rearAxle: 1.3
-  frontStiffness: 60000
-  rearStiffness: 60000
-  frontGrip: 1.3
-  rearGrip: 1.2
-  rearDriftGrip: 0.45
-  maxSteerLow: 30
-  maxSteerHigh: 16
-  steerSpeed: 50
-  steerReturnSpeed: 4
-  countersteerAssist: 0.9
-  maxDriftAngle: 50
-  angleLimitStrength: 6
-  minDriftSpeed: 8
-  driftEngageRate: 3
-  driftReleaseRate: 1.5
-  yawDampingNoInput: 2.5
-  maxYawRate: 180
+  frontStiffness: 42000
+  rearStiffness: 48000
+  frontGrip: 1.15
+  rearGrip: 1.3
+  rearDriftGrip: 0.55
+  maxSteerLow: 26
+  maxSteerHigh: 14
+  steerSpeed: 3
+  steerReturnSpeed: 3
+  countersteerAssist: 1
+  maxDriftAngle: 40
+  angleLimitStrength: 8
+  minDriftSpeed: 7
+  driftEngageRate: 2.2
+  driftReleaseRate: 2.2
+  yawDampingNoInput: 4
+  maxYawRate: 120
   substeps: 4
   wallSpeedKeep: 0.85
   bodyRollMax: 5
