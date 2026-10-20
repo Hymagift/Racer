@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 /// Pilote automatique pour la partie qui tourne en fond du menu.
 /// À mettre sur la voiture de la scène du menu : elle suit la route toute seule en driftant.
 /// Nécessite les 2 champs "useExternalInput" / "externalInput" dans DriftCar.
-/// Si la voiture tombe malgré tout, la scène du menu est rechargée.
+/// Si la voiture tombe malgré tout, la partie se termine (DriftGameManager) et le menu relance une démo.
 /// </summary>
 [RequireComponent(typeof(DriftCar))]
 public class DriftAutoPilot : MonoBehaviour
@@ -25,6 +25,7 @@ public class DriftAutoPilot : MonoBehaviour
 
     DriftCar car;
     Rigidbody rb;
+    DriftGameManager manager;
     float dirSign = 1f;
     bool calibrated;
 
@@ -49,7 +50,7 @@ public class DriftAutoPilot : MonoBehaviour
 
     void Update()
     {
-        if (road == null) return;
+        if (road == null || !car.enabled) return;
         if (!calibrated) Calibrate();
 
         Vector3 p = transform.position;
@@ -63,8 +64,12 @@ public class DriftAutoPilot : MonoBehaviour
         if (invertSteering) input = -input;
         car.externalInput = input;
 
-        // Filet de sécurité : chute -> on relance le menu
+        // Filet de sécurité : chute -> fin de la partie (le menu fait le fondu et relance)
         if (p.y < road.RoadHeightAt(road.TrackZ(p.z)) - fallDepth)
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        {
+            if (manager == null) manager = FindFirstObjectByType<DriftGameManager>();
+            if (manager != null) manager.Die();
+            else SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 }
