@@ -115,14 +115,13 @@ MonoBehaviour:
   rearDriftGrip: 0.55
   maxSteerLow: 26
   maxSteerHigh: 14
-  steerSpeed: 3
-  steerReturnSpeed: 3
-  countersteerAssist: 1
+  steerReturnSpeed: 5
+  countersteerAssist: 0.7
   maxDriftAngle: 40
   angleLimitStrength: 8
   minDriftSpeed: 7
-  driftEngageRate: 2.2
-  driftReleaseRate: 2.2
+  driftEngageRate: 1.3
+  driftReleaseRate: 1.8
   yawDampingNoInput: 4
   maxYawRate: 120
   substeps: 4

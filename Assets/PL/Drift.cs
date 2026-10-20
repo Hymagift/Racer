@@ -17,7 +17,8 @@ using UnityEngine.InputSystem;
 /// et c'est lui qui décide seul de l'orientation de la voiture (MoveRotation) : rotation et glisse restent synchronisées.
 ///
 /// La voiture ne bouge pas en Z : sa vitesse vers l'avant fait défiler la route.
-/// CONTRÔLES : maintenir le doigt à gauche / à droite de l'écran (souris ou flèches dans l'éditeur).
+/// CONTRÔLES : le braquage suit la position HORIZONTALE du doigt (souris dans l'éditeur) :
+/// doigt au centre = roues droites, plus il s'écarte du centre, plus on braque. Flèches = braquage à fond.
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 public class DriftCar : MonoBehaviour
@@ -64,24 +65,51 @@ public class DriftCar : MonoBehaviour
     public float maxSteerLow = 26f;
     [Tooltip("Angle de braquage max à haute vitesse (degrés)")]
     public float maxSteerHigh = 14f;
-    [Tooltip("Vitesse à laquelle le volant tourne quand on appuie (par seconde)")]
-    public float steerSpeed = 3f;
-    [Tooltip("Vitesse à laquelle le volant revient au centre quand on relâche (par seconde)")]
-    public float steerReturnSpeed = 3f;
+    [Tooltip("Réactivité du volant : plus haut = les roues suivent le doigt plus vite (lissage exponentiel, par seconde)")]
+    public float steerFollowSpeed = 12f;
+    [Tooltip("Vitesse max de rotation du volant (de -1 à 1 en 2/x secondes). Évite les à-coups si le doigt saute.")]
+    public float steerMaxRate = 6f;
+    [Tooltip("Vitesse à laquelle le volant revient au centre quand on lâche l'écran (par seconde)")]
+    public float steerReturnSpeed = 5f;
+
+    [Header("Doigt / souris")]
+    [Tooltip("PositionEcran : l'angle dépend de la position du doigt par rapport au centre de l'écran.\n" +
+             "Glissement : l'angle dépend de la distance glissée depuis l'endroit où le doigt s'est posé.")]
+    public SteerMode steerMode = SteerMode.PositionEcran;
+    [Range(0f, 0.5f)]
+    [Tooltip("Zone morte au centre (fraction de la demi-largeur d'écran) : en dessous, roues droites")]
+    public float touchDeadZone = 0.08f;
+    [Range(0.1f, 1f)]
+    [Tooltip("Mode PositionEcran : fraction de la demi-largeur d'écran où l'on atteint le braquage max (1 = bord de l'écran)")]
+    public float fullSteerScreenFraction = 0.75f;
+    [Range(0.05f, 1f)]
+    [Tooltip("Mode Glissement : distance à glisser pour braquer à fond (fraction de la demi-largeur d'écran)")]
+    public float fullSteerDragFraction = 0.35f;
+    [Range(1f, 3f)]
+    [Tooltip("Courbe de réponse : 1 = linéaire, plus haut = plus de précision près du centre, braquage fort réservé aux bords")]
+    public float steerCurve = 1.4f;
 
     [Header("Aides au pilotage")]
     [Range(0f, 1.5f)]
     [Tooltip("Contre-braquage automatique en drift (0 = aucun, 1 = les roues suivent la glisse)")]
-    public float countersteerAssist = 1f;
+    public float countersteerAssist = 0.7f;
+    [Tooltip("Contre-braquage automatique max (degrés). Il plafonne en douceur : plus de bascule d'un coup en contre-braquage complet.")]
+    public float maxCountersteer = 18f;
     [Tooltip("Angle de drift max (degrés). Au-delà, la rotation est freinée en douceur.")]
     public float maxDriftAngle = 40f;
     public float angleLimitStrength = 8f;
     [Tooltip("Vitesse à partir de laquelle braquer fort déclenche le drift")]
     public float minDriftSpeed = 7f;
+    [Range(0f, 1f)]
+    [Tooltip("Braquage (0..1) à partir duquel l'arrière commence à décrocher")]
+    public float driftStartSteer = 0.45f;
+    [Range(0f, 1f)]
+    [Tooltip("Braquage (0..1) pour un drift complet. Entre les deux, l'arrière décroche en proportion du braquage.")]
+    public float driftFullSteer = 0.95f;
     [Tooltip("Vitesse à laquelle l'arrière décroche quand on braque")]
-    public float driftEngageRate = 2.2f;
+    public float driftEngageRate = 1.3f;
     [Tooltip("Vitesse à laquelle l'arrière se raccroche quand on relâche")]
-    public float driftReleaseRate = 2.2f;
+    public float driftReleaseRate = 1.8f;
     [Tooltip("Stabilise la rotation quand on ne touche pas l'écran")]
     public float yawDampingNoInput = 4f;
     [Tooltip("Rotation max (degrés/s)")]
@@ -113,7 +141,9 @@ public class DriftCar : MonoBehaviour
 
     [Header("Menu / autopilote")]
     public bool useExternalInput;
-    public float externalInput;   // -1 gauche, 0 rien, 1 droite
+    public float externalInput;   // -1 gauche, 0 rien, 1 droite (valeurs intermédiaires = braquage partiel)
+
+    public enum SteerMode { PositionEcran, Glissement }
     // ---------- Infos pour le score / l'UI ----------
 
     /// <summary>Vitesse en m/s.</summary>
@@ -142,6 +172,8 @@ public class DriftCar : MonoBehaviour
     float lateralAccel;
     float driftTime;
     float rawInput, lastSteerDeg;
+    bool pointerWasDown;
+    float pointerStartX;  // mode Glissement : où le doigt s'est posé
     int wallContacts;
     string inputError;
     float lastWallHitTime = -10f;
@@ -207,36 +239,52 @@ public class DriftCar : MonoBehaviour
     {
         rawInput = ReadInput();
 
-        // Volant : monte vite quand on appuie, revient plus doucement au centre (pas d'à-coup)
-        float rate = Mathf.Abs(rawInput) > 0.01f ? steerSpeed : steerReturnSpeed;
-        steerInput = Mathf.MoveTowards(steerInput, rawInput, rate * Time.deltaTime);
+        // Volant : suit le doigt avec un léger lissage (réactif, mais sans à-coup si le doigt saute),
+        // et revient au centre à vitesse fixe quand on lâche l'écran
+        float dt = Time.deltaTime;
+        if (Mathf.Abs(rawInput) > 0.001f)
+        {
+            float smoothed = Mathf.Lerp(steerInput, rawInput, 1f - Mathf.Exp(-steerFollowSpeed * dt));
+            steerInput = Mathf.MoveTowards(steerInput, smoothed, steerMaxRate * dt);
+        }
+        else
+            steerInput = Mathf.MoveTowards(steerInput, 0f, steerReturnSpeed * dt);
 
         UpdateVisuals();
     }
 
     // Lit le doigt / la souris / le clavier, avec l'ancien ET le nouveau système d'Input de Unity.
+    // Renvoie -1..1 : pour le doigt et la souris, c'est proportionnel à leur position horizontale.
     float ReadInput()
     {
         if (useExternalInput) return externalInput;
-        float half = Screen.width * 0.5f;
+
+        bool down = false;
+        float x = 0f;
+        float key = 0f;
 
 #if ENABLE_INPUT_SYSTEM
         try
         {
             var ts = Touchscreen.current;
-            if (ts != null && ts.primaryTouch.press.isPressed)
-                return ts.primaryTouch.position.ReadValue().x < half ? -1f : 1f;
-
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.isPressed)
-                return mouse.position.ReadValue().x < half ? -1f : 1f;
+            if (ts != null && ts.primaryTouch.press.isPressed)
+            {
+                down = true;
+                x = ts.primaryTouch.position.ReadValue().x;
+            }
+            else if (mouse != null && mouse.leftButton.isPressed)
+            {
+                down = true;
+                x = mouse.position.ReadValue().x;
+            }
 
             var kb = Keyboard.current;
             if (kb != null)
             {
                 bool l = kb.leftArrowKey.isPressed || kb.aKey.isPressed || kb.qKey.isPressed;
                 bool r = kb.rightArrowKey.isPressed || kb.dKey.isPressed;
-                if (l != r) return l ? -1f : 1f;
+                if (l != r) key = l ? -1f : 1f;
             }
         }
         catch (Exception e) { inputError = "InputSystem: " + e.Message; }
@@ -245,19 +293,52 @@ public class DriftCar : MonoBehaviour
 #if ENABLE_LEGACY_INPUT_MANAGER
         try
         {
-            if (Input.touchCount > 0)
-                return Input.GetTouch(0).position.x < half ? -1f : 1f;
-            if (Input.GetMouseButton(0))
-                return Input.mousePosition.x < half ? -1f : 1f;
+            if (!down && Input.touchCount > 0)
+            {
+                down = true;
+                x = Input.GetTouch(0).position.x;
+            }
+            else if (!down && Input.GetMouseButton(0))
+            {
+                down = true;
+                x = Input.mousePosition.x;
+            }
 
-            bool l = Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.Q);
-            bool r = Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D);
-            if (l != r) return l ? -1f : 1f;
+            if (key == 0f)
+            {
+                bool l = Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.Q);
+                bool r = Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D);
+                if (l != r) key = l ? -1f : 1f;
+            }
         }
         catch (Exception e) { inputError = "Input: " + e.Message; }
 #endif
 
-        return 0f;
+        if (!down)
+        {
+            pointerWasDown = false;
+            return key;
+        }
+
+        // Le doigt vient de se poser : point de départ du mode Glissement
+        if (!pointerWasDown) pointerStartX = x;
+        pointerWasDown = true;
+
+        float half = Mathf.Max(1f, Screen.width * 0.5f);
+        float offset = steerMode == SteerMode.Glissement
+            ? (x - pointerStartX) / (half * fullSteerDragFraction)
+            : (x - half) / (half * fullSteerScreenFraction);
+        return ShapeInput(offset);
+    }
+
+    // Zone morte au centre, saturation à ±1, puis courbe de réponse (précision près du centre)
+    float ShapeInput(float v)
+    {
+        float a = Mathf.Abs(v);
+        float dz = Mathf.Clamp(touchDeadZone, 0f, 0.9f);
+        if (a <= dz) return 0f;
+        a = Mathf.Clamp01((a - dz) / (1f - dz));
+        return Mathf.Sign(v) * Mathf.Pow(a, Mathf.Max(1f, steerCurve));
     }
 
     // ---------- Physique ----------
@@ -269,10 +350,16 @@ public class DriftCar : MonoBehaviour
         // La physique Unity a pu modifier X (collisions) : on repart de sa valeur
         vel.x = rb.linearVelocity.x;
 
-        // Déclenchement du drift : braquer fort à vitesse suffisante fait décrocher l'arrière
-        bool wantDrift = Mathf.Abs(steerInput) > 0.6f && vel.magnitude > minDriftSpeed;
-        driftFactor = Mathf.MoveTowards(driftFactor, wantDrift ? 1f : 0f,
-                                        (wantDrift ? driftEngageRate : driftReleaseRate) * dt);
+        // Déclenchement du drift : l'arrière décroche EN PROPORTION du braquage (à vitesse suffisante),
+        // au lieu de tout ou rien : un petit coup de doigt = légère glisse, doigt au bord = gros drift
+        float driftTarget = 0f;
+        if (vel.magnitude > minDriftSpeed)
+        {
+            float t = Mathf.InverseLerp(driftStartSteer, Mathf.Max(driftStartSteer + 0.01f, driftFullSteer), Mathf.Abs(steerInput));
+            driftTarget = t * t * (3f - 2f * t); // départ et arrivée en douceur
+        }
+        float driftRate = driftTarget > driftFactor ? driftEngageRate : driftReleaseRate;
+        driftFactor = Mathf.MoveTowards(driftFactor, driftTarget, driftRate * dt);
 
         // Modèle de voiture en plusieurs sous-pas (fluide et stable)
         int n = Mathf.Max(1, substeps);
@@ -308,7 +395,8 @@ public class DriftCar : MonoBehaviour
         float speed01 = Mathf.InverseLerp(5f, 25f, speed);
         float maxSteer = Mathf.Lerp(maxSteerLow, maxSteerHigh, speed01) * Mathf.Deg2Rad;
         float assist = countersteerAssist * Mathf.Lerp(0.3f, 1f, driftFactor);
-        float steer = steerInput * maxSteer + assist * beta;
+        float counter = SoftClamp(assist * beta, maxCountersteer * Mathf.Deg2Rad); // plafonne en douceur
+        float steer = steerInput * maxSteer + counter;
         steer = Mathf.Clamp(steer, -50f * Mathf.Deg2Rad, 50f * Mathf.Deg2Rad);
         lastSteerDeg = steer * Mathf.Rad2Deg;
 
@@ -541,7 +629,7 @@ public class DriftCar : MonoBehaviour
 
         var style = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(14, Screen.height / 45) };
         string txt =
-            $"Entrée : {rawInput:F0}   Volant : {steerInput:F2}   Braquage : {lastSteerDeg:F0}°\n" +
+            $"Entrée : {rawInput:F2}   Volant : {steerInput:F2}   Braquage : {lastSteerDeg:F0}°\n" +
             $"Rotation : {yawRate * Mathf.Rad2Deg:F0}°/s   Vitesse : {Speed * 3.6f:F0} km/h\n" +
             $"Drift : {driftFactor:F2}   Angle : {DriftAngle:F0}°   Contacts mur : {wallContacts}";
         if (!string.IsNullOrEmpty(inputError)) txt += "\nERREUR : " + inputError;
