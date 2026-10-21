@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Multiplicateur au centre de l'écran, dans un cercle qui se remplit, avec les points du combo en cours en dessous.
+/// Multiplicateur dans un cercle qui se remplit, placé sous la voiture (il la suit), avec les points du combo en cours en dessous.
 ///
 /// - Le cercle montre la progression vers le palier suivant : à x2.4 il est rempli à 40 % ; en passant x3
 ///   il se remplit, "pulse", puis repart de zéro. Sa couleur change à chaque palier.
@@ -16,7 +16,13 @@ using UnityEngine.UI;
 public class ComboHUD : MonoBehaviour
 {
     [Header("Position")]
-    [Tooltip("Hauteur du cercle à l'écran (0 = bas, 0.5 = milieu, 1 = haut). Au milieu exact, il cache la voiture.")]
+    [Tooltip("Le cercle suit la voiture à l'écran et se place juste en dessous")]
+    public bool followCar = true;
+    [Tooltip("Écart entre le centre de la voiture et le haut du cercle (pour un écran de référence 1080 x 1920)")]
+    public float carGap = 90f;
+    [Tooltip("Vitesse à laquelle le cercle suit la voiture (plus grand = plus collé, plus petit = plus souple)")]
+    public float followSpeed = 18f;
+    [Tooltip("Hauteur du cercle à l'écran si la voiture n'est pas suivie (0 = bas, 0.5 = milieu, 1 = haut)")]
     [Range(0f, 1f)] public float verticalPosition = 0.68f;
     [Tooltip("Diamètre du cercle (pour un écran de référence 1080 x 1920)")]
     public float size = 270f;
@@ -47,7 +53,9 @@ public class ComboHUD : MonoBehaviour
     DriftCar car;
 
     Canvas canvas;
-    RectTransform root;
+    RectTransform canvasRect, root;
+    Camera cam;
+    bool placed;
     Image fill;
     Text multiplierText, comboText, scoreText;
     Texture2D ringTexture;
@@ -67,6 +75,7 @@ public class ComboHUD : MonoBehaviour
         if (score == null) { enabled = false; return; }
 
         car = score.car;
+        if (car == null) car = FindFirstObjectByType<DriftCar>();
         score.OnDriftBanked += HandleBanked;
         if (car != null) car.OnWallHit += HandleWallHit;
 
@@ -149,8 +158,32 @@ public class ComboHUD : MonoBehaviour
         float scale = 1f + 0.25f * pulse * pulse;
         if (scale != shownScale) { shownScale = scale; root.localScale = Vector3.one * scale; }
 
+        FollowCar(dt);
         UpdateCombo(dt);
         UpdateScore();
+    }
+
+    // Place le cercle juste sous la voiture à l'écran (position de la voiture projetée par la caméra)
+    void FollowCar(float dt)
+    {
+        if (!followCar || car == null) return;
+        if (cam == null || !cam.isActiveAndEnabled) cam = Camera.main;
+        if (cam == null) return;
+
+        Vector3 sp = cam.WorldToScreenPoint(car.transform.position);
+        if (sp.z <= 0f) return; // voiture derrière la caméra
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, sp, null, out Vector2 local)) return;
+
+        // Sous la voiture, sans sortir de l'écran (on garde la place du texte du combo en dessous)
+        Vector2 half = canvasRect.rect.size * 0.5f;
+        if (half.x <= 0f || half.y <= 0f) return; // canvas pas encore mis en page
+        Vector2 target = local + new Vector2(0f, -carGap - size * 0.5f);
+        float marginX = size * 0.5f + 20f;
+        target.x = Mathf.Clamp(target.x, -half.x + marginX, half.x - marginX);
+        target.y = Mathf.Clamp(target.y, -half.y + size * 0.9f, half.y - size * 0.5f);
+
+        root.anchoredPosition = placed ? Vector2.Lerp(root.anchoredPosition, target, 1f - Mathf.Exp(-followSpeed * dt)) : target;
+        placed = true;
     }
 
     // Score et distance en haut à droite (remplace l'ancien affichage OnGUI, trop lent sur téléphone)
@@ -231,8 +264,10 @@ public class ComboHUD : MonoBehaviour
         scaler.referenceResolution = new Vector2(1080f, 1920f);
         scaler.matchWidthOrHeight = 0.5f;
 
+        canvasRect = (RectTransform)go.transform;
         root = NewRect("Combo", go.transform);
-        root.anchorMin = root.anchorMax = new Vector2(0.5f, verticalPosition);
+        // En suivant la voiture, la position est donnée depuis le centre de l'écran
+        root.anchorMin = root.anchorMax = new Vector2(0.5f, followCar ? 0.5f : verticalPosition);
         root.sizeDelta = new Vector2(size, size);
 
         BuildRingSprite();
