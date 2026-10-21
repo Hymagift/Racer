@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 0}
-  roadMaterial: {fileID: 2100000, guid: 42f2a4b4d6dd8a9489aba11ae1b22f8d, type: 2}
+  roadMaterial: {fileID: 2100000, guid: 0f55dd713a304e8f984556fed4925139, type: 2}
   terrain: {fileID: 0}
   roadWidth: 8
   straightStart: 50
