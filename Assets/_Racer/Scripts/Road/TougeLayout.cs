@@ -10,8 +10,7 @@ using System.Collections.Generic;
 /// jamais en ajoutant des virages du même côté.
 ///
 /// La route est une courbe paramétrée par sa LONGUEUR s (distance parcourue le long de la route) :
-/// chaque pièce est un VRAI arc de cercle de rayon connu. JAMAIS DE LIGNE DROITE : entre deux virages, la route ondule
-/// en courbes douces (voir AddPieceS), le joueur tourne tout le temps.
+/// chaque pièce est un VRAI arc de cercle de rayon connu, suivi d'une portion droite.
 /// Le cap reste toujours entre -90° et +90° (0 = vers +Z) : la route ne recule jamais en Z, donc elle ne peut pas se recouper,
 /// mais elle peut rouler en travers (branches de lacets) et faire de vrais demi-tours (de +90° à -90° = 180°).
 /// Le rayon est choisi pour que le virage reste faisable à la vitesse de la voiture à cet endroit ;
@@ -25,7 +24,7 @@ public class TougeLayout
 {
     // ---------- Réglages (renseignés par ZigzagRoadGenerator) ----------
 
-    /// <summary>Portion de départ en courbes douces (m).</summary>
+    /// <summary>Ligne droite au départ (m).</summary>
     public float straightStart = 50f;
     /// <summary>Distance pour atteindre la difficulté max. La difficulté monte vite au début puis plus doucement.</summary>
     public float distanceToMaxDifficulty = 900f;
@@ -41,9 +40,9 @@ public class TougeLayout
     public float holdScaleStart = 1.3f, holdScaleEnd = 0.35f;
     /// <summary>Écart latéral (m) à partir duquel les virages ramènent nettement la route vers x = 0.</summary>
     public float recenterDistance = 40f;
-    /// <summary>Figures entre deux portions de répit (courbes douces), au début / à la difficulté max (0 = jamais de répit).</summary>
+    /// <summary>Figures entre deux lignes droites de répit, au début / à la difficulté max (0 = jamais de répit).</summary>
     public int figuresBetweenBreaks = 5, figuresBetweenBreaksEnd = 18;
-    /// <summary>Longueur d'une portion de répit (courbes douces) (m) au début / à la difficulté max.</summary>
+    /// <summary>Longueur d'une ligne droite de répit (m) au début / à la difficulté max.</summary>
     public float breakLengthStart = 24f, breakLengthEnd = 8f;
     /// <summary>Largeur de la route au début / à la difficulté max (pour que le bord intérieur d'une épingle reste un vrai virage).</summary>
     public float roadWidthStart = 9f, roadWidthEnd = 6f;
@@ -79,8 +78,8 @@ public class TougeLayout
     public float tightHairpinGrip = 7.5f;
 
     /// <summary>
-    /// ÉPINGLE DE DRIFT : grand U de montagne à 180°, longue portion en courbes douces en entrée, demi-tour régulier assez large
-    /// pour tenir un gros drift tout du long, longue portion en courbes douces en sortie. Revient régulièrement :
+    /// ÉPINGLE DE DRIFT : grand U de montagne à 180°, longue ligne droite en entrée, demi-tour régulier assez large
+    /// pour tenir un gros drift tout du long, longue ligne droite parallèle en sortie. Revient régulièrement :
     /// une tous les driftHairpinEveryMin à driftHairpinEveryMax mètres (0 = jamais).
     /// </summary>
     public float driftHairpinEveryMin = 450f, driftHairpinEveryMax = 800f;
@@ -92,13 +91,8 @@ public class TougeLayout
     public float driftHairpinGrip = 9f;
     /// <summary>Rayon minimum de l'épingle de drift (m).</summary>
     public float driftHairpinMinRadius = 14f;
-    /// <summary>Longueur des portions d'entrée et de sortie du U, en courbes douces (m).</summary>
+    /// <summary>Longueur des lignes droites d'entrée et de sortie (m).</summary>
     public float driftHairpinLegMin = 40f, driftHairpinLegMax = 70f;
-
-    /// <summary>Rayon des courbes douces qui remplacent toutes les lignes droites (m, au hasard entre min et max).</summary>
-    public float wiggleRadiusMin = 45f, wiggleRadiusMax = 80f;
-    /// <summary>Longueur max d'une vague (un arc qui s'écarte, un arc qui revient) entre deux virages (m).</summary>
-    public float wiggleLength = 24f;
     /// <summary>Décélération (m/s²) supposée pour placer le début du ralentissement avant une épingle.</summary>
     public float brakeDecel = 2.5f;
     /// <summary>Longueur des branches entre deux épingles (m, le long de la route).</summary>
@@ -456,7 +450,7 @@ public class TougeLayout
                 Hairpin(a, r * RV(), Hold(3f, 9f));
                 break;
 
-            case 3: // enchaînement en S : de 3 virages au début jusqu'à 7 à la difficulté max, presque sans répit
+            case 3: // enchaînement en S : de 3 virages au début jusqu'à 7 à la difficulté max, presque sans ligne droite
             {
                 int n = 3 + rng.Next(1 + (int)Math.Round(4f * d));
                 float rs = r * RV(); // un même S garde à peu près son rythme, mais chaque S a le sien
@@ -478,7 +472,7 @@ public class TougeLayout
                 break;
             }
 
-            case 6: // répit : courbes douces (de plus en plus courtes), le cap revient presque dans l'axe
+            case 6: // répit : ligne droite (de plus en plus courte), le cap revient presque dans l'axe
             {
                 float len = Lerp(breakLengthStart, breakLengthEnd, d) * Rand(0.8f, 1.2f);
                 Turn(-Math.Sign(EndAngleDeg) == 0 ? NextDir() : -Math.Sign(EndAngleDeg), 0f, Math.Abs(EndAngleDeg), r * 1.5f, len, toward: 0f, cross: false);
@@ -564,9 +558,7 @@ public class TougeLayout
             float v = SpeedAt(sStart);
             float r = HairpinRadius(sStart, tight);
             bool last = i == count - 1;
-            int arcIndex = pieces.Count;
             AddPieceS(side * h, r, last ? Rand(4f, 9f) : Leg(side));
-            double arcEnd = sStart + pieces[arcIndex].arcLen;
 
             // Ralentissement : freinage avant l'épingle, vitesse réduite jusqu'à la sortie de l'arc
             float f = HairpinSlowdown(tight);
@@ -574,19 +566,19 @@ public class TougeLayout
             {
                 float vh = v * f;
                 double brake = (v * v - vh * vh) / (2.0 * Math.Max(0.5f, brakeDecel)) + 0.5 * v;
-                slowZones.Add(new SlowZone { start = sStart - brake, arcStart = sStart, end = arcEnd, factor = f });
+                slowZones.Add(new SlowZone { start = sStart - brake, arcStart = sStart, end = sStart + Last.arcLen, factor = f });
             }
         }
 
-        // Sortie : retour dans l'axe (petit angle au hasard), puis quelques courbes douces
+        // Sortie : retour dans l'axe (petit angle au hasard), puis une courte ligne droite
         float exit = Rand(-0.25f, 0.25f) * a;
         AddPieceS(exit, Radius(EndS) * 1.15f, Hold(4f, 10f) / Math.Max(0.3f, (float)Math.Cos(exit * Deg2Rad)));
         lastDir = -side; // le dernier virage ramenait le cap de side * h vers l'axe
     }
 
     /// <summary>
-    /// Grand U de drift : virage d'entrée jusqu'au cap ±90° (la route roule en travers), longues courbes douces, demi-tour de 180°
-    /// d'un seul rayon (ni trop serré ni trop large, faisable en drift à presque pleine vitesse), longues courbes douces
+    /// Grand U de drift : virage d'entrée jusqu'au cap ±90° (la route roule en travers), longue ligne droite, demi-tour de 180°
+    /// d'un seul rayon (ni trop serré ni trop large, faisable en drift à presque pleine vitesse), longue ligne droite parallèle
     /// à la première, puis retour dans l'axe.
     /// </summary>
     void DriftHairpin()
@@ -613,16 +605,14 @@ public class TougeLayout
         float halfWidth = Lerp(roadWidthStart, roadWidthEnd, DifficultyAt(sStart)) * 0.5f;
         float r = Math.Max(Math.Max(driftHairpinMinRadius, halfWidth + 4f), vu * vu / Math.Max(1f, driftHairpinGrip));
         if (minTurnRadiusAt != null) r = Math.Max(r, minTurnRadiusAt(vu) * 1.2f);
-        // Sortie : courbes douces dans l'autre sens, un peu plus longue si elle ramène la route vers le centre
+        // Sortie : ligne droite parallèle, un peu plus longue si elle ramène la route vers le centre
         float exitLeg = Rand(driftHairpinLegMin, legMax) * (side * x < 0.0 ? 1.2f : 1f);
-        int arcIndex = pieces.Count;
         AddPieceS(side * 90f, r, exitLeg);
-        double arcEnd = sStart + pieces[arcIndex].arcLen;
         if (f < 0.999f)
         {
             float vh = v * f;
             double brake = (v * v - vh * vh) / (2.0 * Math.Max(0.5f, brakeDecel)) + 0.5 * v;
-            slowZones.Add(new SlowZone { start = sStart - brake, arcStart = sStart, end = arcEnd, factor = f });
+            slowZones.Add(new SlowZone { start = sStart - brake, arcStart = sStart, end = sStart + Last.arcLen, factor = f });
         }
 
         float exit = Rand(-0.25f, 0.25f) * a;
@@ -724,57 +714,33 @@ public class TougeLayout
         AddPieceS(angleDeg, r, holdZ / Math.Max(0.3f, (float)Math.Cos(th)));
     }
 
-    /// <summary>
-    /// Ajoute un arc de rayon r jusqu'au cap angleDeg (entre -90 et 90), puis "hold" mètres de COURBES DOUCES :
-    /// jamais de ligne droite. La portion "droite" est remplacée par des vagues (un arc qui s'écarte du cap, un arc qui y revient),
-    /// de rayon wiggleRadiusMin à wiggleRadiusMax : le joueur tourne tout le temps, et le cap final est bien angleDeg.
-    /// Dans une branche en travers (cap ±90°), les vagues partent toujours vers l'avant (+Z) : la route ne recule jamais.
-    /// </summary>
+    /// <summary>Ajoute un arc de rayon r jusqu'au cap angleDeg (entre -90 et 90), puis "hold" mètres tout droit (le long de la route).</summary>
     void AddPieceS(float angleDeg, float r, float hold)
     {
         float limit = 90f * Deg2Rad;
-        float th1 = Math.Max(-limit, Math.Min(limit, angleDeg * Deg2Rad));
-        float th0 = pieces.Count == 0 ? 0f : Last.th1;
-        AddArc(th1, r);
-
-        // Vagues : chacune fait wiggleLength mètres au plus
-        hold = Math.Max(0.5f, hold);
-        int n = Math.Max(1, (int)Math.Ceiling(hold / Math.Max(4f, wiggleLength)));
-        float half = hold / n * 0.5f;
-        float rw = Rand(wiggleRadiusMin, Math.Max(wiggleRadiusMin, wiggleRadiusMax));
-        float eps = half / Math.Max(5f, rw);
-        // Premier sens : on "déroule" un peu le virage qu'on vient de faire, puis on alterne
-        float sgn = th1 > th0 ? -1f : th1 < th0 ? 1f : (rng.NextDouble() < 0.5 ? -1f : 1f);
-        for (int i = 0; i < n; i++)
-        {
-            float sg = sgn;
-            if (Math.Abs(th1 + sg * eps) > limit) sg = -sg;          // ne jamais dépasser ±90°
-            if (Math.Abs(th1 + sg * eps) > limit) sg = -Math.Sign(th1); // (cap ±90° : vers l'avant)
-            AddArc(th1 + sg * eps, rw);
-            AddArc(th1, rw);
-            sgn = -sgn;
-        }
-    }
-
-    /// <summary>Ajoute un arc de cercle de rayon r du cap actuel jusqu'au cap th1 (rad). Rien si le cap ne change pas.</summary>
-    void AddArc(float th1, float r)
-    {
         var p = new Piece
         {
             s0 = EndS,
             th0 = pieces.Count == 0 ? 0f : Last.th1,
-            th1 = th1,
+            th1 = Math.Max(-limit, Math.Min(limit, angleDeg * Deg2Rad)),
         };
-        if (pieces.Count > 0) PosAt(Last, Last.len, out p.x0, out p.z0, out _);
+        if (pieces.Count > 0)
+        {
+            PosAt(Last, Last.len, out p.x0, out p.z0, out _);
+        }
         r = Math.Max(1f, r);
         float delta = p.th1 - p.th0;
         p.arcLen = r * Math.Abs(delta);
-        if (p.arcLen < 0.01f) return;
-        p.k = Math.Sign(delta) / r;
-        p.len = p.arcLen;
-        p.ex = p.x0 + (Math.Cos(p.th0) - Math.Cos(p.th1)) / p.k;
-        p.ez = p.z0 + (Math.Sin(p.th1) - Math.Sin(p.th0)) / p.k;
-        p.zEnd = p.ez;
+        if (p.arcLen < 0.01f) { p.arcLen = 0f; p.k = 0f; p.th1 = p.th0; }
+        else p.k = Math.Sign(delta) / r;
+        p.len = p.arcLen + Math.Max(0.5f, hold);
+        if (p.arcLen > 0f)
+        {
+            p.ex = p.x0 + (Math.Cos(p.th0) - Math.Cos(p.th1)) / p.k;
+            p.ez = p.z0 + (Math.Sin(p.th1) - Math.Sin(p.th0)) / p.k;
+        }
+        else { p.ex = p.x0; p.ez = p.z0; }
+        p.zEnd = p.ez + Math.Cos(p.th1) * (p.len - p.arcLen);
         pieces.Add(p);
     }
 }

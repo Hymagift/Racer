@@ -39,7 +39,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public float roadWidthEnd = 6f;
 
     [Header("Tracé touge")]
-    [Tooltip("Portion de départ (m), en courbes douces : il n'y a jamais de ligne droite")]
+    [Tooltip("Ligne droite au départ (m)")]
     public float straightStart = 50f;
     [Tooltip("Angle max de la route (degrés) au début. Plus grand = virages plus prononcés")]
     [Range(10f, 70f)] public float maxAngleStart = 40f;
@@ -57,7 +57,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public float minCornerRadius = 8f;
     [Tooltip("Au-delà de cet écart latéral (m), les virages ramènent la route vers le centre")]
     public float recenterDistance = 40f;
-    [Tooltip("Une courte portion de répit (courbes douces) toutes les N figures environ (0 = jamais). Plus grand = plus dur")]
+    [Tooltip("Une courte ligne droite de répit toutes les N figures environ (0 = jamais). Plus grand = plus dur")]
     public int figuresBetweenBreaks = 5;
     [Tooltip("Même chose à la difficulté max : les lignes droites deviennent rares (et plus courtes)")]
     public int figuresBetweenBreaksEnd = 18;
@@ -90,8 +90,8 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public float tightHairpinGrip = 7.5f;
 
     [Header("Épingle de drift (grand U régulier)")]
-    [Tooltip("Une épingle de drift (longues courbes douces, demi-tour à 180° régulier assez large pour tenir un gros drift, " +
-             "longues courbes douces en sortie) revient tous les min à max mètres. Max = 0 : jamais")]
+    [Tooltip("Une épingle de drift (longue ligne droite, demi-tour à 180° régulier assez large pour tenir un gros drift, " +
+             "longue ligne droite parallèle) revient tous les min à max mètres. Max = 0 : jamais")]
     public float driftHairpinEveryMin = 450f;
     public float driftHairpinEveryMax = 800f;
     [Tooltip("Distance de la première épingle de drift (m)")]
@@ -102,17 +102,9 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public float driftHairpinGrip = 9f;
     [Tooltip("Rayon minimum du U (m, au centre de la route)")]
     public float driftHairpinMinRadius = 14f;
-    [Tooltip("Longueur des portions d'entrée et de sortie du U, en courbes douces (m, au hasard entre min et max)")]
+    [Tooltip("Longueur des lignes droites d'entrée et de sortie du U (m, au hasard entre min et max)")]
     public float driftHairpinLegMin = 40f;
     public float driftHairpinLegMax = 70f;
-
-    [Header("Jamais de ligne droite")]
-    [Tooltip("Rayon des courbes douces qui remplacent toutes les lignes droites (m, au hasard entre min et max). " +
-             "Plus petit = on tourne plus fort entre deux virages")]
-    public float wiggleRadiusMin = 45f;
-    public float wiggleRadiusMax = 80f;
-    [Tooltip("Longueur max d'une vague (une courbe qui s'écarte, une qui revient) entre deux virages (m)")]
-    public float wiggleLength = 24f;
     [Tooltip("Longueur des branches en travers entre deux épingles (m, au hasard entre min et max)")]
     public float legLengthMin = 22f;
     public float legLengthMax = 45f;
@@ -438,9 +430,6 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 driftHairpinMinRadius = driftHairpinMinRadius,
                 driftHairpinLegMin = driftHairpinLegMin,
                 driftHairpinLegMax = driftHairpinLegMax,
-                wiggleRadiusMin = wiggleRadiusMin,
-                wiggleRadiusMax = Mathf.Max(wiggleRadiusMin, wiggleRadiusMax),
-                wiggleLength = wiggleLength,
                 legLengthMin = legLengthMin,
                 legLengthMax = Mathf.Max(legLengthMin, legLengthMax),
                 maxLacets = maxLacets,
@@ -957,7 +946,7 @@ public struct RoadPoint
     public float width;
     /// <summary>Pente (montée de la route par mètre parcouru, 0.1 = 10 %).</summary>
     public float grade;
-    /// <summary>Courbure (1 / rayon, + = virage à droite, 0 seulement à la jonction de deux courbes : la route n'a jamais de ligne droite).</summary>
+    /// <summary>Courbure (1 / rayon, + = virage à droite, 0 = ligne droite).</summary>
     public float curvature;
 
     public float HalfWidth => width * 0.5f;
