@@ -47,6 +47,18 @@ public class DriftGameManager : MonoBehaviour
     [Tooltip("Délai avant d'afficher l'écran de fin (secondes, temps réel)")]
     public float panelDelay = 0.6f;
 
+    [Header("Continuer après la mort")]
+    [Tooltip("À la mort, propose de continuer (rubis ou publicité) avant de finir la partie")]
+    public bool offerContinue = true;
+    [Tooltip("Prix en rubis du premier \"Continuer\" de la partie")]
+    public int continueBasePrice = 10;
+    [Tooltip("Le prix est multiplié par ça à chaque \"Continuer\" payé dans la même partie (10, 20, 40...)")]
+    public float continuePriceMultiplier = 2f;
+    [Tooltip("Une publicité permet de continuer une seule fois par partie")]
+    public bool oneAdPerRun = true;
+    [Tooltip("Temps (s) pour se décider avant que la partie se termine")]
+    public float continueTime = 6f;
+
     [Header("Menu")]
     [Tooltip("Nom exact de la scène du menu (elle doit être dans Build Profiles > Scene List)")]
     public string menuSceneName = "Menu";
@@ -124,6 +136,56 @@ public class DriftGameManager : MonoBehaviour
             return;
         }
 
+        // Avant de finir : proposer de continuer
+        if (offerContinue)
+        {
+            StartCoroutine(OfferContinue());
+            return;
+        }
+        EndGame();
+    }
+
+    // ---------- Continuer ----------
+
+    int paidContinues;
+    bool adUsed;
+
+    /// <summary>Prix en rubis du prochain "Continuer" (augmente à chaque fois dans la même partie).</summary>
+    public int ContinuePrice => Mathf.RoundToInt(continueBasePrice * Mathf.Pow(Mathf.Max(1f, continuePriceMultiplier), paidContinues));
+
+    System.Collections.IEnumerator OfferContinue()
+    {
+        yield return new WaitForSecondsRealtime(0.5f); // le temps de voir la chute
+        Time.timeScale = 0f;                            // score, multiplicateurs et combo en pause
+
+        var offer = GetComponent<ContinueOffer>();
+        if (offer == null) offer = gameObject.AddComponent<ContinueOffer>();
+        bool adOk = AdService.RewardedAvailable && !(oneAdPerRun && adUsed);
+        ContinueOffer.Choice choice = ContinueOffer.Choice.None;
+        yield return offer.Ask(ContinuePrice, adOk, continueTime, c => choice = c);
+
+        Time.timeScale = 1f;
+        if (choice == ContinueOffer.Choice.Rubis) { paidContinues++; Revive(); }
+        else if (choice == ContinueOffer.Choice.Ad) { adUsed = true; Revive(); }
+        else EndGame();
+    }
+
+    // Remet la voiture au milieu de la route, dans l'axe, et relance la partie
+    void Revive()
+    {
+        Vector3 p = car.transform.position;
+        float z = road.TrackZ(p.z);
+        float x = road.CenterXAt(z);
+        float heading = Mathf.Atan2(road.CenterXAt(z + 1f) - road.CenterXAt(z - 1f), 2f) * Mathf.Rad2Deg;
+        if (carRb != null) carRb.isKinematic = false;
+        car.enabled = true;
+        car.Respawn(new Vector3(x, road.RoadHeightAt(z) + 1f, p.z), heading);
+        IsDead = false;
+    }
+
+    // Fin définitive de la partie
+    void EndGame()
+    {
         // Score figé (le drift en cours est perdu) + record enregistré
         bool newRecord = score.EndRun();
         PlayerData.AddCoins(score.IntScore / 10);

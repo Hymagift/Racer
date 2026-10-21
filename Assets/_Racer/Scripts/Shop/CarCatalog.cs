@@ -56,10 +56,16 @@ public class CarCatalog : ScriptableObject
         public int blueprintsToUnlock = 4;
         [Tooltip("Voiture possédée dès le départ (elle ne sort jamais des boosters)")]
         public bool unlockedByDefault;
-        [Tooltip("Couleur de la carrosserie (utilisée par GarageCarApplier si aucun matériau n'est donné)")]
+        [Tooltip("Couleur de la carrosserie (pastille de la carte dans le Garage)")]
         public Color color = Color.white;
-        [Tooltip("Optionnel : matériau de carrosserie appliqué par GarageCarApplier")]
+        [Tooltip("Optionnel : matériau de carrosserie (seulement si la voiture n'a pas de modèle 3D)")]
         public Material material;
+        [Tooltip("Modèle 3D de la voiture (un .fbx de Models/Cars). Il remplace celui de la scène quand la voiture est équipée")]
+        public GameObject model;
+        [Tooltip("Rotation du modèle (degrés) si elle est à l'envers ou de travers : 180 = demi-tour")]
+        public float modelYaw;
+        [Tooltip("Taille du modèle : 1 = même longueur que la boîte de collision de la voiture")]
+        public float modelScale = 1f;
 
         public bool IsUnlocked => unlockedByDefault || PlayerData.IsCarUnlocked(id);
         public int Blueprints => IsUnlocked ? blueprintsToUnlock : Mathf.Min(PlayerData.GetBlueprints(id), blueprintsToUnlock);
@@ -171,7 +177,9 @@ public class CarCatalog : ScriptableObject
     public List<Pull> OpenBooster(Booster booster, System.Random rng = null)
     {
         // Achat et résultat sont sauvegardés ensemble à la fin (rien n'est perdu si l'appli est coupée entre les deux)
-        if (booster == null || !PlayerData.TrySpend(booster.price, save: false)) return null;
+        // Un booster offert (pack de la boutique) passe avant les pièces
+        if (booster == null) return null;
+        if (!PlayerData.TryUseFreeBooster(booster.id, save: false) && !PlayerData.TrySpend(booster.price, save: false)) return null;
         rng ??= new System.Random();
 
         var pulls = new List<Pull>();
@@ -251,17 +259,13 @@ public class CarCatalog : ScriptableObject
             cat.cars.Add(new Car { id = id, displayName = name, rarity = r, blueprintsToUnlock = needed[(int)r], color = color, unlockedByDefault = owned });
         }
 
-        Add("vroom", "Vroom", CarRarity.Commune, new Color(0.85f, 0.85f, 0.85f), owned: true);
-        Add("sakura", "Sakura Kei", CarRarity.Commune, new Color(1f, 0.6f, 0.75f));
-        Add("mito", "Mito Hatch", CarRarity.Commune, new Color(0.35f, 0.75f, 0.4f));
-        Add("ronin", "Ronin Coupé", CarRarity.Commune, new Color(0.9f, 0.45f, 0.2f));
-        Add("kaze", "Kaze GT", CarRarity.Rare, new Color(0.2f, 0.5f, 1f));
-        Add("tsubame", "Tsubame RS", CarRarity.Rare, new Color(0.95f, 0.95f, 0.2f));
-        Add("hayate", "Hayate S", CarRarity.Rare, new Color(0.1f, 0.8f, 0.85f));
+        // Mêmes voitures que Assets/_Racer/Resources/CarCatalog.asset (qui, lui, a les modèles 3D)
+        Add("first", "1st Car", CarRarity.Commune, new Color(0.85f, 0.85f, 0.85f), owned: true);
+        Add("twingy", "Neegy Twingy", CarRarity.Commune, new Color(1f, 0.6f, 0.75f));
+        Add("camion", "Mini Camion", CarRarity.Commune, new Color(0.35f, 0.75f, 0.4f));
+        Add("vroom", "Vroom", CarRarity.Rare, new Color(0.2f, 0.5f, 1f));
         Add("raijin", "Raijin R", CarRarity.Epique, new Color(0.6f, 0.25f, 0.95f));
-        Add("oni", "Oni Spec", CarRarity.Epique, new Color(0.85f, 0.1f, 0.15f));
         Add("ryujin", "Ryujin GT-X", CarRarity.Legendaire, new Color(1f, 0.75f, 0.1f));
-        Add("kitsune", "Kitsune Zero", CarRarity.Legendaire, new Color(0.08f, 0.08f, 0.1f));
 
         cat.boosters.Add(new Booster { id = "bronze", displayName = "Booster Bronze", price = 100, cards = 3, odds = new[] { 70f, 24f, 5f, 1f }, tagline = "Le meilleur rapport pour les Rares", color = new Color(0.8f, 0.5f, 0.25f) });
         cat.boosters.Add(new Booster { id = "or", displayName = "Booster Or", price = 750, cards = 5, odds = new[] { 15f, 45f, 28f, 12f }, tagline = "Plus d'une chance sur quatre d'avoir une Épique", color = new Color(1f, 0.8f, 0.2f) });

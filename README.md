@@ -9,7 +9,7 @@ Tout le contenu du jeu est dans `Assets/_Racer/` (le `_` le garde en haut de la 
 | Dossier | Contenu |
 |---|---|
 | `Scenes/` | `Menu` (menu principal) et `PL` (partie). `Tests/` : scènes de test (`RoadTest`, `Pilou Controler test`) |
-| `Scripts/Car/` | Voiture : physique du drift (`DriftCar`), pilote automatique, roues, couleur de la voiture équipée |
+| `Scripts/Car/` | Voiture : physique du drift (`DriftCar`), pilote automatique, roues, modèle 3D de la voiture équipée (`CarModelSwap`) |
 | `Scripts/Road/` | Route infinie (`ZigzagRoadGenerator` + tracé `TougeLayout`), terrain low poly, cônes, zones mortelles |
 | `Scripts/Gameplay/` | Déroulement de la partie (`DriftGameManager`), score et multiplicateurs, cercle de combo, pilote auto en jeu |
 | `Scripts/Menu/` | Menu principal (UI créée par code : `MenuStyle`, pages, effets, sons, particules) |
@@ -18,10 +18,10 @@ Tout le contenu du jeu est dans `Assets/_Racer/` (le `_` le garde en haut de la 
 | `Scripts/Audio/` | Musique de fond (`BackgroundMusic`, composée par code, joue pendant tout le jeu) |
 | `Scripts/Editor/` | Outils de l'éditeur (menu **Drift** en haut d'Unity) |
 | `Prefabs/` | Voiture, cône, GameManager, ScoreManager, route, terrain. `Tests/` : prefabs des scènes de test |
-| `Models/` | Modèles 3D (`.fbx`) |
+| `Models/` | Modèles 3D (`.fbx`). `Cars/` : les voitures, branchées au Garage par `Resources/CarCatalog.asset` |
 | `Materials/`, `Shaders/` | Matériaux et shaders |
 | `Input/` | Actions du nouvel Input System |
-| `Resources/` | (créé par le menu Drift) `CarCatalog.asset` : voitures, boosters, prix et probabilités |
+| `Resources/` | `CarCatalog.asset` : voitures (nom, rareté, modèle 3D), boosters, prix et probabilités |
 
 Dossiers à laisser à leur place (emplacements imposés par Unity ou ses packages) :
 `Assets/Settings` (URP), `Assets/Plugins` (Android), `Assets/Editor` (notifications mobiles), `Assets/Adaptive Performance`.

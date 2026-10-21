@@ -31,11 +31,37 @@ public class MenuBackground : MonoBehaviour
     public float blackTime = 0.3f;
 
     Scene demoScene;
+    Camera fallbackCamera;
+    readonly Camera[] cameras = new Camera[16];
 
     /// <summary>Appelé par DriftGameManager quand la voiture de la démo meurt.</summary>
     public static void NotifyRunEnded()
     {
         if (DemoRunning) runEnded = true;
+    }
+
+    // Caméra de secours : la scène du menu n'en a pas (elle utilise celle de la démo). Entre deux démos
+    // (et avant la première), elle affiche du noir pour qu'il y ait toujours une caméra (sinon "No cameras rendering").
+    void Awake()
+    {
+        var go = new GameObject("Caméra de secours");
+        go.transform.SetParent(transform, false);
+        fallbackCamera = go.AddComponent<Camera>();
+        fallbackCamera.clearFlags = CameraClearFlags.SolidColor;
+        fallbackCamera.backgroundColor = Color.black;
+        fallbackCamera.cullingMask = 0;   // ne dessine rien : seulement le fond noir
+        fallbackCamera.depth = -100f;     // sous toutes les autres caméras
+    }
+
+    // Active seulement quand aucune autre caméra ne tourne (la caméra de la démo prend le relais dès qu'elle existe)
+    void LateUpdate()
+    {
+        if (fallbackCamera == null) return;
+        int n = Camera.GetAllCameras(cameras);
+        bool other = false;
+        for (int i = 0; i < n && !other; i++)
+            if (cameras[i] != fallbackCamera) other = true;
+        if (fallbackCamera.enabled == other) fallbackCamera.enabled = !other;
     }
 
     IEnumerator Start()

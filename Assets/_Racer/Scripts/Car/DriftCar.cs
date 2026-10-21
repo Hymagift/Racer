@@ -40,6 +40,10 @@ public class DriftCar : MonoBehaviour
     [Range(0f, 1f)]
     [Tooltip("Puissance moteur en plus pendant un drift (garde de la vitesse en glisse)")]
     public float driftBoost = 0.3f;
+    [Range(0f, 1f)]
+    [Tooltip("Part de la vitesse perdue à cause de l'angle de drift qui est rendue (0 = la voiture ralentit beaucoup en glisse, 1 = presque pas). " +
+             "Ne s'applique pas au pilote auto (il garde une conduite sûre).")]
+    public float driftSpeedKeep = 0.85f;
 
     [Header("Châssis")]
     public float mass = 1200f;
@@ -151,9 +155,19 @@ public class DriftCar : MonoBehaviour
     /// <summary>Vitesse dans l'axe de la voiture en m/s (sert à faire tourner les roues).</summary>
     public float ForwardSpeed => Vector2.Dot(vel, new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)));
     /// <summary>Angle de braquage des roues avant (degrés, positif = à droite), contre-braquage compris.</summary>
-    public float SteerAngle => lastSteerDeg;
+    public float SteerAngle => lastSteerDeg - styleShown * 0.6f; // + contre-braquage visuel du drift de style
     /// <summary>Angle entre le nez de la voiture et sa direction de déplacement (degrés, signé).</summary>
-    public float DriftAngle { get; private set; }
+    /// <remarks>Pendant le pilote auto, c'est la plus forte entre la glisse réelle et le drift "de style" (styleDrift).</remarks>
+    public float DriftAngle => Mathf.Abs(physicalDriftAngle) >= Mathf.Abs(styleShown) ? physicalDriftAngle : -styleShown;
+    /// <summary>Glisse réelle de la voiture (degrés, signé), sans le drift de style.</summary>
+    public float PhysicalDriftAngle => physicalDriftAngle;
+
+    /// <summary>
+    /// Drift "de style" voulu par le pilote auto (degrés, + = nez vers la droite) : la carrosserie pivote,
+    /// les roues contre-braquent, les pneus fument et les points de drift comptent, sans changer la trajectoire.
+    /// </summary>
+    [System.NonSerialized] public float styleDrift;
+    float physicalDriftAngle, styleShown;
     /// <summary>Vrai quand la voiture glisse franchement.</summary>
     public bool IsDrifting { get; private set; }
     /// <summary>Points du drift en cours (augmente avec l'angle et la vitesse).</summary>
@@ -208,11 +222,49 @@ public class DriftCar : MonoBehaviour
             Debug.LogWarning("[DriftCar] 'Body' doit être un ENFANT (le modèle 3D), pas la voiture elle-même. Champ ignoré.", this);
             body = null;
         }
+
+        // Modèle 3D de la voiture équipée dans le Garage (remplace celui de la scène, voir CarModelSwap)
+        CarModelSwap.ApplyEquipped(this);
+
         if (body != null)
         {
             bodyBaseLocalRot = body.localRotation;
             bodyBaseLocalPos = body.localPosition;
         }
+    }
+
+    /// <summary>Remet la voiture en route (après "Continuer") : position, cap (degrés), vitesse de départ, glisse remise à zéro.</summary>
+    public void Respawn(Vector3 position, float headingDeg)
+    {
+        yaw = headingDeg * Mathf.Deg2Rad;
+        yawRate = 0f;
+        steerInput = 0f;
+        driftFactor = 0f;
+        driftTime = 0f;
+        CurrentDriftPoints = 0f;
+        IsDrifting = false;
+        float speed = TargetSpeed();
+        vel = new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)) * speed;
+
+        transform.SetPositionAndRotation(position, Quaternion.Euler(0f, headingDeg, 0f));
+        if (rb != null)
+        {
+            rb.position = position;
+            rb.rotation = transform.rotation;
+            rb.linearVelocity = new Vector3(vel.x, 0f, 0f);
+            rb.angularVelocity = Vector3.zero;
+        }
+        if (road != null) road.ScrollSpeed = Mathf.Max(0f, vel.y);
+    }
+
+    /// <summary>Change le modèle 3D affiché (appelé par CarModelSwap). Le nouveau modèle garde la pose donnée.</summary>
+    public void SetBody(Transform newBody)
+    {
+        body = newBody;
+        bodyTilt = Quaternion.identity;
+        if (body == null) return;
+        bodyBaseLocalRot = body.localRotation;
+        bodyBaseLocalPos = body.localPosition;
     }
 
     void Start()
@@ -238,6 +290,9 @@ public class DriftCar : MonoBehaviour
     void Update()
     {
         rawInput = ReadInput();
+
+        // Drift de style (pilote auto) : entre et sort en douceur, comme une vraie glisse
+        styleShown = Mathf.MoveTowards(styleShown, styleDrift, 75f * Time.deltaTime);
 
         // Volant : suit le doigt avec un léger lissage (réactif, mais sans à-coup si le doigt saute),
         // et revient au centre à vitesse fixe quand on lâche l'écran
@@ -379,6 +434,7 @@ public class DriftCar : MonoBehaviour
 
     void SimulateStep(float h)
     {
+        float speedBefore = vel.magnitude;
         Vector2 fwd = new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw));
         Vector2 right = new Vector2(Mathf.Cos(yaw), -Mathf.Sin(yaw));
 
@@ -389,7 +445,7 @@ public class DriftCar : MonoBehaviour
 
         // Angle de glisse de la caisse (positif = la voiture se déplace vers sa droite)
         float beta = Mathf.Atan2(vLat, vRef);
-        DriftAngle = beta * Mathf.Rad2Deg;
+        physicalDriftAngle = beta * Mathf.Rad2Deg;
 
         // --- Direction : braquage joueur (réduit avec la vitesse) + contre-braquage auto (surtout en drift)
         float speed01 = Mathf.InverseLerp(5f, 25f, speed);
@@ -438,6 +494,7 @@ public class DriftCar : MonoBehaviour
 
         // --- Intégration
         vel += force / mass * h;
+        KeepDriftSpeed(speedBefore, Mathf.Abs(beta));
         lateralAccel = (frontLat + Fyr) / mass;
 
         float torque = frontAxle * frontLat - rearAxle * Fyr;
@@ -463,6 +520,19 @@ public class DriftCar : MonoBehaviour
         yawRate = Mathf.Clamp(yawRate, -maxRate, maxRate);
 
         yaw += yawRate * h;
+    }
+
+    // En glisse, les pneus freinent la voiture : on rend une partie de la vitesse perdue (sans dépasser la vitesse visée).
+    // L'angle, la rotation et la trajectoire ne changent pas, seulement la vitesse.
+    void KeepDriftSpeed(float speedBefore, float absBeta)
+    {
+        if (driftSpeedKeep <= 0f || useExternalInput) return;
+        float weight = Mathf.InverseLerp(5f * Mathf.Deg2Rad, 20f * Mathf.Deg2Rad, absBeta);
+        float speed = vel.magnitude;
+        float target = TargetSpeed();
+        if (weight <= 0f || speed >= speedBefore || speed >= target || speed < 0.1f) return;
+        float restored = (Mathf.Min(speedBefore, target) - speed) * driftSpeedKeep * weight;
+        vel *= 1f + restored / speed;
     }
 
     // Saturation progressive (tanh) : la force plafonne en douceur au lieu de "casser" d'un coup
@@ -595,7 +665,8 @@ public class DriftCar : MonoBehaviour
             // Roulis vers l'EXTÉRIEUR du virage (lissé pour éviter les tremblements)
             smoothedLatAccel = Mathf.Lerp(smoothedLatAccel, lateralAccel, 6f * Time.deltaTime);
             float roll = Mathf.Clamp(smoothedLatAccel / 9.81f, -1f, 1f) * bodyRollMax;
-            Quaternion worldTilt = ground * Quaternion.AngleAxis(roll, transform.forward);
+            Quaternion worldTilt = ground * Quaternion.AngleAxis(roll, transform.forward)
+                                 * Quaternion.AngleAxis(styleShown, Vector3.up); // drift de style : le nez rentre dans le virage
 
             bodyTilt = Quaternion.Slerp(bodyTilt, worldTilt, 10f * Time.deltaTime);
 

@@ -71,6 +71,37 @@ public static class PlayerData
         }
     }
 
+    // ---------- Packs achetés et boosters offerts (voir PremiumStore) ----------
+
+    const string BoughtPrefix = "DriftBought_";
+    const string FreeBoosterPrefix = "DriftFreeBooster_";
+
+    /// <summary>Produit à achat unique déjà acheté.</summary>
+    public static bool IsBought(string productId) => PlayerPrefs.GetInt(BoughtPrefix + productId, 0) == 1;
+
+    public static void SetBought(string productId, bool save = true)
+    {
+        PlayerPrefs.SetInt(BoughtPrefix + productId, 1);
+        if (save) SaveAndNotify();
+    }
+
+    /// <summary>Boosters offerts (par un pack) pas encore ouverts.</summary>
+    public static int FreeBoosters(string boosterId) => PlayerPrefs.GetInt(FreeBoosterPrefix + boosterId, 0);
+
+    public static void AddFreeBoosters(string boosterId, int count, bool save = true)
+    {
+        PlayerPrefs.SetInt(FreeBoosterPrefix + boosterId, Mathf.Max(0, FreeBoosters(boosterId) + count));
+        if (save) SaveAndNotify();
+    }
+
+    /// <summary>Prend un booster offert. Faux s'il n'y en a pas.</summary>
+    public static bool TryUseFreeBooster(string boosterId, bool save = true)
+    {
+        if (FreeBoosters(boosterId) <= 0) return false;
+        AddFreeBoosters(boosterId, -1, save);
+        return true;
+    }
+
     // ---------- Pilote auto (réserve, voir AutopilotBoost) ----------
 
     const string AutopilotKey = "DriftAutopilots";
