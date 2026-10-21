@@ -26,6 +26,10 @@ public static class PremiumStore
         public string fallbackPrice;   // prix affiché tant que le store n'est pas branché
         public bool oneTime;           // achat unique (pack de démarrage)
         public string badge;           // étiquette affichée sur la carte (vide = aucune)
+        public string carId;           // voiture débloquée (vide = aucune)
+        public int carDuplicateRubis;  // rubis donnés à la place si la voiture est déjà débloquée
+        public string boosterId;       // boosters offerts, à ouvrir dans les Invocations
+        public int boosterCount;
     }
 
     /// <summary>Le pack de démarrage (achat unique).</summary>
@@ -33,6 +37,13 @@ public static class PremiumStore
     {
         id = "racer_starter_pack", title = "Pack de démarrage", rubis = 300, autopilots = 3, coins = 2000,
         fallbackPrice = "2,99 €", oneTime = true, badge = "UNE SEULE FOIS",
+    };
+
+    /// <summary>Pack pilote (achat unique) : une voiture épique, des boosters Or et des rubis.</summary>
+    public static readonly Product CarPack = new Product
+    {
+        id = "racer_pilot_pack", title = "Pack Pilote", rubis = 500, carId = "raijin", carDuplicateRubis = 250,
+        boosterId = "or", boosterCount = 3, fallbackPrice = "7,99 €", oneTime = true, badge = "UNE SEULE FOIS",
     };
 
     /// <summary>Packs de rubis, du plus petit au plus grand.</summary>
@@ -75,7 +86,8 @@ public static class PremiumStore
 
     public static string PriceOf(Product p) => p.fallbackPrice;
 
-    public static bool IsSoldOut(Product p) => p.oneTime && PlayerData.StarterPackBought;
+    public static bool IsSoldOut(Product p) =>
+        p.oneTime && (p == StarterPack ? PlayerData.StarterPackBought : PlayerData.IsBought(p.id));
 
     /// <summary>
     /// Lance l'achat. done(true, null) quand le produit est livré, done(false, message) sinon.
@@ -102,7 +114,16 @@ public static class PremiumStore
         if (p.rubis > 0) PlayerData.AddRubis(p.rubis, save: false);
         if (p.autopilots > 0) PlayerData.AddAutopilots(p.autopilots, save: false);
         if (p.coins > 0) PlayerData.AddCoins(p.coins, save: false);
-        if (p.oneTime) PlayerData.StarterPackBought = true; // sauvegarde tout
+        if (!string.IsNullOrEmpty(p.carId))
+        {
+            var car = CarCatalog.Load().Find(p.carId);
+            if (car != null && !car.IsUnlocked) PlayerData.SetCarUnlocked(car.id, save: false);
+            else PlayerData.AddRubis(p.carDuplicateRubis, save: false); // déjà à toi : compensé en rubis
+        }
+        if (!string.IsNullOrEmpty(p.boosterId) && p.boosterCount > 0)
+            PlayerData.AddFreeBoosters(p.boosterId, p.boosterCount, save: false);
+        if (p.oneTime) PlayerData.SetBought(p.id, save: false);
+        if (p == StarterPack) PlayerData.StarterPackBought = true; // sauvegarde tout
         else PlayerData.SaveAndNotify();
     }
 

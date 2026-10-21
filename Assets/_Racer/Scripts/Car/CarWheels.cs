@@ -73,9 +73,23 @@ public class CarWheels : MonoBehaviour
             return;
         }
 
-        if (wheels == null || wheels.Length == 0) wheels = FindWheels();
+        autoFind = wheels == null || wheels.Length == 0;
+        Rebind();
+    }
+
+    bool autoFind;
+
+    /// <summary>
+    /// Retrouve et prépare les roues. Appelé au démarrage, et par CarModelSwap quand le modèle de la voiture change
+    /// (les roues sont alors cherchées dans le nouveau modèle).
+    /// </summary>
+    public void Rebind()
+    {
+        if (car == null) return;
+        bool missing = wheels == null || System.Array.Exists(wheels, w => w == null || w.wheel == null);
+        if (autoFind || missing) wheels = FindWheels();
         if (wheels.Length == 0)
-            Debug.LogWarning("[CarWheels] Aucune roue trouvée : remplis la liste 'Wheels' à la main.", this);
+            Debug.Log("[CarWheels] Aucune roue trouvée sur ce modèle : les roues ne tourneront pas.", this);
 
         Transform carT = car.transform;
         float bottomY = CarBottomY();

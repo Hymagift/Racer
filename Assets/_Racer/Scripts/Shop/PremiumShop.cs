@@ -25,7 +25,7 @@ public class PremiumShop : MonoBehaviour
         public Color color;
     }
 
-    RectTransform root, content, rubisSection, starterCard;
+    RectTransform root, content, rubisSection, starterCard, carPackCard;
     ScrollRect scroll;
     MenuParticles particles;
     Text rubisText, reserveText, reserveBig;
@@ -78,6 +78,7 @@ public class PremiumShop : MonoBehaviour
         content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         BuildStarterPack();
+        BuildCarPack();
 
         rubisSection = Section("RUBIS", "Pour acheter des pilotes auto et des pièces");
         var rubisRow = Row(430f);
@@ -122,6 +123,7 @@ public class PremiumShop : MonoBehaviour
         reserveText.text = "Réserve : " + reserve;
         if (reserveBig != null) reserveBig.text = reserve.ToString();
         if (starterCard != null) starterCard.gameObject.SetActive(!PremiumStore.IsSoldOut(PremiumStore.StarterPack));
+        if (carPackCard != null) carPackCard.gameObject.SetActive(!PremiumStore.IsSoldOut(PremiumStore.CarPack));
 
         foreach (var tag in tags)
         {
@@ -188,6 +190,64 @@ public class PremiumShop : MonoBehaviour
         Area(valueText.rectTransform, 0.05f, 0.06f, 0.58f, 0.28f);
 
         var buy = PriceButton(starterCard, PremiumStore.PriceOf(p), Yellow, 0, () => BuyReal(p, starterCard));
+        Area((RectTransform)buy.transform, 0.6f, 0.06f, 0.96f, 0.28f);
+    }
+
+    // Pack pilote : une voiture, des boosters et des rubis
+    void BuildCarPack()
+    {
+        var p = PremiumStore.CarPack;
+        var catalog = CarCatalog.Load();
+        var car = catalog.Find(p.carId);
+        var booster = catalog.boosters.Find(b => b.id == p.boosterId);
+        Color rc = car != null ? RarityInfo.Color(car.rarity) : Purple;
+
+        carPackCard = Card("Pack pilote", content, Color.Lerp(Navy, rc, 0.45f), 48f, 12f);
+        carPackCard.gameObject.AddComponent<LayoutElement>().preferredHeight = 500f;
+        var glow = carPackCard.Find("Fond").gameObject.AddComponent<Outline>();
+        glow.effectColor = rc;
+        glow.effectDistance = new Vector2(6f, -6f);
+
+        Badge(carPackCard, p.badge, Pink, new Vector2(0.84f, 0.94f));
+
+        var title = FitLabel(carPackCard, p.title.ToUpper(), 60, 30, TextAnchor.MiddleLeft, Yellow, 4f);
+        Area(title.rectTransform, 0.05f, 0.78f, 0.7f, 0.95f);
+
+        var items = Node("Contenu", carPackCard);
+        Area(items, 0.03f, 0.3f, 0.97f, 0.76f);
+
+        // La voiture : pastille de sa couleur + nom et rareté
+        var swatch = Node("Voiture", items);
+        swatch.sizeDelta = new Vector2(110f, 110f);
+        Fill(swatch, rc).sprite = Round;
+        var tint = Node("Teinte", swatch);
+        Area(tint, 0.12f, 0.12f, 0.88f, 0.88f);
+        Fill(tint, car != null ? car.color : Color.white).sprite = Round;
+        string carText = car != null ? car.displayName + "\n<color=#" + ColorUtility.ToHtmlStringRGB(rc) + ">" +
+                                        RarityInfo.Name(car.rarity) + "</color>" : "Voiture";
+        ContentItem(items, 0f, swatch, carText);
+
+        // Les boosters : petit paquet aux couleurs du booster
+        var pack = Node("Boosters", items);
+        pack.sizeDelta = new Vector2(80f, 110f);
+        pack.localRotation = Quaternion.Euler(0f, 0f, -8f);
+        Rounded(pack, booster != null ? booster.color : Yellow, 16f);
+        var packGem = Node("Cristal", pack);
+        packGem.anchorMin = packGem.anchorMax = new Vector2(0.5f, 0.55f);
+        packGem.sizeDelta = new Vector2(40f, 40f);
+        packGem.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        Rounded(packGem, Color.white, 8f);
+        ContentItem(items, 1f, pack, "x" + p.boosterCount + " " + (booster != null ? booster.displayName : "boosters"));
+
+        ContentItem(items, 2f, Ruby(items, 110f), p.rubis + " rubis");
+
+        var note = FitLabel(carPackCard, car != null && car.IsUnlocked
+                                ? "Tu as déjà cette voiture : +" + p.carDuplicateRubis + " rubis à la place"
+                                : "Voiture débloquée tout de suite, boosters à ouvrir dans les Invocations",
+                            28, 16, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.85f), 2f);
+        Area(note.rectTransform, 0.05f, 0.06f, 0.58f, 0.28f);
+
+        var buy = PriceButton(carPackCard, PremiumStore.PriceOf(p), Yellow, 0, () => BuyReal(p, carPackCard));
         Area((RectTransform)buy.transform, 0.6f, 0.06f, 0.96f, 0.28f);
     }
 
@@ -290,6 +350,8 @@ public class PremiumShop : MonoBehaviour
     void BuyReal(PremiumStore.Product p, RectTransform card)
     {
         MenuFx.Play(MenuFx.Sfx.Tick, 1.2f);
+        var packCar = string.IsNullOrEmpty(p.carId) ? null : CarCatalog.Load().Find(p.carId);
+        bool hadCar = packCar != null && packCar.IsUnlocked; // avant l'achat
         Action buy = () => PremiumStore.Buy(p, (ok, message) =>
         {
             if (!ok)
@@ -300,6 +362,9 @@ public class PremiumShop : MonoBehaviour
             }
             Celebrate(card, RubyRed);
             if (p.rubis > 0) FloatText(card, "+" + p.rubis + " rubis", RubyRed);
+            if (packCar != null)
+                StartCoroutine(FloatLater(card, hadCar ? "+" + p.carDuplicateRubis + " rubis (voiture déjà à toi)" : packCar.displayName + " débloquée !", Yellow, 0.5f));
+            if (p.boosterCount > 0) StartCoroutine(FloatLater(card, "+" + p.boosterCount + " boosters offerts", Green, 1f));
             MenuFx.Play(MenuFx.Sfx.Fanfare);
             MenuFx.Vibrate();
             reservePunch = p.autopilots > 0 ? 1f : reservePunch;
@@ -451,6 +516,12 @@ public class PremiumShop : MonoBehaviour
     void FloatText(RectTransform from, string text, Color color)
     {
         StartCoroutine(FloatTextRoutine(LocalIn(root, from) + new Vector2(0f, 60f), text, color));
+    }
+
+    IEnumerator FloatLater(RectTransform from, string text, Color color, float delay)
+    {
+        yield return new WaitForSecondsRealtime(delay);
+        FloatText(from, text, color);
     }
 
     IEnumerator FloatTextRoutine(Vector2 position, string text, Color color)

@@ -373,11 +373,15 @@ public class BoosterShop : MonoBehaviour
     {
         var b = Selected;
         if (b == null || buyText == null) return;
-        bool canPay = PlayerData.Coins >= b.price;
-        buyText.text = "OUVRIR  " + b.price;
+        int free = PlayerData.FreeBoosters(b.id);
+        bool canPay = CanOpen(b);
+        buyText.text = free > 0 ? "OUVRIR  ·  OFFERT x" + free : "OUVRIR  " + b.price;
         buyFace.color = canPay ? Green : new Color(0.45f, 0.45f, 0.55f);
         buySide.color = Darken(buyFace.color, 0.62f);
     }
+
+    // Booster offert (pack de la boutique) ou assez de pièces
+    static bool CanOpen(CarCatalog.Booster b) => PlayerData.FreeBoosters(b.id) > 0 || PlayerData.Coins >= b.price;
 
     static string FormatPercent(float p) => p <= 0f ? "0%" : p.ToString("0.#") + "%";
 
@@ -402,7 +406,7 @@ public class BoosterShop : MonoBehaviour
         var b = Selected;
         if (b == null || sequence != null) return;
 
-        if (PlayerData.Coins < b.price)
+        if (!CanOpen(b))
         {
             // Pas assez de pièces : le bouton tremble et dit combien il manque
             buyShake = 1f;
@@ -493,7 +497,7 @@ public class BoosterShop : MonoBehaviour
 
         // Bouton d'achat : respire s'il est utilisable, tremble s'il refuse
         buyShake = Mathf.MoveTowards(buyShake, 0f, dt * 2.5f);
-        bool canPay = sel != null && PlayerData.Coins >= sel.price;
+        bool canPay = sel != null && CanOpen(sel);
         buyBounce.extraScale = canPay ? 1f + Mathf.Sin(t * 4f) * 0.03f : 1f;
         buyFace.rectTransform.anchoredPosition = new Vector2(Mathf.Sin(t * 70f) * 24f * buyShake, buyFace.rectTransform.anchoredPosition.y);
     }
@@ -676,7 +680,7 @@ public class BoosterShop : MonoBehaviour
     void Again()
     {
         if (sequence != null) return;
-        if (PlayerData.Coins < lastBooster.price)
+        if (!CanOpen(lastBooster))
         {
             MenuFx.Play(MenuFx.Sfx.Error);
             FloatText(overlay.transform as RectTransform, LocalIn(overlay.transform as RectTransform, (RectTransform)againButton.transform, new Vector2(0f, 130f)),
@@ -949,8 +953,9 @@ public class BoosterShop : MonoBehaviour
     void RefreshAgainButton()
     {
         if (againButton == null || lastBooster == null) return;
-        againLabel.text = "ENCORE  " + lastBooster.price;
-        bool canPay = PlayerData.Coins >= lastBooster.price;
+        int free = PlayerData.FreeBoosters(lastBooster.id);
+        againLabel.text = free > 0 ? "ENCORE  ·  OFFERT x" + free : "ENCORE  " + lastBooster.price;
+        bool canPay = CanOpen(lastBooster);
         var face = againButton.transform.Find("Face").GetComponent<Image>();
         face.color = canPay ? Purple : new Color(0.45f, 0.45f, 0.55f);
         againButton.transform.Find("Relief").GetComponent<Image>().color = Darken(face.color, 0.62f);
@@ -1262,8 +1267,8 @@ public class BoosterShop : MonoBehaviour
     void Equip(CarCatalog.Car car)
     {
         PlayerData.EquippedCarId = car.id;
-        // La voiture de la démo en fond prend tout de suite la nouvelle couleur (si elle a un GarageCarApplier)
-        foreach (var applier in FindObjectsByType<GarageCarApplier>(FindObjectsSortMode.None))
-            applier.Apply();
+        MenuFx.Play(MenuFx.Sfx.Unlock, 1.1f, 0.7f);
+        // La voiture de la démo en fond change tout de suite de modèle
+        CarModelSwap.ApplyEquippedToAll();
     }
 }

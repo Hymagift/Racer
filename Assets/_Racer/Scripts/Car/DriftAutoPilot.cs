@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Pilote automatique pour la partie qui tourne en fond du menu.
+/// Pilote automatique : partie de démo derrière le menu, et pilote auto acheté (AutopilotBoost) pendant une partie.
+/// Il suit une trajectoire sûre et ajoute un drift "de style" dans les virages (DriftCar.styleDrift).
 /// Ajouté tout seul sur la voiture par MenuBackground : elle suit la route en driftant.
 /// Nécessite les 2 champs "useExternalInput" / "externalInput" dans DriftCar.
 ///
@@ -40,6 +41,21 @@ public class DriftAutoPilot : MonoBehaviour
     [Tooltip("Si la voiture tourne du mauvais côté, coche ça")]
     public bool invertSteering = false;
 
+    [Header("Style : drift")]
+    [Tooltip("La voiture drifte dans les virages : le nez rentre dans le virage, les roues contre-braquent, les pneus fument,\n" +
+             "et les points de drift comptent. La trajectoire reste celle d'une conduite sûre (pas de choc contre les murs).")]
+    public bool styleDrift = true;
+    [Tooltip("Angle de drift (degrés) au début d'un virage")]
+    public float minStyleAngle = 20f;
+    [Tooltip("Angle de drift max (degrés), dans les virages les plus serrés")]
+    public float maxStyleAngle = 38f;
+    [Tooltip("Degrés de drift en plus par degré/seconde de virage")]
+    public float styleGain = 1.3f;
+    [Tooltip("En dessous de cette vitesse de virage (degrés/seconde), pas de drift : la voiture va tout droit")]
+    public float styleDeadZone = 18f;
+    [Tooltip("Anticipation (s) : le drift commence un peu avant le virage")]
+    public float styleLookTime = 0.4f;
+
     [Header("Sécurité")]
     [Tooltip("Hauteur de chute (m) sous la route avant de terminer la partie")]
     public float fallDepth = 6f;
@@ -71,7 +87,23 @@ public class DriftAutoPilot : MonoBehaviour
         if (car == null) return;
         car.useExternalInput = false;
         car.externalInput = 0f;
+        car.styleDrift = 0f; // fin du pilote auto : la carrosserie se remet droite en douceur
     }
+
+    // Drift de style : plus la route tourne vite devant la voiture, plus le nez rentre dans le virage
+    float StyleAngle(float z, float vz)
+    {
+        if (!styleDrift || car.Speed < car.minDriftSpeed) return 0f;
+        float ahead = z + Mathf.Max(3f, car.Speed * styleLookTime);
+        float dHeading = Mathf.DeltaAngle(Heading(ahead - 2f), Heading(ahead + 2f)) / 4f; // degrés par mètre
+        float rate = dHeading * vz;                                                      // degrés par seconde
+        if (Mathf.Abs(rate) < styleDeadZone) return 0f;
+        float angle = minStyleAngle + (Mathf.Abs(rate) - styleDeadZone) * styleGain;
+        return Mathf.Sign(rate) * Mathf.Min(angle, maxStyleAngle);
+    }
+
+    // Cap de la route à un z "piste" (degrés, 0 = tout droit, + = vers la droite)
+    float Heading(float z) => Mathf.Atan2(road.CenterXAt(z + 0.5f) - road.CenterXAt(z - 0.5f), 1f) * Mathf.Rad2Deg;
 
     void FixedUpdate()
     {
@@ -106,6 +138,7 @@ public class DriftAutoPilot : MonoBehaviour
 
         if (invertSteering) input = -input;
         car.externalInput = input;
+        car.styleDrift = StyleAngle(z, vz);
 
         // Filet de sécurité : chute -> fin de la partie (le menu fait le fondu et relance)
         if (p.y < road.RoadHeightAt(z) - fallDepth)
