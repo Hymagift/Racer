@@ -9,6 +9,7 @@ using UnityEngine.SceneManagement;
 /// MORT :
 /// - Death zone automatique : la voiture tombe sous la route (falaise) de plus de "fallDepth" mètres.
 /// - Optionnel : sortie de route trop loin du bord.
+/// - La voiture s'arrête (vitesse quasi nulle), une fois qu'elle a démarré.
 /// - Tout objet avec le composant DeathZone (trigger) tue aussi la voiture.
 ///
 /// Mise en place :
@@ -44,6 +45,14 @@ public class DriftGameManager : MonoBehaviour
     [Tooltip("Meurt si la voiture s'éloigne trop du bord de la route (même sans tomber)")]
     public bool dieOffRoad = false;
     public float offRoadMargin = 3f;
+    [Tooltip("Meurt si la voiture s'arrête (vitesse quasi nulle)")]
+    public bool dieWhenStopped = true;
+    [Tooltip("En dessous de cette vitesse (m/s), la voiture est considérée comme arrêtée")]
+    public float stoppedSpeed = 0.5f;
+    [Tooltip("Temps (s) à l'arrêt avant la mort (évite de mourir sur un simple choc)")]
+    public float stoppedTime = 0.3f;
+    [Tooltip("Vitesse (m/s) à atteindre au départ avant que l'arrêt puisse tuer (la voiture part de 0)")]
+    public float stoppedArmSpeed = 3f;
     [Tooltip("Délai avant d'afficher l'écran de fin (secondes, temps réel)")]
     public float panelDelay = 0.6f;
 
@@ -69,6 +78,8 @@ public class DriftGameManager : MonoBehaviour
     public bool IsDead { get; private set; }
 
     Rigidbody carRb;
+    bool stopArmed;   // la voiture a démarré : l'arrêt peut maintenant tuer
+    float stoppedFor; // temps passé à l'arrêt
 
     void Awake()
     {
@@ -108,7 +119,26 @@ public class DriftGameManager : MonoBehaviour
         }
 
         if (dieOffRoad && Mathf.Abs(road.LateralOffset(p)) > road.HalfWidthXAt(road.TrackZ(p.z)) + offRoadMargin)
+        {
             Die();
+            return;
+        }
+
+        if (dieWhenStopped && IsStopped())
+            Die();
+    }
+
+    // Vrai si la voiture est restée à l'arrêt assez longtemps (seulement après avoir démarré)
+    bool IsStopped()
+    {
+        float speed = car.Speed;
+        if (!stopArmed)
+        {
+            stopArmed = speed >= stoppedArmSpeed;
+            return false;
+        }
+        stoppedFor = speed <= stoppedSpeed ? stoppedFor + Time.deltaTime : 0f;
+        return stoppedFor >= stoppedTime;
     }
 
     // ---------- Mort / fin de partie ----------
@@ -180,6 +210,7 @@ public class DriftGameManager : MonoBehaviour
         if (carRb != null) carRb.isKinematic = false;
         car.enabled = true;
         car.Respawn(new Vector3(x, road.RoadHeightAt(z) + 1f, p.z), heading);
+        stoppedFor = 0f;
         IsDead = false;
     }
 
