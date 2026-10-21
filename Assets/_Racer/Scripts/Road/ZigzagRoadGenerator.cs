@@ -5,109 +5,64 @@ using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Route infinie de type TOUGE, g√©n√©r√©e par "chunks" devant le joueur.
-/// Le trac√© (√©pingles, √©pingles √† 180¬∞ et lacets, encha√Ænements en S, virages serr√©s, courbes, lignes droites) vient de TougeLayout,
-/// le relief (mont√©es, descentes, replats) d'ElevationLayout. La route est une courbe param√©tr√©e par sa longueur s :
-/// elle peut rouler en travers et faire de vrais demi-tours, mais ne recule jamais en Z (cap entre -90¬∞ et +90¬∞).
-/// Le c√¥t√© du vide (falaise √† gauche ou √† droite) et les ponts qui passent de l'un √† l'autre viennent de CliffLayout.
+/// Route infinie de type TOUGE, gÈnÈrÈe par "chunks" devant le joueur.
+/// Le tracÈ (Èpingles, enchaÓnements en S, virages serrÈs, courbes, lignes droites) vient de TougeLayout.
+/// Le cÙtÈ du vide (falaise ‡ gauche ou ‡ droite) et les ponts qui passent de l'un ‡ l'autre viennent de CliffLayout.
 ///
-/// MODE D√âFILEMENT : la voiture ne bouge pas en Z, c'est le d√©cor (la route + le terrain) qui d√©file sous elle.
-/// Tous les chunks sont enfants d'un objet "TrackRoot" (Rigidbody cin√©matique) d√©plac√© en continu vers -Z.
-/// De temps en temps le TrackRoot est ramen√© √† 0 en d√©calant les chunks en sens inverse : invisible.
+/// MODE D…FILEMENT : la voiture ne bouge pas en Z, c'est le dÈcor (la route + le terrain) qui dÈfile sous elle.
+/// Tous les chunks sont enfants d'un objet "TrackRoot" (Rigidbody cinÈmatique) dÈplacÈ en continu vers -Z.
+/// De temps en temps le TrackRoot est ramenÈ ‡ 0 en dÈcalant les chunks en sens inverse : invisible.
 ///
 /// Mise en place :
 /// 1. GameObject vide "Road" avec ce script. Assigne "Player" (la voiture) et un Material de route.
 /// 2. Sur la voiture, utilise le script DriftCar fourni : il doit pointer vers cette route (champ "Road").
 /// 3. Ajoute LowPolyTerrainGenerator sur un autre objet : il se lie tout seul.
-/// 4. Tout objet de jeu qui doit d√©filer (obstacles, pi√®ces...) doit √™tre enfant de road.TrackRoot.
-///
-/// Pour lire la route : PointAt(s) (centre, sens, largeur, pente √† une distance s) et Locate(position monde)
-/// (point de la route le plus proche, et √©cart lat√©ral). Les positions des RoadPoint sont locales au TrackRoot.
+/// 4. Tout objet de jeu qui doit dÈfiler (obstacles, piËces...) doit Ítre enfant de road.TrackRoot.
 /// </summary>
 public class ZigzagRoadGenerator : MonoBehaviour
 {
-    [Header("R√©f√©rences")]
+    [Header("RÈfÈrences")]
     public Transform player;
     public Material roadMaterial;
-    [Tooltip("Terrain low poly (facultatif, li√© automatiquement par le terrain). Il suit le relief de la route.")]
+    [Tooltip("Terrain low poly (facultatif, liÈ automatiquement par le terrain). Si prÈsent, la route suit son relief.")]
     public LowPolyTerrainGenerator terrain;
 
     [Header("Forme de la route")]
-    [Tooltip("Largeur de la route au d√©part (mesur√©e perpendiculairement √† la route, m√™me dans les diagonales)")]
+    [Tooltip("Largeur de la route au dÈpart (mesurÈe perpendiculairement ‡ la route, mÍme dans les diagonales)")]
     public float roadWidth = 9f;
-    [Tooltip("Largeur de la route √† la difficult√© max : elle r√©tr√©cit petit √† petit")]
+    [Tooltip("Largeur de la route ‡ la difficultÈ max : elle rÈtrÈcit petit ‡ petit")]
     public float roadWidthEnd = 6f;
 
-    [Header("Trac√© touge")]
-    [Tooltip("Ligne droite au d√©part (m)")]
+    [Header("TracÈ touge")]
+    [Tooltip("Ligne droite au dÈpart (m)")]
     public float straightStart = 50f;
-    [Tooltip("Angle max de la route (degr√©s) au d√©but. Plus grand = virages plus prononc√©s")]
+    [Tooltip("Angle max de la route (degrÈs) au dÈbut. Plus grand = virages plus prononcÈs")]
     [Range(10f, 70f)] public float maxAngleStart = 40f;
-    [Tooltip("Angle max de la route (degr√©s) √† la difficult√© max. Une √©pingle fait 2x cet angle (60 -> 120¬∞)")]
+    [Tooltip("Angle max de la route (degrÈs) ‡ la difficultÈ max. Une Èpingle fait 2x cet angle (60 -> 120∞)")]
     [Range(10f, 70f)] public float maxAngleEnd = 66f;
-    [Tooltip("Distance parcourue pour atteindre la difficult√© max (angles max, √©pingles et S fr√©quents)")]
+    [Tooltip("Distance parcourue pour atteindre la difficultÈ max (angles max, Èpingles et S frÈquents)")]
     public float distanceToMaxDifficulty = 900f;
-    [Tooltip("Forme de la mont√©e de difficult√© : 1 = r√©guli√®re, plus petit = difficile plus t√¥t")]
+    [Tooltip("Forme de la montÈe de difficultÈ : 1 = rÈguliËre, plus petit = difficile plus tÙt")]
     [Range(0.3f, 1.5f)] public float difficultyCurve = 0.75f;
-    [Tooltip("Acc√©l√©ration lat√©rale vis√©e dans les virages (m/s¬≤). Rayon = vitesse¬≤ / cornerGrip. Plus grand = virages plus serr√©s (plus dur)")]
+    [Tooltip("AccÈlÈration latÈrale visÈe dans les virages (m/s≤). Rayon = vitesse≤ / cornerGrip. Plus grand = virages plus serrÈs (plus dur)")]
     public float cornerGrip = 6.5f;
-    [Tooltip("M√™me chose √† la difficult√© max : les virages se resserrent petit √† petit (au-del√† de ~11, injouable)")]
+    [Tooltip("MÍme chose ‡ la difficultÈ max : les virages se resserrent petit ‡ petit (au-del‡ de ~11, injouable)")]
     public float cornerGripEnd = 10.5f;
     [Tooltip("Rayon de virage minimum (m)")]
     public float minCornerRadius = 8f;
-    [Tooltip("Au-del√† de cet √©cart lat√©ral (m), les virages ram√®nent la route vers le centre")]
+    [Tooltip("Au-del‡ de cet Ècart latÈral (m), les virages ramËnent la route vers le centre")]
     public float recenterDistance = 40f;
-    [Tooltip("Une courte ligne droite de r√©pit toutes les N figures environ (0 = jamais). Plus grand = plus dur")]
+    [Tooltip("Une courte ligne droite de rÈpit toutes les N figures environ (0 = jamais). Plus grand = plus dur")]
     public int figuresBetweenBreaks = 5;
-    [Tooltip("M√™me chose √† la difficult√© max : les lignes droites deviennent rares (et plus courtes)")]
+    [Tooltip("MÍme chose ‡ la difficultÈ max : les lignes droites deviennent rares (et plus courtes)")]
     public int figuresBetweenBreaksEnd = 18;
-    [Tooltip("Vari√©t√© des rayons : 0 = chaque virage au rayon juste faisable, 1 = beaucoup de virages plus larges, de toutes tailles " +
-             "(jamais plus serr√©s que faisable). Avec l'anti-r√©p√©tition des figures, √©vite de ressentir les m√™mes virages en boucle")]
-    [Range(0f, 1f)] public float radiusVariety = 0.6f;
 
-    [Header("√âpingles √† 180¬∞ et lacets")]
-    [Tooltip("Fr√©quence des √©pingles √† 180¬∞ (demi-tours) et des lacets (plusieurs √©pingles encha√Æn√©es). 0 = jamais")]
-    [Range(0f, 3f)] public float hairpinFrequency = 1f;
-    [Tooltip("Pas d'√©pingle √† 180¬∞ avant cette distance (m)")]
-    public float hairpinStartDistance = 250f;
-    [Tooltip("Cap des branches en travers (degr√©s) : 90 = vrai demi-tour de 180¬∞, 75 = √©pingle de 150¬∞")]
-    [Range(45f, 90f)] public float hairpinHeading = 90f;
-    [Tooltip("Acc√©l√©ration lat√©rale vis√©e dans une √©pingle (m/s¬≤). Rayon = vitesse¬≤ / hairpinGrip. Plus grand = √©pingles plus serr√©es (plus dur)")]
-    public float hairpinGrip = 7f;
-    [Tooltip("Rayon minimum d'une √©pingle (m, au centre de la route). Jamais moins que la demi-largeur + 3 m, ni que le braquage de la voiture")]
-    public float minHairpinRadius = 10f;
-    [Tooltip("Vitesse vis√©e dans une √©pingle (x la vitesse normale) : la voiture l√®ve le pied avant et r√©acc√©l√®re apr√®s. " +
-             "1 = pas de ralentissement (les √©pingles deviennent tr√®s larges)")]
-    [Range(0.4f, 1f)] public float hairpinSlowdown = 0.7f;
-    [Tooltip("Longueur des branches en travers entre deux √©pingles (m, au hasard entre min et max)")]
-    public float legLengthMin = 22f;
-    public float legLengthMax = 45f;
-    [Tooltip("Nombre max d'√©pingles encha√Æn√©es dans des lacets")]
-    [Range(2, 6)] public int maxLacets = 4;
-
-    [Header("Relief : mont√©es et descentes")]
-    [Tooltip("Distance plate au d√©part (m)")]
-    public float elevationStartFlat = 80f;
-    [Tooltip("Pente max au d√©but (0.1 = 10 %)")]
-    [Range(0f, 0.25f)] public float maxGrade = 0.07f;
-    [Tooltip("Pente max √† la difficult√© max")]
-    [Range(0f, 0.25f)] public float maxGradeEnd = 0.14f;
-    [Tooltip("L'altitude de la route reste entre -amplitude et +amplitude (m)")]
-    public float elevationAmplitude = 35f;
-    [Tooltip("Longueur d'une mont√©e / descente (m, au hasard entre min et max)")]
-    public float minSlopeLength = 60f;
-    public float maxSlopeLength = 180f;
-    [Tooltip("Longueur du raccord progressif entre deux pentes (m). Plus court = bosses plus marqu√©es (la voiture peut d√©coller)")]
-    public float slopeTransition = 45f;
-    [Tooltip("Probabilit√© qu'un tron√ßon soit un replat")]
-    [Range(0f, 1f)] public float flatChance = 0.2f;
-
-    [Header("Touge : c√¥t√© du vide et ponts")]
-    [Tooltip("C√¥t√© du vide (falaise) au d√©part : -1 = √† gauche (montagne √† droite), 1 = √† droite")]
+    [Header("Touge : cÙtÈ du vide et ponts")]
+    [Tooltip("CÙtÈ du vide (falaise) au dÈpart : -1 = ‡ gauche (montagne ‡ droite), 1 = ‡ droite")]
     public int cliffSide = -1;
-    [Tooltip("Le vide change de c√¥t√© de temps en temps, avec un pont au-dessus d'une gorge entre les deux")]
+    [Tooltip("Le vide change de cÙtÈ de temps en temps, avec un pont au-dessus d'une gorge entre les deux")]
     public bool switchSides = true;
-    [Tooltip("Longueur (m) de la premi√®re zone avant le premier pont")]
+    [Tooltip("Longueur (m) de la premiËre zone avant le premier pont")]
     public float firstSideLength = 450f;
     [Tooltip("Longueur (m) d'une zone entre deux ponts (au hasard entre min et max)")]
     public float minSideLength = 350f;
@@ -115,88 +70,84 @@ public class ZigzagRoadGenerator : MonoBehaviour
     [Tooltip("Longueur (m) d'un pont (au hasard entre min et max)")]
     public float minBridgeLength = 50f;
     public float maxBridgeLength = 90f;
-    [Tooltip("Distance (m) sur laquelle la montagne s'enfonce dans la gorge avant le pont, puis remonte apr√®s")]
+    [Tooltip("Distance (m) sur laquelle la montagne s'enfonce dans la gorge avant le pont, puis remonte aprËs")]
     public float sideRampLength = 30f;
     [Tooltip("Profondeur de la gorge sous un pont (m)")]
     public float gorgeDepth = 45f;
-    [Tooltip("√âpaisseur du tablier du pont (m)")]
+    [Tooltip("…paisseur du tablier du pont (m)")]
     public float deckThickness = 1.4f;
     [Tooltip("Distance (m) entre deux piles du pont")]
     public float pillarSpacing = 18f;
-    [Tooltip("√âpaisseur d'une pile du pont dans le sens de la route (m)")]
+    [Tooltip("…paisseur d'une pile du pont dans le sens de la route (m)")]
     public float pillarDepth = 2f;
 
-    [Header("G√©n√©ration")]
+    [Header("GÈnÈration")]
     public float segmentLength = 2f;          // finesse du mesh
     public int segmentsPerChunk = 15;         // taille d'un chunk = segmentLength * segmentsPerChunk
-    public float viewDistance = 150f;         // distance g√©n√©r√©e devant le joueur
-    public float despawnDistance = 40f;       // distance gard√©e derri√®re le joueur
+    public float viewDistance = 150f;         // distance gÈnÈrÈe devant le joueur
+    public float despawnDistance = 40f;       // distance gardÈe derriËre le joueur
     public float uvTileLength = 8f;           // longueur de route pour un tour de texture
-    public int seed = 0;                      // 0 = al√©atoire √† chaque partie
+    public int seed = 0;                      // 0 = alÈatoire ‡ chaque partie
 
     [Header("Collisions")]
     public bool addCollider = true;
-    [Tooltip("√âpaisseur du sol de collision (√©vite que la voiture traverse la route)")]
+    [Tooltip("…paisseur du sol de collision (Èvite que la voiture traverse la route)")]
     public float colliderThickness = 1f;
-    [Tooltip("Murs de collision sur les bords de la route (glissi√®re c√¥t√© falaise, paroi c√¥t√© montagne)")]
+    [Tooltip("Murs de collision sur les bords de la route (glissiËre cÙtÈ falaise, paroi cÙtÈ montagne)")]
     public bool addSideWalls = true;
-    [Tooltip("Hauteur de la glissi√®re (c√¥t√© falaise)")]
+    [Tooltip("Hauteur de la glissiËre (cÙtÈ falaise)")]
     public float wallHeight = 1.2f;
-    [Tooltip("Hauteur du mur de collision invisible c√¥t√© montagne (la roche est dessin√©e par le terrain)")]
+    [Tooltip("Hauteur du mur de collision invisible cÙtÈ montagne (la roche est dessinÈe par le terrain)")]
     public float rockWallColliderHeight = 4f;
     public float wallThickness = 0.5f;
-    [Tooltip("Sol sans friction : le sol d√©file sous la voiture, la friction n'a pas de sens ici")]
+    [Tooltip("Sol sans friction : le sol dÈfile sous la voiture, la friction n'a pas de sens ici")]
     public bool frictionlessRoad = true;
 
-    [Header("Glissi√®res visibles (c√¥t√© falaise)")]
+    [Header("GlissiËres visibles (cÙtÈ falaise)")]
     public bool showWalls = true;
-    [Tooltip("Optionnel. Sinon un material gris clair est cr√©√©.")]
+    [Tooltip("Optionnel. Sinon un material gris clair est crÈÈ.")]
     public Material wallMaterial;
 
-    [Header("D√©filement du d√©cor")]
-    [Tooltip("Quand le TrackRoot a d√©fil√© de plus que cette distance, il est ramen√© √† 0 (invisible)")]
+    [Header("DÈfilement du dÈcor")]
+    [Tooltip("Quand le TrackRoot a dÈfilÈ de plus que cette distance, il est ramenÈ ‡ 0 (invisible)")]
     public float rebaseDistance = 500f;
 
     [Header("Debug")]
     public bool debugLogs = false;
 
-    /// <summary>Vitesse de d√©filement du d√©cor vers l'arri√®re (m/s). Renseign√©e par la voiture (DriftCar).</summary>
+    /// <summary>Vitesse de dÈfilement du dÈcor vers l'arriËre (m/s). RenseignÈe par la voiture (DriftCar).</summary>
     public float ScrollSpeed
     {
         get => scrollSpeed;
         set { scrollSpeed = value; scrollWasSet = true; }
     }
 
-    /// <summary>
-    /// Distance parcourue le long de la route depuis le d√©part (√† utiliser pour le score) : la plus grande distance s
-    /// atteinte par la voiture sur la route. Elle avance aussi quand la route roule en travers (le d√©cor ne d√©file pas en Z).
-    /// </summary>
-    public double TotalDistance => progressS;
+    /// <summary>Distance totale parcourue depuis le dÈpart (‡ utiliser pour le score).</summary>
+    public double TotalDistance => distanceScrolled;
 
-    /// <summary>Distance totale ajout√©e par les rebases (utilis√©e par le terrain pour rester coh√©rent).</summary>
+    /// <summary>Distance totale ajoutÈe par les rebases (utilisÈe par le terrain pour rester cohÈrent).</summary>
     public double OriginZ => originZ;
 
-    /// <summary>Parent de tout ce qui doit d√©filer avec la route (obstacles, pi√®ces...).</summary>
+    /// <summary>Parent de tout ce qui doit dÈfiler avec la route (obstacles, piËces...).</summary>
     public Transform TrackRoot { get { EnsureRoot(); return trackRoot; } }
 
-    /// <summary>Mat√©riau physique sans friction (null si d√©sactiv√©), r√©utilisable par le terrain.</summary>
+    /// <summary>MatÈriau physique sans friction (null si dÈsactivÈ), rÈutilisable par le terrain.</summary>
     public PhysicsMaterial RoadPhysics => roadPhysics;
 
     /// <summary>
-    /// Appel√© quand le TrackRoot est ramen√© √† 0, avec la distance retir√©e. Tout objet enfant du TrackRoot
-    /// doit alors faire localPosition.z -= shift (les chunks de la route et du terrain le font d√©j√†).
+    /// AppelÈ quand le TrackRoot est ramenÈ ‡ 0, avec la distance retirÈe. Tout objet enfant du TrackRoot
+    /// doit alors faire localPosition.z -= shift (les chunks de la route et du terrain le font dÈj‡).
     /// </summary>
     public event Action<float> OnTrackRebased;
 
     float ChunkLength => segmentLength * segmentsPerChunk;
     float RootZ => trackRb != null ? trackRb.position.z : 0f;
-    TougeLayout layout;          // trac√© de la route (cr√©√© √† la premi√®re utilisation)
-    ElevationLayout elevation;   // relief de la route (cr√©√© √† la premi√®re utilisation)
-    CliffLayout cliffs;          // c√¥t√© du vide et ponts (cr√©√© √† la premi√®re utilisation)
-    readonly Queue<(GameObject go, double endS)> chunks = new Queue<(GameObject, double)>();
-    double nextChunkS;           // distance (le long de la route) du d√©but du prochain chunk
-    double originZ;              // d√©calage cumul√© des rebases : z absolu = originZ + z local
-    double progressS;            // plus grande distance atteinte par la voiture sur la route
+    TougeLayout layout;          // tracÈ de la route (crÈÈ ‡ la premiËre utilisation)
+    CliffLayout cliffs;          // cÙtÈ du vide et ponts (crÈÈ ‡ la premiËre utilisation)
+    readonly Queue<GameObject> chunks = new Queue<GameObject>();
+    float nextChunkZ;            // position Z (locale au TrackRoot) du prochain chunk
+    double originZ;              // dÈcalage cumulÈ des rebases : z absolu = originZ + z local
+    double distanceScrolled;
     float scrollSpeed;
     bool scrollWasSet, warnedNoScroll;
 
@@ -222,28 +173,28 @@ public class ZigzagRoadGenerator : MonoBehaviour
         trackRb = go.AddComponent<Rigidbody>();
         trackRb.isKinematic = true;
         trackRb.useGravity = false;
-        trackRb.interpolation = RigidbodyInterpolation.Interpolate; // d√©filement fluide malgr√© le pas fixe de la physique
+        trackRb.interpolation = RigidbodyInterpolation.Interpolate; // dÈfilement fluide malgrÈ le pas fixe de la physique
     }
 
     void Start()
     {
-        // Charg√©e en additif (fond du menu) : le TrackRoot cr√©√© dans Awake peut atterrir dans la sc√®ne active
+        // ChargÈe en additif (fond du menu) : le TrackRoot crÈÈ dans Awake peut atterrir dans la scËne active
         if (trackRoot.gameObject.scene != gameObject.scene)
             SceneManager.MoveGameObjectToScene(trackRoot.gameObject, gameObject.scene);
 
         if (player == null)
         {
-            Debug.LogError("[ZigzagRoad] Le champ 'Player' n'est pas assign√©.", this);
+            Debug.LogError("[ZigzagRoad] Le champ 'Player' n'est pas assignÈ.", this);
             enabled = false;
             return;
         }
 
-        nextChunkS = -ChunkLength; // un chunk derri√®re le d√©part
+        nextChunkZ = -ChunkLength; // un chunk derriËre le dÈpart
 
         roadMat = roadMaterial != null ? roadMaterial : CreateFallbackMaterial(new Color(0.22f, 0.22f, 0.25f));
         if (showWalls)
             wallMat = wallMaterial != null ? wallMaterial : CreateFallbackMaterial(new Color(0.9f, 0.9f, 0.92f));
-        bridgeMat = wallMaterial != null ? wallMaterial : CreateFallbackMaterial(new Color(0.72f, 0.7f, 0.68f)); // b√©ton du pont
+        bridgeMat = wallMaterial != null ? wallMaterial : CreateFallbackMaterial(new Color(0.72f, 0.7f, 0.68f)); // bÈton du pont
 
         if (frictionlessRoad)
         {
@@ -265,37 +216,38 @@ public class ZigzagRoadGenerator : MonoBehaviour
         if (wallMaterial == null && bridgeMat != null) Destroy(bridgeMat);
     }
 
-    // ---------- D√©filement du d√©cor ----------
+    // ---------- DÈfilement du dÈcor ----------
 
     void FixedUpdate()
     {
         if (trackRb == null) return;
 
-        // D√©filement sign√© : la route ne recule jamais en Z, mais en glisse dans une branche en travers
-        // la voiture peut repartir un peu vers -Z
-        float dz = scrollSpeed * Time.fixedDeltaTime;
+        float dz = Mathf.Max(0f, scrollSpeed) * Time.fixedDeltaTime;
 
-        if (Mathf.Abs(trackRb.position.z - dz) > rebaseDistance)
+        if (trackRb.position.z - dz < -rebaseDistance)
             Rebase();
+
+        distanceScrolled += dz;
 
         Vector3 p = trackRb.position;
         p.z -= dz;
         trackRb.MovePosition(p);
     }
 
-    // Ram√®ne le TrackRoot √† 0 et d√©cale les chunks de l'inverse : la position monde de chaque chunk est inchang√©e.
+    // RamËne le TrackRoot ‡ 0 et dÈcale les chunks de l'inverse : la position monde de chaque chunk est inchangÈe.
     void Rebase()
     {
         float s = -trackRb.position.z;
-        if (Mathf.Abs(s) < 0.001f) return;
+        if (s <= 0f) return;
 
-        // On coupe l'interpolation le temps de la t√©l√©portation pour √©viter un √†-coup visuel
+        // On coupe l'interpolation le temps de la tÈlÈportation pour Èviter un ‡-coup visuel
         trackRb.interpolation = RigidbodyInterpolation.None;
         trackRb.position = Vector3.zero;
         trackRoot.position = Vector3.zero;
 
-        foreach (var c in chunks)
-            c.go.transform.localPosition -= new Vector3(0f, 0f, s);
+        foreach (GameObject c in chunks)
+            c.transform.localPosition -= new Vector3(0f, 0f, s);
+        nextChunkZ -= s;
         originZ += s;
 
         Physics.SyncTransforms();
@@ -304,61 +256,36 @@ public class ZigzagRoadGenerator : MonoBehaviour
         OnTrackRebased?.Invoke(s);
     }
 
-    /// <summary>
-    /// D√©cale tout le d√©cor en Z (t√©l√©portation invisible pour les objets qui d√©filent) : sert √† remettre un point de la route
-    /// en face de la voiture, qui ne bouge jamais en Z (voir DriftGameManager, "Continuer").
-    /// </summary>
-    public void ShiftTrackZ(float delta)
-    {
-        EnsureRoot();
-        trackRb.interpolation = RigidbodyInterpolation.None;
-        Vector3 p = trackRb.position + new Vector3(0f, 0f, delta);
-        trackRb.position = p;
-        trackRoot.position = p;
-        Physics.SyncTransforms();
-        trackRb.interpolation = RigidbodyInterpolation.Interpolate;
-    }
-
     void Update()
     {
-        // Si personne ne pilote le d√©filement, on le dit clairement
+        // Si personne ne pilote le dÈfilement, on le dit clairement
         if (!scrollWasSet && !warnedNoScroll && Time.timeSinceLevelLoad > 1.5f)
         {
             warnedNoScroll = true;
-            Debug.LogWarning("[ZigzagRoad] Personne n'a d√©fini ScrollSpeed : le d√©cor ne d√©filera pas. " +
-                             "V√©rifie que ta voiture utilise le script DriftCar fourni et que son champ 'Road' pointe vers cette route.", this);
+            Debug.LogWarning("[ZigzagRoad] Personne n'a dÈfini ScrollSpeed : le dÈcor ne dÈfilera pas. " +
+                             "VÈrifie que ta voiture utilise le script DriftCar fourni et que son champ 'Road' pointe vers cette route.", this);
         }
 
-        UpdateProgress();
+        float playerTrackZ = TrackZ(player.position.z);
 
         if (debugLogs && Time.time >= nextLogTime)
         {
             nextLogTime = Time.time + 1f;
-            Debug.Log($"[ZigzagRoad] scroll={scrollSpeed:F1} m/s | rootZ={RootZ:F1} | progress={progressS:F1} | nextChunkS={nextChunkS:F0} | chunks={chunks.Count} | vitesse vis√©e x{SpeedFactorAt(progressS):F2}", this);
+            Debug.Log($"[ZigzagRoad] scroll={scrollSpeed:F1} m/s | rootZ={RootZ:F1} | playerTrackZ={playerTrackZ:F1} | nextChunkZ={nextChunkZ:F0} | chunks={chunks.Count} | distance={distanceScrolled:F0}", this);
         }
 
-        // G√©n√®re devant : un seul morceau par image (sinon le jeu saccade quand plusieurs arrivent ensemble),
-        // sauf si on est tr√®s en retard (au lancement ou apr√®s un respawn)
-        int budget = nextChunkS < progressS + viewDistance * 0.5f ? 16 : 1;
-        while (budget-- > 0 && nextChunkS < progressS + viewDistance)
+        // GÈnËre devant : un seul morceau par image (sinon le jeu saccade quand plusieurs arrivent ensemble),
+        // sauf si on est trËs en retard (au lancement ou aprËs un respawn)
+        int budget = nextChunkZ < playerTrackZ + viewDistance * 0.5f ? 16 : 1;
+        while (budget-- > 0 && nextChunkZ < playerTrackZ + viewDistance)
             SpawnChunk();
 
-        // D√©truit derri√®re
-        while (chunks.Count > 0 && chunks.Peek().endS < progressS - despawnDistance)
-            DestroyChunk(chunks.Dequeue().go);
+        // DÈtruit derriËre
+        while (chunks.Count > 0 && chunks.Peek().transform.localPosition.z + ChunkLength < playerTrackZ - despawnDistance)
+            DestroyChunk(chunks.Dequeue());
     }
 
-    // Avance la distance parcourue : on cherche la voiture pr√®s de l√† o√π elle √©tait (elle ne saute pas d'une branche
-    // de lacet √† l'autre √† travers les murs), et seulement quand elle est sur la route.
-    void UpdateProgress()
-    {
-        if (player == null) return;
-        RoadPoint rp = Locate(player.position, progressS, out float lateral);
-        if (Mathf.Abs(lateral) <= rp.HalfWidth + 2f && rp.s > progressS)
-            progressS = rp.s;
-    }
-
-    // ---------- Trac√© de la route (fonction d√©terministe de la distance s) ----------
+    // ---------- TracÈ de la route (fonction dÈterministe de la position) ----------
 
     TougeLayout Layout
     {
@@ -366,7 +293,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         {
             if (layout != null) return layout;
 
-            // Les rayons des virages d√©pendent de la vitesse et du braquage de la voiture √† chaque endroit (pour rester faisables)
+            // Les rayons des virages dÈpendent de la vitesse de la voiture ‡ chaque endroit (pour rester faisables)
             DriftCar car = player != null ? player.GetComponentInParent<DriftCar>() : null;
             if (car == null) car = FindFirstObjectByType<DriftCar>();
 
@@ -383,45 +310,10 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 recenterDistance = recenterDistance,
                 figuresBetweenBreaks = figuresBetweenBreaks,
                 figuresBetweenBreaksEnd = figuresBetweenBreaksEnd,
-                radiusVariety = radiusVariety,
-                roadWidthStart = roadWidth,
-                roadWidthEnd = roadWidthEnd,
-                hairpinFrequency = hairpinFrequency,
-                hairpinStartDistance = hairpinStartDistance,
-                hairpinHeading = hairpinHeading,
-                hairpinGrip = hairpinGrip,
-                minHairpinRadius = minHairpinRadius,
-                hairpinSlowdown = hairpinSlowdown,
-                legLengthMin = legLengthMin,
-                legLengthMax = Mathf.Max(legLengthMin, legLengthMax),
-                maxLacets = maxLacets,
-                brakeDecel = car != null ? car.hairpinBrake * 0.6f : 2.5f,
-                speedAt = car == null ? null : (Func<double, float>)(s =>
-                    Mathf.Lerp(car.startSpeed, car.maxSpeed, (float)(s / Math.Max(1f, car.speedRampDistance)))),
-                minTurnRadiusAt = car == null ? null : (Func<float, float>)car.MinTurnRadius,
+                speedAt = car == null ? null : (Func<double, float>)(z =>
+                    Mathf.Lerp(car.startSpeed, car.maxSpeed, (float)(z / Math.Max(1f, car.speedRampDistance)))),
             };
             return layout;
-        }
-    }
-
-    ElevationLayout Elevation
-    {
-        get
-        {
-            if (elevation != null) return elevation;
-            elevation = new ElevationLayout(seed)
-            {
-                startFlat = elevationStartFlat,
-                maxGradeStart = maxGrade,
-                maxGradeEnd = maxGradeEnd,
-                maxHeight = elevationAmplitude,
-                minSectionLength = minSlopeLength,
-                maxSectionLength = Mathf.Max(minSlopeLength, maxSlopeLength),
-                transitionLength = slopeTransition,
-                flatChance = flatChance,
-                difficultyAt = s => Layout.DifficultyAt(s),
-            };
-            return elevation;
         }
     }
 
@@ -445,27 +337,34 @@ public class ZigzagRoadGenerator : MonoBehaviour
         }
     }
 
+    float GetCenterX(float z) => Layout.CenterX(originZ + z);
+
+    // Les bords sont dÈcalÈs en X pur : dans une diagonale il faut Èlargir en X pour garder roadWidth perpendiculairement
+    float WidthScale(float z)
+    {
+        float s = Layout.Slope(originZ + z);
+        return Mathf.Sqrt(1f + s * s);
+    }
+
     // ---------- Construction des chunks ----------
 
     void SpawnChunk()
     {
-        double s0 = nextChunkS;
-        float chunkZ = PointAt(s0).position.z; // le chunk est plac√© au z de son d√©but, ses sommets sont relatifs
         GameObject go = new GameObject("RoadChunk");
         go.transform.SetParent(trackRoot, false);
-        go.transform.localPosition = new Vector3(0f, 0f, chunkZ);
+        go.transform.localPosition = new Vector3(0f, 0f, nextChunkZ);
 
-        BuildMeshes(s0, chunkZ, out Mesh visualMesh, out Mesh collisionMesh, out Mesh railsMesh, out Mesh bridgeMesh);
+        BuildMeshes(nextChunkZ, out Mesh visualMesh, out Mesh collisionMesh, out Mesh railsMesh, out Mesh bridgeMesh);
 
         go.AddComponent<MeshFilter>().sharedMesh = visualMesh;
         var mr = go.AddComponent<MeshRenderer>();
         mr.sharedMaterial = roadMat;
-        mr.shadowCastingMode = ShadowCastingMode.Off; // route plate : elle re√ßoit l'ombre de la voiture mais n'en projette pas
+        mr.shadowCastingMode = ShadowCastingMode.Off; // route plate : elle reÁoit l'ombre de la voiture mais n'en projette pas
 
         if (collisionMesh != null)
         {
             var mc = go.AddComponent<MeshCollider>();
-            // Pr√©paration du collider plus rapide (moins de saccade √† chaque nouveau morceau de route)
+            // PrÈparation du collider plus rapide (moins de saccade ‡ chaque nouveau morceau de route)
             mc.cookingOptions = MeshColliderCookingOptions.UseFastMidphase | MeshColliderCookingOptions.CookForFasterSimulation
                               | MeshColliderCookingOptions.WeldColocatedVertices;
             mc.sharedMesh = collisionMesh;
@@ -475,8 +374,8 @@ public class ZigzagRoadGenerator : MonoBehaviour
         if (railsMesh != null) AddPart(go.transform, "Rails", railsMesh, wallMat, false);
         if (bridgeMesh != null) AddPart(go.transform, "Pont", bridgeMesh, bridgeMat, true);
 
-        chunks.Enqueue((go, s0 + ChunkLength));
-        nextChunkS += ChunkLength;
+        chunks.Enqueue(go);
+        nextChunkZ += ChunkLength;
     }
 
     static void AddPart(Transform parent, string name, Mesh mesh, Material material, bool shadows)
@@ -492,7 +391,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
 
     void DestroyChunk(GameObject chunk)
     {
-        // Les meshes cr√©√©s par code ne sont pas lib√©r√©s avec le GameObject : on les d√©truit nous-m√™mes
+        // Les meshes crÈÈs par code ne sont pas libÈrÈs avec le GameObject : on les dÈtruit nous-mÍmes
         foreach (var mf in chunk.GetComponentsInChildren<MeshFilter>())
             if (mf.sharedMesh != null) Destroy(mf.sharedMesh);
         var mc = chunk.GetComponent<MeshCollider>();
@@ -500,7 +399,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         Destroy(chunk);
     }
 
-    void BuildMeshes(double startS, float chunkZ, out Mesh visualMesh, out Mesh collisionMesh, out Mesh railsMesh, out Mesh bridgeMesh)
+    void BuildMeshes(float startZ, out Mesh visualMesh, out Mesh collisionMesh, out Mesh railsMesh, out Mesh bridgeMesh)
     {
         int rows = segmentsPerChunk + 1;
         var left = new Vector3[rows];
@@ -512,30 +411,28 @@ public class ZigzagRoadGenerator : MonoBehaviour
         var voidR = new float[rows];
         var bridge = new float[rows];
 
-        // v = distance le long de la route / uvTileLength. On retire un multiple de uvTileLength (le m√™me pour tout le chunk,
-        // il ne change que tous les ~1 km) pour garder des petits nombres : le motif reste continu d'un chunk √† l'autre.
-        double uvPeriod = uvTileLength * 128.0;
-        double uvBase = Math.Floor(startS / uvPeriod) * uvPeriod;
-        Vector3 origin = new Vector3(0f, 0f, chunkZ);
+        // DÈcalage d'UV pour que la texture reste continue malgrÈ les rebases (calculÈ en double)
+        float uvOffset = (float)(originZ % uvTileLength);
         for (int r = 0; r < rows; r++)
         {
-            double s = startS + r * segmentLength;
-            RoadPoint p = PointAt(s);
-            float hw = p.HalfWidth;
+            float z = startZ + r * segmentLength;
+            float x = GetCenterX(z);
+            float y = RoadHeightAt(z); // la route suit le relief (plate dans la largeur)
+            float k = WidthScale(z);
+            float hw = WidthAt(z) * 0.5f * k;
 
-            // Les bords sont d√©cal√©s perpendiculairement √† la route (largeur exacte m√™me dans les √©pingles) ;
-            // la route est plate dans sa largeur et suit le relief dans sa longueur.
-            // Le terrain utilise exactement les m√™mes points : roche et falaise se raccordent au bord de la route.
-            Vector3 c = p.position - origin;
-            rightDir[r] = p.right;
-            left[r] = c - p.right * hw;
-            right[r] = c + p.right * hw;
-            SideAt(s, out voidL[r], out voidR[r], out bridge[r]);
+            // Les bords de la route sont dÈcalÈs en X pur : le terrain utilise exactement les mÍmes points,
+            // donc la roche et la falaise se raccordent parfaitement au bord de la route.
+            // (Èlargi de k en X pour que la largeur et l'Èpaisseur des murs restent constantes dans les diagonales)
+            rightDir[r] = Vector3.right * k;
+            left[r] = new Vector3(x - hw, y, z - startZ);
+            right[r] = new Vector3(x + hw, y, z - startZ);
+            SideAt(z, out voidL[r], out voidR[r], out bridge[r]);
 
-            float v = (float)((s - uvBase) / uvTileLength);
+            float v = (z + uvOffset) / uvTileLength;
             uvs[r * 2] = new Vector2(0f, v);
             uvs[r * 2 + 1] = new Vector2(1f, v);
-            uvs2[r * 2] = uvs2[r * 2 + 1] = new Vector2(p.width, 0f);
+            uvs2[r * 2] = uvs2[r * 2 + 1] = new Vector2(WidthAt(z), 0f);
         }
 
         // ----- Mesh visuel : une simple bande (gauche/droite) -----
@@ -564,13 +461,13 @@ public class ZigzagRoadGenerator : MonoBehaviour
 
         collisionMesh = addCollider ? BuildCollisionMesh(left, right, rightDir, voidL, voidR) : null;
         railsMesh = showWalls ? BuildRailsMesh(left, right, rightDir, voidL, voidR) : null;
-        bridgeMesh = BuildBridgeMesh(startS, chunkZ, left, right, rightDir, bridge);
+        bridgeMesh = BuildBridgeMesh(startZ, left, right, rightDir, bridge);
     }
 
     /// <summary>
-    /// Mesh de collision "ferm√©" : dalle √©paisse + murs lat√©raux optionnels.
-    /// Un volume ferm√© est beaucoup plus fiable qu'un plan sans √©paisseur (pas de travers√©e √† haute vitesse).
-    /// C√¥t√© vide : glissi√®re basse ; c√¥t√© montagne : mur invisible plus haut (la roche est dessin√©e par le terrain).
+    /// Mesh de collision "fermÈ" : dalle Èpaisse + murs latÈraux optionnels.
+    /// Un volume fermÈ est beaucoup plus fiable qu'un plan sans Èpaisseur (pas de traversÈe ‡ haute vitesse).
+    /// CÙtÈ vide : glissiËre basse ; cÙtÈ montagne : mur invisible plus haut (la roche est dessinÈe par le terrain).
     /// </summary>
     Mesh BuildCollisionMesh(Vector3[] left, Vector3[] right, Vector3[] rightDir, float[] voidL, float[] voidR)
     {
@@ -581,7 +478,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         Vector3[] leftBottom = Shift(left, Vector3.down * th);
         Vector3[] rightBottom = Shift(right, Vector3.down * th);
 
-        // Dalle : dessus, dessous, c√¥t√©s
+        // Dalle : dessus, dessous, cÙtÈs
         AddStrip(verts, tris, left, right);               // dessus (normale vers le haut)
         AddStrip(verts, tris, rightBottom, leftBottom);   // dessous
         AddStrip(verts, tris, leftBottom, left);          // flanc gauche
@@ -598,22 +495,22 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 hR[r] = Mathf.Lerp(rockWallColliderHeight, wallHeight, voidR[r]);
             }
 
-            // Mur gauche (le bord int√©rieur est le bord de la route)
+            // Mur gauche (le bord intÈrieur est le bord de la route)
             Vector3[] liT = ShiftAlong(left, rightDir, 0f, hL);
             Vector3[] loT = ShiftAlong(left, rightDir, -wt, hL);
             Vector3[] loB = ShiftAlong(left, rightDir, -wt, -th);
-            AddStrip(verts, tris, liT, leftBottom);       // face int√©rieure
+            AddStrip(verts, tris, liT, leftBottom);       // face intÈrieure
             AddStrip(verts, tris, loT, liT);              // dessus
-            AddStrip(verts, tris, loB, loT);              // face ext√©rieure
+            AddStrip(verts, tris, loB, loT);              // face extÈrieure
             AddStrip(verts, tris, leftBottom, loB);       // dessous
 
             // Mur droit
             Vector3[] riT = ShiftAlong(right, rightDir, 0f, hR);
             Vector3[] roT = ShiftAlong(right, rightDir, wt, hR);
             Vector3[] roB = ShiftAlong(right, rightDir, wt, -th);
-            AddStrip(verts, tris, rightBottom, riT);      // face int√©rieure
+            AddStrip(verts, tris, rightBottom, riT);      // face intÈrieure
             AddStrip(verts, tris, riT, roT);              // dessus
-            AddStrip(verts, tris, roT, roB);              // face ext√©rieure
+            AddStrip(verts, tris, roT, roB);              // face extÈrieure
             AddStrip(verts, tris, roB, rightBottom);      // dessous
         }
 
@@ -624,7 +521,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         return mesh;
     }
 
-    /// <summary>Glissi√®res visibles, seulement l√† o√π il y a du vide (des deux c√¥t√©s sur un pont).</summary>
+    /// <summary>GlissiËres visibles, seulement l‡ o˘ il y a du vide (des deux cÙtÈs sur un pont).</summary>
     Mesh BuildRailsMesh(Vector3[] left, Vector3[] right, Vector3[] rightDir, float[] voidL, float[] voidR)
     {
         var verts = new List<Vector3>();
@@ -666,15 +563,15 @@ public class ZigzagRoadGenerator : MonoBehaviour
         return mesh;
     }
 
-    /// <summary>Pont : tablier √©pais sous la route et piles qui descendent au fond de la gorge.</summary>
-    Mesh BuildBridgeMesh(double startS, float chunkZ, Vector3[] left, Vector3[] right, Vector3[] rightDir, float[] bridge)
+    /// <summary>Pont : tablier Èpais sous la route et piles qui descendent au fond de la gorge.</summary>
+    Mesh BuildBridgeMesh(float startZ, Vector3[] left, Vector3[] right, Vector3[] rightDir, float[] bridge)
     {
         var verts = new List<Vector3>();
         var tris = new List<int>();
         float wt = Mathf.Max(0.1f, wallThickness);
         float deck = Mathf.Max(0.3f, deckThickness);
 
-        // Tablier : flancs et dessous, dans le prolongement des glissi√®res
+        // Tablier : flancs et dessous, dans le prolongement des glissiËres
         foreach (var (a, b) in Runs(bridge, 0.001f, extend: 1))
         {
             var l = Slice(left, a, b);
@@ -689,17 +586,23 @@ public class ZigzagRoadGenerator : MonoBehaviour
             AddStrip(verts, tris, rBot, lBot);  // dessous
         }
 
-        // Piles : une tous les pillarSpacing m√®tres (en distance s, donc toujours aux m√™mes endroits)
+        // Piles : une tous les pillarSpacing mËtres (en z absolu, donc toujours aux mÍmes endroits)
         float spacing = Mathf.Max(4f, pillarSpacing);
-        double first = Math.Ceiling(startS / spacing) * spacing;
-        for (double s = first; s < startS + ChunkLength; s += spacing)
+        double absStart = originZ + startZ;
+        double first = Math.Ceiling(absStart / spacing) * spacing;
+        for (double az = first; az < absStart + ChunkLength; az += spacing)
         {
-            SideAt(s, out _, out _, out float b);
+            float z = (float)(az - originZ);
+            SideAt(z, out _, out _, out float b);
             if (b < 0.99f) continue;
 
-            RoadPoint p = PointAt(s);
-            Vector3 top = p.position - new Vector3(0f, deck, chunkZ);
-            AddPillar(verts, tris, top, p.right, p.forward, p.width * 0.3f, Mathf.Max(0.5f, pillarDepth) * 0.5f, gorgeDepth + 15f);
+            float x = GetCenterX(z);
+            float y = RoadHeightAt(z);
+            float slope = Layout.Slope(az);
+            Vector3 forward = new Vector3(slope, 0f, 1f).normalized;
+            Vector3 side = new Vector3(forward.z, 0f, -forward.x); // ‡ droite du sens de la route
+            Vector3 top = new Vector3(x, y - deck, z - startZ);
+            AddPillar(verts, tris, top, side, forward, WidthAt(z) * 0.3f, Mathf.Max(0.5f, pillarDepth) * 0.5f, gorgeDepth + 15f);
         }
 
         if (verts.Count == 0) return null;
@@ -711,19 +614,19 @@ public class ZigzagRoadGenerator : MonoBehaviour
         return mesh;
     }
 
-    // Pile : bo√Æte orient√©e selon la route (4 faces, le dessus est cach√© par le tablier, le bas dans la gorge)
+    // Pile : boÓte orientÈe selon la route (4 faces, le dessus est cachÈ par le tablier, le bas dans la gorge)
     static void AddPillar(List<Vector3> verts, List<int> tris, Vector3 top, Vector3 side, Vector3 forward,
                           float halfWidth, float halfDepth, float height)
     {
         Vector3 s = side * halfWidth, f = forward * halfDepth, down = Vector3.down * height;
         Vector3 a = top - s - f, b = top + s - f, c = top + s + f, d = top - s + f; // coins du haut
         Quad(verts, tris, a + down, a, b, b + down);   // face avant (vers -forward)
-        Quad(verts, tris, c + down, c, d, d + down);   // face arri√®re
+        Quad(verts, tris, c + down, c, d, d + down);   // face arriËre
         Quad(verts, tris, d + down, d, a, a + down);   // face gauche
         Quad(verts, tris, b + down, b, c, c + down);   // face droite
     }
 
-    // Quadrilat√®re p0 (bas gauche), p1 (haut gauche), p2 (haut droit), p3 (bas droit) vu de l'ext√©rieur
+    // QuadrilatËre p0 (bas gauche), p1 (haut gauche), p2 (haut droit), p3 (bas droit) vu de l'extÈrieur
     static void Quad(List<Vector3> verts, List<int> tris, Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
     {
         int i = verts.Count;
@@ -732,7 +635,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         tris.Add(i); tris.Add(i + 2); tris.Add(i + 3);
     }
 
-    // Suites de lignes cons√©cutives o√π values >= threshold (au moins 2 lignes pour faire une bande)
+    // Suites de lignes consÈcutives o˘ values >= threshold (au moins 2 lignes pour faire une bande)
     static IEnumerable<(int start, int end)> Runs(float[] values, float threshold, int extend = 0)
     {
         int n = values.Length;
@@ -757,7 +660,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
     }
 
     // Ajoute une bande entre deux lignes de points (a puis b, ligne par ligne).
-    // La normale est dirig√©e vers cross(sens de la route, a -> b).
+    // La normale est dirigÈe vers cross(sens de la route, a -> b).
     static void AddStrip(List<Vector3> verts, List<int> tris, Vector3[] a, Vector3[] b)
     {
         int baseIndex = verts.Count;
@@ -788,7 +691,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         return res;
     }
 
-    // M√™me chose avec une hauteur diff√©rente √† chaque ligne
+    // MÍme chose avec une hauteur diffÈrente ‡ chaque ligne
     static Vector3[] ShiftAlong(Vector3[] src, Vector3[] dirs, float dist, float[] dy)
     {
         var res = new Vector3[src.Length];
@@ -810,110 +713,41 @@ public class ZigzagRoadGenerator : MonoBehaviour
 
     // ---------- Utilitaires ----------
 
-    /// <summary>Convertit un Z monde en Z "piste" (coordonn√©es locales du TrackRoot).</summary>
+    /// <summary>Convertit un Z monde en Z "piste" (coordonnÈes locales du TrackRoot, utilisÈes pour gÈnÈrer la route).</summary>
     public float TrackZ(float worldZ) => worldZ - RootZ;
 
-    /// <summary>Position monde -> coordonn√©es locales du TrackRoot (le X et le Y ne d√©filent pas).</summary>
-    public Vector3 WorldToTrack(Vector3 world) => new Vector3(world.x, world.y, world.z - RootZ);
-
-    /// <summary>Coordonn√©es locales du TrackRoot -> position monde.</summary>
-    public Vector3 TrackToWorld(Vector3 local) => new Vector3(local.x, local.y, local.z + RootZ);
-
-    /// <summary>Le point de la route √† la distance s (centre, sens, largeur, pente...). Position locale au TrackRoot.</summary>
-    public RoadPoint PointAt(double s)
-    {
-        Layout.Sample(s, out double x, out double z, out float heading);
-        var fwd = new Vector3(Mathf.Sin(heading), 0f, Mathf.Cos(heading));
-        return new RoadPoint
-        {
-            s = s,
-            position = new Vector3((float)x, Elevation.Height(s), (float)(z - originZ)),
-            forward = fwd,
-            right = new Vector3(fwd.z, 0f, -fwd.x),
-            width = WidthAt(s),
-            grade = Elevation.Grade(s),
-            curvature = Layout.Curvature(s),
-        };
-    }
+    /// <summary>Position X du centre de la route ‡ un Z "piste" (le X monde = le X piste, rien ne dÈfile en X).</summary>
+    public float CenterXAt(float trackZ) => GetCenterX(trackZ);
 
     /// <summary>
-    /// Point de la route le plus proche d'une position MONDE (en plan, sans tenir compte de la hauteur).
-    /// lateral = √©cart sign√© au centre de la route (+ = √† droite dans le sens de la route).
+    /// Demi-largeur de la route mesurÈe en X ‡ un Z "piste". …gale ‡ roadWidth / 2 en ligne droite,
+    /// plus grande dans les diagonales (les bords sont dÈcalÈs en X pur). ¿ utiliser ‡ la place de roadWidth * 0.5f.
     /// </summary>
-    public RoadPoint Locate(Vector3 worldPos, out float lateral)
-    {
-        double ax = worldPos.x, az = originZ + TrackZ(worldPos.z);
-        double s = Layout.NearestByZ(ax, az, 40.0, out double d2);
-        if (double.IsInfinity(d2) || d2 > 40.0 * 40.0) s = Layout.NearestByZ(ax, az, 250.0, out _);
-        return Finish(s, worldPos, out lateral);
-    }
+    public float HalfWidthXAt(float trackZ) => WidthAt(trackZ) * 0.5f * WidthScale(trackZ);
+
+    /// <summary>Largeur de la route (perpendiculairement) ‡ un Z "piste" : de roadWidth au dÈpart ‡ roadWidthEnd ‡ la difficultÈ max.</summary>
+    public float WidthAt(float trackZ) => Mathf.Lerp(roadWidth, roadWidthEnd, Layout.DifficultyAt(originZ + trackZ));
+
+    /// <summary>DifficultÈ de la route (0 = dÈpart, 1 = max) ‡ un Z "piste".</summary>
+    public float DifficultyAt(float trackZ) => Layout.DifficultyAt(originZ + trackZ);
+
+    /// <summary>Altitude de la route ‡ un Z "piste". 0 s'il n'y a pas de terrain.</summary>
+    public float RoadHeightAt(float trackZ) => terrain != null ? terrain.BaseHeight(GetCenterX(trackZ), trackZ) : 0f;
 
     /// <summary>
-    /// M√™me chose, en cherchant seulement entre sHint - 40 m et sHint + 80 m : pour suivre un objet qui avance sur la route
-    /// (la voiture) sans le confondre avec une autre branche de lacets toute proche. Si rien n'est assez proche, recherche compl√®te.
+    /// CÙtÈ du vide ‡ un Z "piste" : voidLeft / voidRight = 0 (montagne contre la route) ‡ 1 (falaise, vide),
+    /// bridge = 1 sur un pont (vide des deux cÙtÈs, gorge de gorgeDepth mËtres), 0 ailleurs.
     /// </summary>
-    public RoadPoint Locate(Vector3 worldPos, double sHint, out float lateral)
+    public void SideAt(float trackZ, out float voidLeft, out float voidRight, out float bridge) =>
+        Cliffs.Sample(originZ + trackZ, out voidLeft, out voidRight, out bridge);
+
+    /// <summary>De quel cÙtÈ est le vide : -1 = ‡ gauche, 1 = ‡ droite, 0 = des deux cÙtÈs (pont) ou d'aucun.</summary>
+    public float CliffBiasAt(float trackZ)
     {
-        double ax = worldPos.x, az = originZ + TrackZ(worldPos.z);
-        double s = Layout.NearestInRange(ax, az, sHint - 40.0, sHint + 80.0, out double d2);
-        float hw = WidthAt(s) * 0.5f + 12f;
-        if (d2 > hw * hw) return Locate(worldPos, out lateral);
-        return Finish(s, worldPos, out lateral);
-    }
-
-    RoadPoint Finish(double s, Vector3 worldPos, out float lateral)
-    {
-        RoadPoint p = PointAt(s);
-        Vector3 d = WorldToTrack(worldPos) - p.position;
-        lateral = d.x * p.right.x + d.z * p.right.z;
-        return p;
-    }
-
-    /// <summary>Largeur de la route (perpendiculairement) √† la distance s : de roadWidth au d√©part √† roadWidthEnd √† la difficult√© max.</summary>
-    public float WidthAt(double s) => Mathf.Lerp(roadWidth, roadWidthEnd, Layout.DifficultyAt(s));
-
-    /// <summary>Difficult√© de la route (0 = d√©part, 1 = max) √† la distance s.</summary>
-    public float DifficultyAt(double s) => Layout.DifficultyAt(s);
-
-    /// <summary>Vitesse vis√©e √† la distance s, en fraction de la vitesse normale (moins de 1 avant et dans une √©pingle √† 180¬∞).</summary>
-    public float SpeedFactorAt(double s) => Layout.SpeedFactorAt(s);
-
-    /// <summary>
-    /// C√¥t√© du vide √† la distance s : voidLeft / voidRight = 0 (montagne contre la route) √† 1 (falaise, vide),
-    /// bridge = 1 sur un pont (vide des deux c√¥t√©s, gorge de gorgeDepth m√®tres), 0 ailleurs.
-    /// </summary>
-    public void SideAt(double s, out float voidLeft, out float voidRight, out float bridge) =>
-        Cliffs.Sample(s, out voidLeft, out voidRight, out bridge);
-
-    /// <summary>De quel c√¥t√© est le vide : -1 = √† gauche, 1 = √† droite, 0 = des deux c√¥t√©s (pont) ou d'aucun.</summary>
-    public float CliffBiasAt(double s)
-    {
-        SideAt(s, out float l, out float r, out _);
+        SideAt(trackZ, out float l, out float r, out _);
         return r - l;
     }
-}
 
-/// <summary>Un point du centre de la route (voir ZigzagRoadGenerator.PointAt / Locate).</summary>
-public struct RoadPoint
-{
-    /// <summary>Distance le long de la route depuis le d√©part.</summary>
-    public double s;
-    /// <summary>Centre de la route, en coordonn√©es locales du TrackRoot.</summary>
-    public Vector3 position;
-    /// <summary>Sens de la route (horizontal, normalis√©).</summary>
-    public Vector3 forward;
-    /// <summary>Vers la droite de la route (horizontal, normalis√©).</summary>
-    public Vector3 right;
-    /// <summary>Largeur de la route (m).</summary>
-    public float width;
-    /// <summary>Pente (mont√©e de la route par m√®tre parcouru, 0.1 = 10 %).</summary>
-    public float grade;
-    /// <summary>Courbure (1 / rayon, + = virage √† droite, 0 = ligne droite).</summary>
-    public float curvature;
-
-    public float HalfWidth => width * 0.5f;
-    /// <summary>Cap de la route en degr√©s (0 = vers +Z, + = vers la droite).</summary>
-    public float HeadingDeg => Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
-    /// <summary>Sens de la route en 3D (avec la pente).</summary>
-    public Vector3 Forward3D => (forward + Vector3.up * grade).normalized;
-}
+    /// <summary>Distance latÈrale entre un point monde (la voiture) et le centre de la route (pour dÈtecter une sortie de route).</summary>
+    public float LateralOffset(Vector3 worldPos) => worldPos.x - GetCenterX(TrackZ(worldPos.z));
+}

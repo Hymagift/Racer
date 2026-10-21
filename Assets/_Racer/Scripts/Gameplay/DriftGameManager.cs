@@ -3,38 +3,38 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// GÃ¨re la mort et l'Ã©cran de fin. Le score est gÃ©rÃ© UNIQUEMENT par le ScoreManager
-/// (ajoutÃ© automatiquement sur cet objet s'il n'y en a pas dans la scÃ¨ne).
+/// Gère la mort et l'écran de fin. Le score est géré UNIQUEMENT par le ScoreManager
+/// (ajouté automatiquement sur cet objet s'il n'y en a pas dans la scène).
 ///
 /// MORT :
-/// - Death zone automatique : la voiture tombe sous la route (falaise) de plus de "fallDepth" mÃ¨tres.
+/// - Death zone automatique : la voiture tombe sous la route (falaise) de plus de "fallDepth" mètres.
 /// - Optionnel : sortie de route trop loin du bord.
-/// - La voiture s'arrÃªte (vitesse quasi nulle), une fois qu'elle a dÃ©marrÃ©.
+/// - La voiture s'arrête (vitesse quasi nulle), une fois qu'elle a démarré.
 /// - Tout objet avec le composant DeathZone (trigger) tue aussi la voiture.
 ///
 /// Mise en place :
-/// 1. GameObject vide "GameManager" avec ce script (la voiture, la route et le score sont trouvÃ©s automatiquement).
-/// 2. Dans ton Canvas, crÃ©e un objet vide "GameOverPanel" avec dedans des textes TextMeshPro
+/// 1. GameObject vide "GameManager" avec ce script (la voiture, la route et le score sont trouvés automatiquement).
+/// 2. Dans ton Canvas, crée un objet vide "GameOverPanel" avec dedans des textes TextMeshPro
 ///    (score, meilleur score) et un bouton "Rejouer". Glisse-les dans les champs ci-dessous.
 /// 3. Sur le bouton : OnClick -> GameManager -> DriftGameManager.Restart().
-/// 4. Ajoute ta scÃ¨ne dans File > Build Profiles (Scene List), sinon Restart ne pourra pas la recharger.
+/// 4. Ajoute ta scène dans File > Build Profiles (Scene List), sinon Restart ne pourra pas la recharger.
 ///
-/// Sans Ã©cran de fin assignÃ©, la mort fait un fondu au noir puis retourne au menu.
-/// Dans la partie de dÃ©mo du menu (MenuBackground), la mort relance juste la dÃ©mo : ni piÃ¨ces ni record.
+/// Sans écran de fin assigné, la mort fait un fondu au noir puis retourne au menu.
+/// Dans la partie de démo du menu (MenuBackground), la mort relance juste la démo : ni pièces ni record.
 /// </summary>
 public class DriftGameManager : MonoBehaviour
 {
-    [Header("RÃ©fÃ©rences (trouvÃ©es automatiquement si vides)")]
+    [Header("Références (trouvées automatiquement si vides)")]
     public DriftCar car;
     public ZigzagRoadGenerator road;
     public ScoreManager score;
 
-    [Header("UI - Ã©cran de fin")]
-    [Tooltip("L'objet vide qui contient l'UI de fin. Il est cachÃ© au dÃ©but et affichÃ© Ã  la mort.")]
+    [Header("UI - écran de fin")]
+    [Tooltip("L'objet vide qui contient l'UI de fin. Il est caché au début et affiché à la mort.")]
     public GameObject gameOverPanel;
     public TMP_Text finalScoreText;
     public TMP_Text bestScoreText;
-    [Tooltip("Optionnel : objet affichÃ© seulement en cas de nouveau record")]
+    [Tooltip("Optionnel : objet affiché seulement en cas de nouveau record")]
     public GameObject newRecordObject;
 
     [Header("Mort")]
@@ -42,44 +42,44 @@ public class DriftGameManager : MonoBehaviour
     public bool dieOnFall = true;
     [Tooltip("Hauteur de chute sous la route avant la mort")]
     public float fallDepth = 6f;
-    [Tooltip("Meurt si la voiture s'Ã©loigne trop du bord de la route (mÃªme sans tomber)")]
+    [Tooltip("Meurt si la voiture s'éloigne trop du bord de la route (même sans tomber)")]
     public bool dieOffRoad = false;
     public float offRoadMargin = 3f;
-    [Tooltip("Meurt si la voiture s'arrÃªte (vitesse quasi nulle)")]
+    [Tooltip("Meurt si la voiture s'arrête (vitesse quasi nulle)")]
     public bool dieWhenStopped = true;
-    [Tooltip("En dessous de cette vitesse (m/s), la voiture est considÃ©rÃ©e comme arrÃªtÃ©e")]
+    [Tooltip("En dessous de cette vitesse (m/s), la voiture est considérée comme arrêtée")]
     public float stoppedSpeed = 0.5f;
-    [Tooltip("Temps (s) Ã  l'arrÃªt avant la mort (Ã©vite de mourir sur un simple choc)")]
+    [Tooltip("Temps (s) à l'arrêt avant la mort (évite de mourir sur un simple choc)")]
     public float stoppedTime = 0.3f;
-    [Tooltip("Vitesse (m/s) Ã  atteindre au dÃ©part avant que l'arrÃªt puisse tuer (la voiture part de 0)")]
+    [Tooltip("Vitesse (m/s) à atteindre au départ avant que l'arrêt puisse tuer (la voiture part de 0)")]
     public float stoppedArmSpeed = 3f;
-    [Tooltip("DÃ©lai avant d'afficher l'Ã©cran de fin (secondes, temps rÃ©el)")]
+    [Tooltip("Délai avant d'afficher l'écran de fin (secondes, temps réel)")]
     public float panelDelay = 0.6f;
 
-    [Header("Continuer aprÃ¨s la mort")]
-    [Tooltip("Ã€ la mort, propose de continuer (rubis ou publicitÃ©) avant de finir la partie")]
+    [Header("Continuer après la mort")]
+    [Tooltip("À la mort, propose de continuer (rubis ou publicité) avant de finir la partie")]
     public bool offerContinue = true;
     [Tooltip("Prix en rubis du premier \"Continuer\" de la partie")]
     public int continueBasePrice = 10;
-    [Tooltip("Le prix est multipliÃ© par Ã§a Ã  chaque \"Continuer\" payÃ© dans la mÃªme partie (10, 20, 40...)")]
+    [Tooltip("Le prix est multiplié par ça à chaque \"Continuer\" payé dans la même partie (10, 20, 40...)")]
     public float continuePriceMultiplier = 2f;
-    [Tooltip("Une publicitÃ© permet de continuer une seule fois par partie")]
+    [Tooltip("Une publicité permet de continuer une seule fois par partie")]
     public bool oneAdPerRun = true;
-    [Tooltip("Temps (s) pour se dÃ©cider avant que la partie se termine")]
+    [Tooltip("Temps (s) pour se décider avant que la partie se termine")]
     public float continueTime = 6f;
 
     [Header("Menu")]
-    [Tooltip("Nom exact de la scÃ¨ne du menu (elle doit Ãªtre dans Build Profiles > Scene List)")]
+    [Tooltip("Nom exact de la scène du menu (elle doit être dans Build Profiles > Scene List)")]
     public string menuSceneName = "Menu";
-    [Tooltip("Sans Ã©cran de fin : dÃ©lai aprÃ¨s la mort avant le fondu au noir et le retour au menu")]
+    [Tooltip("Sans écran de fin : délai après la mort avant le fondu au noir et le retour au menu")]
     public float backToMenuDelay = 1.5f;
 
     /// <summary>Vrai une fois la partie perdue.</summary>
     public bool IsDead { get; private set; }
 
     Rigidbody carRb;
-    bool stopArmed;   // la voiture a dÃ©marrÃ© : l'arrÃªt peut maintenant tuer
-    float stoppedFor; // temps passÃ© Ã  l'arrÃªt
+    bool stopArmed;   // la voiture a démarré : l'arrêt peut maintenant tuer
+    float stoppedFor; // temps passé à l'arrêt
 
     void Awake()
     {
@@ -88,14 +88,14 @@ public class DriftGameManager : MonoBehaviour
         if (car != null) carRb = car.GetComponent<Rigidbody>();
 
         if (car == null || road == null)
-            Debug.LogError("[DriftGameManager] Voiture ou route introuvable dans la scÃ¨ne.", this);
+            Debug.LogError("[DriftGameManager] Voiture ou route introuvable dans la scène.", this);
 
         if (score == null) score = FindFirstObjectByType<ScoreManager>();
         if (score == null) score = gameObject.AddComponent<ScoreManager>();
 
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
 
-        // Pilote auto proposÃ© au dÃ©but de chaque partie (voir AutopilotBoost, inactif dans la dÃ©mo du menu)
+        // Pilote auto proposé au début de chaque partie (voir AutopilotBoost, inactif dans la démo du menu)
         if (GetComponent<AutopilotBoost>() == null) gameObject.AddComponent<AutopilotBoost>();
     }
 
@@ -110,16 +110,15 @@ public class DriftGameManager : MonoBehaviour
     void CheckDeath()
     {
         Vector3 p = car.transform.position;
-        // Point de la route sous la voiture (cherchÃ© prÃ¨s de lÃ  oÃ¹ elle en Ã©tait : pas de confusion entre deux branches de lacets)
-        RoadPoint rp = road.Locate(p, road.TotalDistance, out float lateral);
+        float trackZ = road.TrackZ(p.z);
 
-        if (dieOnFall && p.y < road.TrackToWorld(rp.position).y - fallDepth)
+        if (dieOnFall && p.y < road.RoadHeightAt(trackZ) - fallDepth)
         {
             Die();
             return;
         }
 
-        if (dieOffRoad && Mathf.Abs(lateral) > rp.HalfWidth + offRoadMargin)
+        if (dieOffRoad && Mathf.Abs(road.LateralOffset(p)) > road.HalfWidthXAt(road.TrackZ(p.z)) + offRoadMargin)
         {
             Die();
             return;
@@ -129,7 +128,7 @@ public class DriftGameManager : MonoBehaviour
             Die();
     }
 
-    // Vrai si la voiture est restÃ©e Ã  l'arrÃªt assez longtemps (seulement aprÃ¨s avoir dÃ©marrÃ©)
+    // Vrai si la voiture est restée à l'arrêt assez longtemps (seulement après avoir démarré)
     bool IsStopped()
     {
         float speed = car.Speed;
@@ -144,14 +143,14 @@ public class DriftGameManager : MonoBehaviour
 
     // ---------- Mort / fin de partie ----------
 
-    /// <summary>Termine la partie. AppelÃ© par la death zone, un DeathZone, ou ton propre code.</summary>
+    /// <summary>Termine la partie. Appelé par la death zone, un DeathZone, ou ton propre code.</summary>
     public void Die()
     {
         if (IsDead) return;
         IsDead = true;
 
-        // ArrÃªte la voiture et le dÃ©filement du dÃ©cor
-        if (car != null) car.enabled = false; // DriftCar remet le dÃ©filement Ã  0 quand il est dÃ©sactivÃ©
+        // Arrête la voiture et le défilement du décor
+        if (car != null) car.enabled = false; // DriftCar remet le défilement à 0 quand il est désactivé
         if (road != null) road.ScrollSpeed = 0f;
         if (carRb != null)
         {
@@ -160,7 +159,7 @@ public class DriftGameManager : MonoBehaviour
             carRb.isKinematic = true;
         }
 
-        // Partie de dÃ©mo derriÃ¨re le menu : on laisse le menu faire le fondu et relancer
+        // Partie de démo derrière le menu : on laisse le menu faire le fondu et relancer
         if (MenuBackground.DemoRunning)
         {
             MenuBackground.NotifyRunEnded();
@@ -181,7 +180,7 @@ public class DriftGameManager : MonoBehaviour
     int paidContinues;
     bool adUsed;
 
-    /// <summary>Prix en rubis du prochain "Continuer" (augmente Ã  chaque fois dans la mÃªme partie).</summary>
+    /// <summary>Prix en rubis du prochain "Continuer" (augmente à chaque fois dans la même partie).</summary>
     public int ContinuePrice => Mathf.RoundToInt(continueBasePrice * Mathf.Pow(Mathf.Max(1f, continuePriceMultiplier), paidContinues));
 
     System.Collections.IEnumerator OfferContinue()
@@ -205,24 +204,20 @@ public class DriftGameManager : MonoBehaviour
     void Revive()
     {
         Vector3 p = car.transform.position;
-        RoadPoint rp = road.Locate(p, road.TotalDistance, out _);
-
-        // La voiture ne bouge jamais en Z : c'est la route qu'on dÃ©cale pour que ce point arrive en face d'elle
-        // (dans une branche de lacets en travers, le centre de la route n'est pas forcÃ©ment au mÃªme Z que la voiture)
-        road.ShiftTrackZ(p.z - road.TrackToWorld(rp.position).z);
-        Vector3 center = road.TrackToWorld(rp.position);
-
+        float z = road.TrackZ(p.z);
+        float x = road.CenterXAt(z);
+        float heading = Mathf.Atan2(road.CenterXAt(z + 1f) - road.CenterXAt(z - 1f), 2f) * Mathf.Rad2Deg;
         if (carRb != null) carRb.isKinematic = false;
         car.enabled = true;
-        car.Respawn(new Vector3(center.x, center.y + 1f, p.z), rp.HeadingDeg);
+        car.Respawn(new Vector3(x, road.RoadHeightAt(z) + 1f, p.z), heading);
         stoppedFor = 0f;
         IsDead = false;
     }
 
-    // Fin dÃ©finitive de la partie
+    // Fin définitive de la partie
     void EndGame()
     {
-        // Score figÃ© (le drift en cours est perdu) + record enregistrÃ©
+        // Score figé (le drift en cours est perdu) + record enregistré
         bool newRecord = score.EndRun();
         PlayerData.AddCoins(score.IntScore / 10);
 
@@ -231,7 +226,7 @@ public class DriftGameManager : MonoBehaviour
         else ShowPanel(newRecord);
     }
 
-    /// <summary>Fondu au noir puis retour au menu. Ã€ brancher sur un bouton "Menu".</summary>
+    /// <summary>Fondu au noir puis retour au menu. À brancher sur un bouton "Menu".</summary>
     public void LoadMenu()
     {
         StartCoroutine(FadeAndLoad(menuSceneName, 0f));
@@ -259,7 +254,7 @@ public class DriftGameManager : MonoBehaviour
         if (gameOverPanel != null) gameOverPanel.SetActive(true);
     }
 
-    /// <summary>Recharge la scÃ¨ne. Ã€ brancher sur le bouton "Rejouer".</summary>
+    /// <summary>Recharge la scène. À brancher sur le bouton "Rejouer".</summary>
     public void Restart()
     {
         Time.timeScale = 1f;

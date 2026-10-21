@@ -2,40 +2,40 @@ using System;
 using System.Collections.Generic;
 
 /// <summary>
-/// De quel cÃ´tÃ© de la route se trouve le vide (la falaise), le long de la route.
+/// De quel côté de la route se trouve le vide (la falaise), le long de la route.
 ///
-/// La route alterne des zones "vide Ã  gauche / montagne Ã  droite" et "vide Ã  droite / montagne Ã  gauche".
-/// Entre deux zones, un PONT franchit une gorge : du vide des deux cÃ´tÃ©s.
-///   ... vide Ã  gauche ... | la montagne de droite s'enfonce | PONT (vide des deux cÃ´tÃ©s) | la montagne remonte Ã  gauche | ... vide Ã  droite ...
+/// La route alterne des zones "vide à gauche / montagne à droite" et "vide à droite / montagne à gauche".
+/// Entre deux zones, un PONT franchit une gorge : du vide des deux côtés.
+///   ... vide à gauche ... | la montagne de droite s'enfonce | PONT (vide des deux côtés) | la montagne remonte à gauche | ... vide à droite ...
 ///
-/// Classe C# simple (pas un MonoBehaviour), utilisÃ©e par ZigzagRoadGenerator. EntiÃ¨rement dÃ©terministe pour une seed.
-/// Les distances sont des distances s le long de la route (depuis le dÃ©part).
+/// Classe C# simple (pas un MonoBehaviour), utilisée par ZigzagRoadGenerator. Entièrement déterministe pour une seed.
+/// Les distances sont des z absolus (depuis le départ).
 /// </summary>
 public class CliffLayout
 {
-    // ---------- RÃ©glages (renseignÃ©s par ZigzagRoadGenerator) ----------
+    // ---------- Réglages (renseignés par ZigzagRoadGenerator) ----------
 
-    /// <summary>CÃ´tÃ© du vide au dÃ©part : -1 = gauche, 1 = droite.</summary>
+    /// <summary>Côté du vide au départ : -1 = gauche, 1 = droite.</summary>
     public int startSide = -1;
-    /// <summary>Faux = le vide reste toujours du mÃªme cÃ´tÃ©, sans pont.</summary>
+    /// <summary>Faux = le vide reste toujours du même côté, sans pont.</summary>
     public bool switchSides = true;
-    /// <summary>Longueur de la premiÃ¨re zone (m).</summary>
+    /// <summary>Longueur de la première zone (m).</summary>
     public float firstZoneLength = 450f;
-    /// <summary>Longueur des zones suivantes (m), tirÃ©e au hasard entre ces deux valeurs.</summary>
+    /// <summary>Longueur des zones suivantes (m), tirée au hasard entre ces deux valeurs.</summary>
     public float minZoneLength = 350f, maxZoneLength = 800f;
     /// <summary>Longueur des ponts (m).</summary>
     public float minBridgeLength = 50f, maxBridgeLength = 90f;
-    /// <summary>Distance (m) sur laquelle la montagne s'enfonce avant le pont / remonte aprÃ¨s.</summary>
+    /// <summary>Distance (m) sur laquelle la montagne s'enfonce avant le pont / remonte après.</summary>
     public float rampLength = 30f;
-    /// <summary>Distance (m) aux extrÃ©mitÃ©s du pont sur laquelle la gorge se creuse sous la route.</summary>
+    /// <summary>Distance (m) aux extrémités du pont sur laquelle la gorge se creuse sous la route.</summary>
     public float abutmentLength = 8f;
 
-    // ---------- DonnÃ©es ----------
+    // ---------- Données ----------
 
     struct Zone
     {
         public double start, end; // la zone ; le pont qui la suit va de end au start de la zone suivante
-        public int side;          // cÃ´tÃ© du vide : -1 gauche, 1 droite
+        public int side;          // côté du vide : -1 gauche, 1 droite
     }
 
     readonly List<Zone> zones = new List<Zone>();
@@ -55,7 +55,7 @@ public class CliffLayout
         int side = startSide >= 0 ? 1 : -1;
         if (!switchSides || z <= 0.0)
         {
-            Set(side, 0f, out voidLeft, out voidRight); // vide d'un cÃ´tÃ©, montagne de l'autre
+            Set(side, 0f, out voidLeft, out voidRight); // vide d'un côté, montagne de l'autre
             bridge = 0f;
             return;
         }
@@ -65,7 +65,7 @@ public class CliffLayout
 
         if (z >= zone.end)
         {
-            // Sur le pont : vide des deux cÃ´tÃ©s, la gorge se creuse aux deux extrÃ©mitÃ©s
+            // Sur le pont : vide des deux côtés, la gorge se creuse aux deux extrémités
             double bridgeEnd = zones[i + 1].start;
             float a = (float)Math.Min(z - zone.end, bridgeEnd - z) / Math.Max(0.01f, abutmentLength);
             bridge = Smooth(a);
@@ -73,7 +73,7 @@ public class CliffLayout
             return;
         }
 
-        // Dans une zone : vide d'un cÃ´tÃ© ; de l'autre, la montagne s'enfonce prÃ¨s des ponts
+        // Dans une zone : vide d'un côté ; de l'autre, la montagne s'enfonce près des ponts
         bridge = 0f;
         float mountainVoid = 0f;
         if (i > 0) mountainVoid = Math.Max(mountainVoid, Smooth(1f - (float)(z - zone.start) / rampLength));
@@ -81,7 +81,7 @@ public class CliffLayout
         Set(zone.side, mountainVoid, out voidLeft, out voidRight);
     }
 
-    // CÃ´tÃ© du vide = 1, l'autre cÃ´tÃ© = mountainVoid
+    // Côté du vide = 1, l'autre côté = mountainVoid
     static void Set(int voidSide, float mountainVoid, out float left, out float right)
     {
         left = voidSide < 0 ? 1f : mountainVoid;
@@ -112,7 +112,7 @@ public class CliffLayout
         return lo;
     }
 
-    // Il faut toujours une zone aprÃ¨s celle qui contient z (pour connaÃ®tre la fin du pont)
+    // Il faut toujours une zone après celle qui contient z (pour connaître la fin du pont)
     void Ensure(double z)
     {
         if (zones.Count == 0)

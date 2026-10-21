@@ -6,8 +6,8 @@ using UnityEngine;
 /// Ajouté tout seul sur la voiture par MenuBackground : elle suit la route en driftant.
 /// Nécessite les 2 champs "useExternalInput" / "externalInput" dans DriftCar.
 ///
-/// Principe : on vise un point au centre de la route devant la voiture (plus loin quand on va vite, mesuré le long de la route),
-/// on en déduit la direction voulue et on braque en proportion de l'écart de vitesse sur le côté de la voiture
+/// Principe : on vise un point au centre de la route devant la voiture (plus loin quand on va vite),
+/// on en déduit la vitesse latérale voulue et on braque en proportion de l'écart
 /// (avec anticipation, pour ne pas zigzaguer). Le point visé est rapproché si la ligne droite
 /// pour l'atteindre sort de la route (épingles), et la voiture se recentre d'urgence près du bord.
 /// Si la voiture tombe malgré tout, la partie se termine et le menu relance une démo.
@@ -63,8 +63,8 @@ public class DriftAutoPilot : MonoBehaviour
     DriftCar car;
     Rigidbody rb;
     DriftGameManager manager;
-    Vector2 lastV, accel;
-    bool hasLastV;
+    float lastVx, accelX;
+    bool hasLastVx;
 
     void Awake()
     {
@@ -79,7 +79,7 @@ public class DriftAutoPilot : MonoBehaviour
     {
         if (car == null) car = GetComponent<DriftCar>();
         car.useExternalInput = true;
-        hasLastV = false;
+        hasLastVx = false;
     }
 
     void OnDisable()
@@ -91,17 +91,19 @@ public class DriftAutoPilot : MonoBehaviour
     }
 
     // Drift de style : plus la route tourne vite devant la voiture, plus le nez rentre dans le virage
-    float StyleAngle(double s, float speed)
+    float StyleAngle(float z, float vz)
     {
         if (!styleDrift || car.Speed < car.minDriftSpeed) return 0f;
-        double ahead = s + Mathf.Max(3f, car.Speed * styleLookTime);
-        // Courbure moyenne sur 4 m (degrés par mètre) x vitesse = degrés par seconde
-        float k = (road.PointAt(ahead - 2.0).curvature + road.PointAt(ahead).curvature + road.PointAt(ahead + 2.0).curvature) / 3f;
-        float rate = k * Mathf.Rad2Deg * speed;
+        float ahead = z + Mathf.Max(3f, car.Speed * styleLookTime);
+        float dHeading = Mathf.DeltaAngle(Heading(ahead - 2f), Heading(ahead + 2f)) / 4f; // degrés par mètre
+        float rate = dHeading * vz;                                                      // degrés par seconde
         if (Mathf.Abs(rate) < styleDeadZone) return 0f;
         float angle = minStyleAngle + (Mathf.Abs(rate) - styleDeadZone) * styleGain;
         return Mathf.Sign(rate) * Mathf.Min(angle, maxStyleAngle);
     }
+
+    // Cap de la route à un z "piste" (degrés, 0 = tout droit, + = vers la droite)
+    float Heading(float z) => Mathf.Atan2(road.CenterXAt(z + 0.5f) - road.CenterXAt(z - 0.5f), 1f) * Mathf.Rad2Deg;
 
     void FixedUpdate()
     {
@@ -109,44 +111,37 @@ public class DriftAutoPilot : MonoBehaviour
 
         float dt = Time.fixedDeltaTime;
         Vector3 p = transform.position;
-        Vector3 local = road.WorldToTrack(p);
-        RoadPoint here = road.Locate(p, road.TotalDistance, out float off);
+        float z = road.TrackZ(p.z);
+        float vx = rb.linearVelocity.x;
+        float vz = Mathf.Max(road.ScrollSpeed, 1f); // la voiture avance via le défilement de la route
 
-        // Vitesse de la voiture par rapport à la route : X par la physique, Z par le défilement du décor
-        Vector2 v = new Vector2(rb.linearVelocity.x, road.ScrollSpeed);
-        float speed = Mathf.Max(v.magnitude, 1f);
+        // Accélération latérale (lissée) : sert à anticiper où ira la voiture
+        if (hasLastVx) accelX = Mathf.Lerp(accelX, (vx - lastVx) / dt, 1f - Mathf.Exp(-12f * dt));
+        lastVx = vx;
+        hasLastVx = true;
 
-        // Accélération (lissée) : sert à anticiper où ira la voiture
-        if (hasLastV) accel = Vector2.Lerp(accel, (v - lastV) / dt, 1f - Mathf.Exp(-12f * dt));
-        lastV = v;
-        hasLastV = true;
+        float bias = -road.CliffBiasAt(z) * cliffBias; // vers la montagne (0 sur un pont : vide des deux côtés)
+        float look = PickLookAhead(p.x, z, Mathf.Clamp(car.Speed * lookAheadTime, minLookAhead, maxLookAhead), bias);
+        float targetX = road.CenterXAt(z + look) + bias;
 
-        float bias = -road.CliffBiasAt(here.s) * cliffBias; // vers la montagne (0 sur un pont : vide des deux côtés)
-        float look = PickLookAhead(local, here.s, Mathf.Clamp(car.Speed * lookAheadTime, minLookAhead, maxLookAhead), bias);
-        RoadPoint aim = road.PointAt(here.s + look);
-        Vector3 target = aim.position + aim.right * bias;
-
-        // Vitesse voulue : vers le point visé, à la vitesse actuelle. On braque selon l'écart, mesuré sur la droite de la voiture
-        Vector2 toTarget = new Vector2(target.x - local.x, target.z - local.z);
-        Vector2 wanted = toTarget.sqrMagnitude > 0.01f ? toTarget.normalized * speed : v;
-        Vector2 predicted = v + accel * predictTime;
-        float yaw = transform.eulerAngles.y * Mathf.Deg2Rad;
-        Vector2 carRight = new Vector2(Mathf.Cos(yaw), -Mathf.Sin(yaw));
-        float error = Vector2.Dot(wanted - predicted, carRight);
+        // Vitesse latérale qui amène la voiture sur le point visé quand elle y arrive
+        float wantedVx = (targetX - p.x) * vz / look;
+        float error = wantedVx - (vx + accelX * predictTime);
 
         float input = Mathf.Abs(error) > deadZone ? Mathf.Clamp(error * steerGain, -1f, 1f) : 0f;
 
         // Urgence : trop près du bord et on s'en approche encore -> braquage à fond vers le centre
-        float vLat = v.x * here.right.x + v.y * here.right.z;
-        if (Mathf.Abs(off) > here.HalfWidth - edgeMargin && vLat * Mathf.Sign(off) > 0f)
+        float off = p.x - road.CenterXAt(z);
+        float half = road.HalfWidthXAt(z);
+        if (Mathf.Abs(off) > half - edgeMargin && vx * Mathf.Sign(off) > 0f)
             input = -Mathf.Sign(off);
 
         if (invertSteering) input = -input;
         car.externalInput = input;
-        car.styleDrift = StyleAngle(here.s, speed);
+        car.styleDrift = StyleAngle(z, vz);
 
         // Filet de sécurité : chute -> fin de la partie (le menu fait le fondu et relance)
-        if (local.y < here.position.y - fallDepth)
+        if (p.y < road.RoadHeightAt(z) - fallDepth)
         {
             if (manager == null) manager = FindFirstObjectByType<DriftGameManager>();
             if (manager != null) manager.Die();
@@ -154,32 +149,24 @@ public class DriftAutoPilot : MonoBehaviour
         }
     }
 
-    // Distance du point visé : on la réduit tant que la ligne droite voiture -> point sort de la route (épingles)
-    float PickLookAhead(Vector3 local, double s, float look, float bias)
+    // Distance du point visé : on la réduit tant que la ligne droite voiture -> point sort de la route
+    float PickLookAhead(float x, float z, float look, float bias)
     {
         const int samples = 6;
         while (look > minLookAhead)
         {
-            RoadPoint aim = road.PointAt(s + look);
-            Vector3 target = aim.position + aim.right * bias;
+            float tx = road.CenterXAt(z + look) + bias;
             bool inside = true;
             for (int i = 1; i < samples && inside; i++)
             {
                 float f = i / (float)samples;
-                Vector3 pt = Vector3.Lerp(local, target, f);
-                // Écart de ce point au point de la route le plus proche (cherché à partir de la voiture)
-                inside = LateralInside(pt, s);
+                float zi = z + look * f;
+                float lineX = Mathf.Lerp(x, tx, f);
+                inside = Mathf.Abs(lineX - road.CenterXAt(zi)) < road.HalfWidthXAt(zi) - cornerMargin;
             }
             if (inside) break;
             look *= 0.8f;
         }
         return Mathf.Max(look, minLookAhead);
-    }
-
-    bool LateralInside(Vector3 local, double sMin)
-    {
-        Vector3 world = road.TrackToWorld(local);
-        RoadPoint rp = road.Locate(world, sMin, out float lat);
-        return Mathf.Abs(lat) < rp.HalfWidth - cornerMargin;
     }
 }

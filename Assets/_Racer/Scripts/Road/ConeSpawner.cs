@@ -3,8 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Place des cônes le long de la route infinie (ZigzagRoadGenerator), au fur et à mesure qu'elle est générée.
-/// Ne modifie pas la route : on lit simplement son tracé (PointAt : centre, sens, largeur, pente) comme le fait le terrain.
-/// Les groupes sont espacés le long de la route (distance s) : ça marche aussi dans les épingles et les lacets.
+/// Ne modifie pas la route : on lit simplement son tracé (CenterXAt, RoadHeightAt) comme le fait le terrain.
 ///
 /// Les cônes sont enfants du TrackRoot de la route : ils défilent avec elle.
 /// Ils sont réutilisés (pool) : Cone.OnEnable les remet "neufs", donc chaque cône peut redonner du multiplicateur.
@@ -50,9 +49,8 @@ public class ConeSpawner : MonoBehaviour
     public int seed = 0;                      // 0 = aléatoire à chaque partie
 
     readonly List<Cone> active = new List<Cone>();
-    readonly List<double> activeS = new List<double>(); // distance s de chaque cône actif (même ordre que active)
     readonly Stack<Cone> pool = new Stack<Cone>();
-    double nextS;                // distance (le long de la route) du prochain groupe
+    float nextZ;                 // position Z (locale au TrackRoot) du prochain groupe
     System.Random rng;
     Material fallbackMat;
 
@@ -71,7 +69,7 @@ public class ConeSpawner : MonoBehaviour
 
     void Start()
     {
-        nextS = startDistance;
+        nextZ = startDistance;
         road.OnTrackRebased += HandleTrackRebased;
         if (hitParticles) ConeHitFX.Create(road, hitMaterial);
     }
@@ -86,25 +84,24 @@ public class ConeSpawner : MonoBehaviour
     {
         // Le tracé de la route n'est prêt qu'une fois la route démarrée (elle se désactive sans joueur)
         if (road == null || !road.enabled || road.player == null) return;
-        double ps = road.TotalDistance; // distance parcourue par le joueur le long de la route
+        float pz = road.TrackZ(road.player.position.z);
 
-        while (nextS < ps + viewDistance)
+        while (nextZ < pz + viewDistance)
         {
-            SpawnGroup(nextS);
-            nextS += Mathf.Lerp(minGap, Mathf.Max(minGap, maxGap), (float)rng.NextDouble());
+            SpawnGroup(nextZ);
+            nextZ += Mathf.Lerp(minGap, Mathf.Max(minGap, maxGap), (float)rng.NextDouble());
         }
 
-        // Recycle les cônes passés derrière le joueur (d'après l'endroit de la route où ils ont été posés,
-        // ça marche aussi pour un cône en plein vol, sorti du TrackRoot)
+        // Recycle les cônes passés derrière le joueur
         for (int i = active.Count - 1; i >= 0; i--)
         {
             Cone c = active[i];
-            if (c == null) { active.RemoveAt(i); activeS.RemoveAt(i); continue; }
-            if (activeS[i] < ps - despawnDistance)
+            if (c == null) { active.RemoveAt(i); continue; }
+            // Position monde convertie en Z piste : marche aussi pour un cône en plein vol (sorti du TrackRoot)
+            if (road.TrackZ(c.transform.position.z) < pz - despawnDistance)
             {
                 c.gameObject.SetActive(false);
                 active.RemoveAt(i);
-                activeS.RemoveAt(i);
                 pool.Push(c);
             }
         }
@@ -116,18 +113,24 @@ public class ConeSpawner : MonoBehaviour
         // Un cône en plein vol n'est plus enfant du TrackRoot : sa position monde ne change pas, on n'y touche pas
         foreach (Cone c in active)
             if (c != null && c.transform.parent == road.TrackRoot) c.transform.localPosition -= new Vector3(0f, 0f, shift);
+        nextZ -= shift;
     }
 
-    void SpawnGroup(double s)
+    void SpawnGroup(float z)
     {
-        // Point de la route : les cônes sont répartis perpendiculairement à la route (marge aux bords comprise)
-        RoadPoint p = road.PointAt(s);
-        float halfUsable = Mathf.Max(0f, p.HalfWidth - edgeMargin);
+        // Demi-largeur mesurée en X (plus grande dans les diagonales), marge comprise
+        float halfX = road.HalfWidthXAt(z);
+        float halfUsable = Mathf.Max(0f, halfX - edgeMargin * halfX / (road.WidthAt(z) * 0.5f));
         int count = rng.Next(1, Mathf.Max(1, maxConesPerGroup) + 1);
 
-        Vector3 center = p.position + Vector3.up * heightOffset;
-        // Tourné dans le sens de la route et penché comme elle dans les montées / descentes
-        Quaternion rot = alignWithRoad ? Quaternion.LookRotation(p.Forward3D, Vector3.up) : Quaternion.identity;
+        float centerX = road.CenterXAt(z);
+        float y = road.RoadHeightAt(z) + heightOffset;
+        Quaternion rot = Quaternion.identity;
+        if (alignWithRoad)
+        {
+            float dx = road.CenterXAt(z + 1f) - road.CenterXAt(z - 1f);
+            rot = Quaternion.Euler(0f, Mathf.Atan2(dx, 2f) * Mathf.Rad2Deg, 0f);
+        }
 
         // Les cônes d'un groupe sont répartis en travers de la route, chacun dans sa propre "voie"
         float laneWidth = 2f * halfUsable / count;
@@ -137,11 +140,10 @@ public class ConeSpawner : MonoBehaviour
             float offset = laneStart + (float)rng.NextDouble() * laneWidth;
 
             Cone c = GetCone();
-            c.transform.localPosition = center + p.right * offset;
+            c.transform.localPosition = new Vector3(centerX + offset, y, z);
             c.transform.localRotation = rot;
             c.gameObject.SetActive(true);
             active.Add(c);
-            activeS.Add(s);
         }
     }
 
