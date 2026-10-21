@@ -13,11 +13,13 @@ public static class CarModelSwap
 {
     const string Prefix = "Modèle : ";
 
-    /// <summary>Met sur la voiture le modèle de la voiture équipée.</summary>
+    /// <summary>Met sur la voiture le modèle et la conduite (CarHandling) de la voiture équipée.</summary>
     public static void ApplyEquipped(DriftCar car)
     {
         var entry = CarCatalog.Load().Equipped;
-        if (entry != null) Apply(car, entry);
+        if (entry == null || car == null) return;
+        car.ApplyHandling(entry.handling);
+        Apply(car, entry);
     }
 
     /// <summary>Met à jour toutes les voitures présentes (ex : la démo derrière le menu après "Équiper").</summary>

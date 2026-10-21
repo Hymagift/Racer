@@ -23,6 +23,21 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: 05251c8a75feb0f45977bb8ea24b8c7b, type: 3}
     modelYaw: 0
     modelScale: 1
+    handling:
+      speed: 0.97
+      acceleration: 0.9
+      steering: 0.95
+      steerResponse: 0.9
+      rotationInertia: 1.05
+      countersteer: 1.15
+      grip: 1
+      driftGrip: 1.08
+      driftAngle: 0.85
+      driftThreshold: 1.05
+      driftEngage: 0.85
+      driftRecover: 1.15
+      driftSpeedKeep: 0.95
+      bodyRoll: 1
   - id: twingy
     displayName: Neegy Twingy
     rarity: 0
@@ -33,6 +48,21 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: 9fe3df694d22a394ab73b33c5cdebc2a, type: 3}
     modelYaw: 180
     modelScale: 1
+    handling:
+      speed: 0.95
+      acceleration: 1.05
+      steering: 1.15
+      steerResponse: 1.25
+      rotationInertia: 0.75
+      countersteer: 1
+      grip: 1
+      driftGrip: 1.05
+      driftAngle: 0.75
+      driftThreshold: 1
+      driftEngage: 1.2
+      driftRecover: 1.35
+      driftSpeedKeep: 0.88
+      bodyRoll: 1.3
   - id: camion
     displayName: Mini Camion
     rarity: 0
@@ -43,6 +73,21 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: d1328745a959d684f815fb575a109cb7, type: 3}
     modelYaw: 180
     modelScale: 1
+    handling:
+      speed: 0.9
+      acceleration: 0.65
+      steering: 0.8
+      steerResponse: 0.6
+      rotationInertia: 1.6
+      countersteer: 1.2
+      grip: 1
+      driftGrip: 1.3
+      driftAngle: 0.55
+      driftThreshold: 1.2
+      driftEngage: 0.6
+      driftRecover: 1.4
+      driftSpeedKeep: 0.85
+      bodyRoll: 1.8
   - id: vroom
     displayName: Vroom
     rarity: 1
@@ -53,6 +98,21 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: fae3c4903973df847b055aa6d884fd93, type: 3}
     modelYaw: 0
     modelScale: 1
+    handling:
+      speed: 1
+      acceleration: 1.2
+      steering: 0.95
+      steerResponse: 0.9
+      rotationInertia: 1.1
+      countersteer: 0.85
+      grip: 0.97
+      driftGrip: 0.92
+      driftAngle: 0.95
+      driftThreshold: 0.9
+      driftEngage: 1.15
+      driftRecover: 0.8
+      driftSpeedKeep: 0.92
+      bodyRoll: 1.2
   - id: raijin
     displayName: Raijin R
     rarity: 2
@@ -63,6 +123,21 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: ae3a9c668caad4242a08d1f11d1e69c4, type: 3}
     modelYaw: 0
     modelScale: 1
+    handling:
+      speed: 1.03
+      acceleration: 1.15
+      steering: 1.05
+      steerResponse: 1.15
+      rotationInertia: 0.9
+      countersteer: 0.9
+      grip: 1.05
+      driftGrip: 1.12
+      driftAngle: 0.85
+      driftThreshold: 1.08
+      driftEngage: 0.9
+      driftRecover: 1.25
+      driftSpeedKeep: 1
+      bodyRoll: 0.8
   - id: ryujin
     displayName: Ryujin GT-X
     rarity: 3
@@ -73,6 +148,21 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: ce1a50e53d3ca714685adaf216271297, type: 3}
     modelYaw: 180
     modelScale: 1
+    handling:
+      speed: 1
+      acceleration: 1
+      steering: 1
+      steerResponse: 1
+      rotationInertia: 1
+      countersteer: 1
+      grip: 1
+      driftGrip: 1
+      driftAngle: 1
+      driftThreshold: 1
+      driftEngage: 1
+      driftRecover: 1
+      driftSpeedKeep: 1
+      bodyRoll: 1
   boosters:
   - id: bronze
     displayName: Booster Bronze

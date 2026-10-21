@@ -271,6 +271,60 @@ public class DriftCar : MonoBehaviour
         bodyBaseLocalPos = body.localPosition;
     }
 
+    // ---------- Conduite propre à chaque voiture ----------
+
+    // Réglages de la scène (= voiture de drift de référence), avant les multiplicateurs de la voiture équipée
+    struct Tuning
+    {
+        public float startSpeed, maxSpeed, engineAccel, driftBoost, driftSpeedKeep, yawInertia;
+        public float frontGrip, rearGrip, rearDriftGrip, maxSteerLow, maxSteerHigh;
+        public float steerFollowSpeed, steerMaxRate, steerReturnSpeed, countersteerAssist, maxDriftAngle;
+        public float driftStartSteer, driftEngageRate, driftReleaseRate, bodyRollMax;
+    }
+    Tuning? sceneTuning;
+
+    /// <summary>
+    /// Applique le profil de conduite d'une voiture du Garage (multiplicateurs des réglages de la scène, voir CarHandling).
+    /// Appelé par CarModelSwap. null = réglages de la scène tels quels.
+    /// </summary>
+    public void ApplyHandling(CarHandling h)
+    {
+        h ??= CarHandling.Reference;
+        if (sceneTuning == null)
+            sceneTuning = new Tuning
+            {
+                startSpeed = startSpeed, maxSpeed = maxSpeed, engineAccel = engineAccel, driftBoost = driftBoost,
+                driftSpeedKeep = driftSpeedKeep, yawInertia = yawInertia, frontGrip = frontGrip, rearGrip = rearGrip,
+                rearDriftGrip = rearDriftGrip, maxSteerLow = maxSteerLow, maxSteerHigh = maxSteerHigh,
+                steerFollowSpeed = steerFollowSpeed, steerMaxRate = steerMaxRate, steerReturnSpeed = steerReturnSpeed,
+                countersteerAssist = countersteerAssist, maxDriftAngle = maxDriftAngle, driftStartSteer = driftStartSteer,
+                driftEngageRate = driftEngageRate, driftReleaseRate = driftReleaseRate, bodyRollMax = bodyRollMax,
+            };
+        Tuning b = sceneTuning.Value;
+        float M(float m) => Mathf.Max(0.05f, m);
+
+        startSpeed = b.startSpeed * M(h.speed);
+        maxSpeed = b.maxSpeed * M(h.speed);
+        engineAccel = b.engineAccel * M(h.acceleration);
+        maxSteerLow = b.maxSteerLow * M(h.steering);
+        maxSteerHigh = b.maxSteerHigh * M(h.steering);
+        steerFollowSpeed = b.steerFollowSpeed * M(h.steerResponse);
+        steerMaxRate = b.steerMaxRate * M(h.steerResponse);
+        steerReturnSpeed = b.steerReturnSpeed * M(h.steerResponse);
+        yawInertia = b.yawInertia * M(h.rotationInertia);
+        countersteerAssist = Mathf.Clamp(b.countersteerAssist * M(h.countersteer), 0f, 1.5f);
+        frontGrip = b.frontGrip * M(h.grip);
+        rearGrip = b.rearGrip * M(h.grip);
+        rearDriftGrip = Mathf.Min(b.rearDriftGrip * M(h.driftGrip), rearGrip); // en drift, jamais plus d'adhérence qu'en temps normal
+        maxDriftAngle = b.maxDriftAngle * M(h.driftAngle);
+        driftStartSteer = Mathf.Clamp(b.driftStartSteer * M(h.driftThreshold), 0f, driftFullSteer - 0.05f);
+        driftEngageRate = b.driftEngageRate * M(h.driftEngage);
+        driftReleaseRate = b.driftReleaseRate * M(h.driftRecover);
+        driftSpeedKeep = Mathf.Clamp01(b.driftSpeedKeep * M(h.driftSpeedKeep));
+        driftBoost = Mathf.Clamp01(b.driftBoost * M(h.driftSpeedKeep));
+        bodyRollMax = b.bodyRollMax * Mathf.Max(0f, h.bodyRoll);
+    }
+
     void Start()
     {
         // La fumée doit défiler avec le décor, sinon elle reste "collée" à la voiture

@@ -66,6 +66,8 @@ public class CarCatalog : ScriptableObject
         public float modelYaw;
         [Tooltip("Taille du modèle : 1 = même longueur que la boîte de collision de la voiture")]
         public float modelScale = 1f;
+        [Tooltip("Conduite propre à cette voiture : multiplicateurs des réglages du DriftCar de la scène (1 = réglage de la scène)")]
+        public CarHandling handling = new CarHandling();
 
         public bool IsUnlocked => unlockedByDefault || PlayerData.IsCarUnlocked(id);
         public int Blueprints => IsUnlocked ? blueprintsToUnlock : Mathf.Min(PlayerData.GetBlueprints(id), blueprintsToUnlock);
@@ -253,19 +255,50 @@ public class CarCatalog : ScriptableObject
         var cat = CreateInstance<CarCatalog>();
         cat.name = "CarCatalog (défaut)";
 
-        void Add(string id, string name, CarRarity r, Color color, bool owned = false)
+        void Add(string id, string name, CarRarity r, Color color, CarHandling handling, bool owned = false)
         {
             int[] needed = { 3, 4, 5, 6 };
-            cat.cars.Add(new Car { id = id, displayName = name, rarity = r, blueprintsToUnlock = needed[(int)r], color = color, unlockedByDefault = owned });
+            cat.cars.Add(new Car { id = id, displayName = name, rarity = r, blueprintsToUnlock = needed[(int)r], color = color, unlockedByDefault = owned, handling = handling });
         }
 
-        // Mêmes voitures que Assets/_Racer/Resources/CarCatalog.asset (qui, lui, a les modèles 3D)
-        Add("first", "1st Car", CarRarity.Commune, new Color(0.85f, 0.85f, 0.85f), owned: true);
-        Add("twingy", "Neegy Twingy", CarRarity.Commune, new Color(1f, 0.6f, 0.75f));
-        Add("camion", "Mini Camion", CarRarity.Commune, new Color(0.35f, 0.75f, 0.4f));
-        Add("vroom", "Vroom", CarRarity.Rare, new Color(0.2f, 0.5f, 1f));
-        Add("raijin", "Raijin R", CarRarity.Epique, new Color(0.6f, 0.25f, 0.95f));
-        Add("ryujin", "Ryujin GT-X", CarRarity.Legendaire, new Color(1f, 0.75f, 0.1f));
+        // Mêmes voitures (et mêmes conduites) que Assets/_Racer/Resources/CarCatalog.asset (qui, lui, a les modèles 3D)
+        Add("first", "1st Car", CarRarity.Commune, new Color(0.85f, 0.85f, 0.85f), owned: true, handling: new CarHandling
+        {
+            // Voiture de départ : saine et rassurante, glisse plus courte et plus aidée
+            speed = 0.97f, acceleration = 0.9f, steering = 0.95f, steerResponse = 0.9f, rotationInertia = 1.05f, countersteer = 1.15f,
+            grip = 1f, driftGrip = 1.08f, driftAngle = 0.85f, driftThreshold = 1.05f, driftEngage = 0.85f, driftRecover = 1.15f,
+            driftSpeedKeep = 0.95f, bodyRoll = 1f,
+        });
+        Add("twingy", "Neegy Twingy", CarRarity.Commune, new Color(1f, 0.6f, 0.75f), new CarHandling
+        {
+            // Petite citadine : légère et vive, tourne sec, drifts courts et nerveux, perd de la vitesse en glisse
+            speed = 0.95f, acceleration = 1.05f, steering = 1.15f, steerResponse = 1.25f, rotationInertia = 0.75f, countersteer = 1f,
+            grip = 1f, driftGrip = 1.05f, driftAngle = 0.75f, driftThreshold = 1f, driftEngage = 1.2f, driftRecover = 1.35f,
+            driftSpeedKeep = 0.88f, bodyRoll = 1.3f,
+        });
+        Add("camion", "Mini Camion", CarRarity.Commune, new Color(0.35f, 0.75f, 0.4f), new CarHandling
+        {
+            // Camion : lourd, lent à tourner et à pivoter, glisse peu (et pas loin), penche beaucoup
+            speed = 0.9f, acceleration = 0.65f, steering = 0.8f, steerResponse = 0.6f, rotationInertia = 1.6f, countersteer = 1.2f,
+            grip = 1f, driftGrip = 1.3f, driftAngle = 0.55f, driftThreshold = 1.2f, driftEngage = 0.6f, driftRecover = 1.4f,
+            driftSpeedKeep = 0.85f, bodyRoll = 1.8f,
+        });
+        Add("vroom", "Vroom", CarRarity.Rare, new Color(0.2f, 0.5f, 1f), new CarHandling
+        {
+            // Muscle car : beaucoup de moteur, l'arrière décroche facilement et se rattrape lentement, moins précise
+            speed = 1f, acceleration = 1.2f, steering = 0.95f, steerResponse = 0.9f, rotationInertia = 1.1f, countersteer = 0.85f,
+            grip = 0.97f, driftGrip = 0.92f, driftAngle = 0.95f, driftThreshold = 0.9f, driftEngage = 1.15f, driftRecover = 0.8f,
+            driftSpeedKeep = 0.92f, bodyRoll = 1.2f,
+        });
+        Add("raijin", "Raijin R", CarRarity.Epique, new Color(0.6f, 0.25f, 0.95f), new CarHandling
+        {
+            // Sportive "grip" : précise et réactive, plus d'adhérence, drifts plus serrés qui se referment vite
+            speed = 1.03f, acceleration = 1.15f, steering = 1.05f, steerResponse = 1.15f, rotationInertia = 0.9f, countersteer = 0.9f,
+            grip = 1.05f, driftGrip = 1.12f, driftAngle = 0.85f, driftThreshold = 1.08f, driftEngage = 0.9f, driftRecover = 1.25f,
+            driftSpeedKeep = 1f, bodyRoll = 0.8f,
+        });
+        // Voiture de drift : la référence, exactement les réglages du DriftCar de la scène (le meilleur feeling)
+        Add("ryujin", "Ryujin GT-X", CarRarity.Legendaire, new Color(1f, 0.75f, 0.1f), new CarHandling());
 
         cat.boosters.Add(new Booster { id = "bronze", displayName = "Booster Bronze", price = 100, cards = 3, odds = new[] { 70f, 24f, 5f, 1f }, tagline = "Le meilleur rapport pour les Rares", color = new Color(0.8f, 0.5f, 0.25f) });
         cat.boosters.Add(new Booster { id = "or", displayName = "Booster Or", price = 750, cards = 5, odds = new[] { 15f, 45f, 28f, 12f }, tagline = "Plus d'une chance sur quatre d'avoir une Épique", color = new Color(1f, 0.8f, 0.2f) });
