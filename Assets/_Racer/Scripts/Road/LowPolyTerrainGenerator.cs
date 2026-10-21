@@ -4,51 +4,53 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Terrain "ultra low poly" de type TOUGE : la route longe une falaise d'un côté et une paroi de montagne de l'autre.
-/// Le côté de la falaise change de temps en temps (ZigzagRoadGenerator.SideAt) : la montagne s'enfonce dans une gorge,
-/// la route la franchit sur un pont, puis la montagne remonte de l'autre côté.
+/// Terrain "ultra low poly" de type TOUGE : la route longe une falaise d'un cÃ´tÃ© et une paroi de montagne de l'autre.
+/// Le cÃ´tÃ© de la falaise change de temps en temps (ZigzagRoadGenerator.SideAt) : la montagne s'enfonce dans une gorge,
+/// la route la franchit sur un pont, puis la montagne remonte de l'autre cÃ´tÃ©.
 ///
-/// Le terrain est maillé "à partir de la route" : chaque ligne du maillage suit le centre de la route, et les colonnes
-/// sont des distances latérales à partir du bord de la route. La première colonne est exactement le bord de la route,
-/// donc la falaise et la paroi rocheuse s'y raccordent sans trou ni chevauchement.
-/// - Près de la route : colonnes serrées, une ligne tous les segments de la route (précis).
-/// - Au loin : colonnes espacées (cellSize), sommets interpolés sur les lignes intermédiaires (aspect low poly).
+/// Le terrain est maillÃ© "Ã  partir de la route" : chaque ligne du maillage est un point de la route (tous les segmentLength
+/// mÃ¨tres le long de la route), et les colonnes sont des distances perpendiculaires Ã  partir du bord de la route.
+/// La premiÃ¨re colonne est exactement le bord de la route, donc la falaise et la paroi rocheuse s'y raccordent sans trou.
+/// L'altitude suit celle de la route (montÃ©es / descentes, voir ZigzagRoadGenerator) : le profil en travers s'y ajoute.
 ///
-/// Les chunks sont enfants du TrackRoot de la route : ils défilent avec elle.
-/// Mise en place : GameObject vide "Terrain" avec ce script. La route est trouvée et liée automatiquement.
-/// Pour un build mobile, assigne plutôt un Material URP/Lit (ou Standard) pour être sûr que le shader est inclus.
+/// Ã‰PINGLES ET LACETS : Ã  l'intÃ©rieur d'un virage, le terrain s'arrÃªte avant le centre du virage (sinon il se replierait),
+/// et entre deux branches de route proches (lacets, Ã©pingle), chaque cÃ´tÃ© s'arrÃªte Ã  mi-chemin et rejoint l'altitude
+/// moyenne des deux routes : le terrain d'une branche ne recouvre jamais l'autre.
+/// - PrÃ¨s de la route : colonnes serrÃ©es, une ligne tous les segments de la route (prÃ©cis).
+/// - Au loin : colonnes espacÃ©es (cellSize), sommets interpolÃ©s sur les lignes intermÃ©diaires (aspect low poly).
+///
+/// Les chunks sont enfants du TrackRoot de la route : ils dÃ©filent avec elle.
+/// Mise en place : GameObject vide "Terrain" avec ce script. La route est trouvÃ©e et liÃ©e automatiquement.
+/// Pour un build mobile, assigne plutÃ´t un Material URP/Lit (ou Standard) pour Ãªtre sÃ»r que le shader est inclus.
 /// </summary>
 public class LowPolyTerrainGenerator : MonoBehaviour
 {
-    [Header("Références")]
+    [Header("RÃ©fÃ©rences")]
     public ZigzagRoadGenerator road;
-    [Tooltip("Optionnel. Sa texture principale sera remplacée par le dégradé de couleurs ci-dessous.")]
+    [Tooltip("Optionnel. Sa texture principale sera remplacÃ©e par le dÃ©gradÃ© de couleurs ci-dessous.")]
     public Material terrainMaterial;
 
     [Header("Maillage")]
-    [Tooltip("Distances (en m, à partir du bord de la route) des colonnes proches. La première doit rester 0.")]
+    [Tooltip("Distances (en m, Ã  partir du bord de la route) des colonnes proches. La premiÃ¨re doit rester 0.")]
     public float[] nearOffsets = { 0f, 2.5f, 6f, 11f };
     [Tooltip("Espacement des colonnes lointaines. Plus grand = plus low poly.")]
     public float cellSize = 14f;
-    [Tooltip("Le terrain s'étend jusqu'à cette distance du bord de la route, de chaque côté")]
+    [Tooltip("Le terrain s'Ã©tend jusqu'Ã  cette distance du bord de la route, de chaque cÃ´tÃ©")]
     public float halfWidth = 200f;
     [Tooltip("Au loin, un sommet toutes les N lignes (la route a une ligne tous les 2 m). Doit diviser Segments Per Chunk (15) : 1, 3, 5, 15.")]
     public int coarseRowStride = 3;
     public float viewDistance = 260f;
     public float despawnDistance = 60f;
-    [Tooltip("Collider sur le terrain (inutile : la route a ses propres murs de collision). Coûteux sur mobile.")]
+    [Tooltip("Collider sur le terrain (inutile : la route a ses propres murs de collision). CoÃ»teux sur mobile.")]
     public bool addCollider = false;
 
-    [Header("Relief le long de la route")]
-    public int seed = 0;                       // 0 = aléatoire à chaque partie
-    [Tooltip("Amplitude des montées/descentes que la route suit")]
-    public float hillHeight = 10f;
-    [Tooltip("Plus grand = pentes plus douces")]
-    public float hillWavelength = 120f;
-    [Tooltip("Distance de départ où tout est plat à y=0 (falaise et montagne apparaissent progressivement)")]
+    [Header("Relief")]
+    public int seed = 0;                       // 0 = alÃ©atoire Ã  chaque partie
+    [Tooltip("Distance de dÃ©part oÃ¹ tout est plat au niveau de la route (falaise et montagne apparaissent progressivement). " +
+             "Les montÃ©es / descentes de la route se rÃ¨glent sur la route (ZigzagRoadGenerator, Relief)")]
     public float startFlatDistance = 80f;
 
-    [Header("Paroi de montagne (côté opposé à la falaise)")]
+    [Header("Paroi de montagne (cÃ´tÃ© opposÃ© Ã  la falaise)")]
     [Tooltip("Hauteur de la paroi rocheuse juste contre la route")]
     public float wallHeight = 22f;
     [Tooltip("Largeur (en plan) de la paroi. Petit = paroi quasi verticale.")]
@@ -61,13 +63,13 @@ public class LowPolyTerrainGenerator : MonoBehaviour
 
     [Header("Montagnes au loin")]
     public float sideRelief = 45f;
-    [Tooltip("Distance entre les crêtes. Plus petit = plus de pics")]
+    [Tooltip("Distance entre les crÃªtes. Plus petit = plus de pics")]
     public float sideReliefWavelength = 90f;
     [Tooltip("Distance pour atteindre le relief complet")]
     public float sideReliefRamp = 40f;
 
-    [Header("Raccord à la route")]
-    [Tooltip("Le sol au bord de la route est abaissé de cette valeur (évite les accrochages visuels)")]
+    [Header("Raccord Ã  la route")]
+    [Tooltip("Le sol au bord de la route est abaissÃ© de cette valeur (Ã©vite les accrochages visuels)")]
     public float edgeSink = 0.05f;
 
     [Header("Couleurs (du plus bas au plus haut)")]
@@ -83,10 +85,11 @@ public class LowPolyTerrainGenerator : MonoBehaviour
 
     float ChunkLength => road.segmentLength * road.segmentsPerChunk;
 
-    readonly Queue<GameObject> chunks = new Queue<GameObject>();
+    readonly Queue<(GameObject go, double endS)> chunks = new Queue<(GameObject, double)>();
     readonly List<float> offsets = new List<float>();
-    int nearLast;     // index de la dernière colonne "fine"
-    float nextZ;
+    readonly List<RoadPoint> samples = new List<RoadPoint>();
+    int nearLast;     // index de la derniÃ¨re colonne "fine"
+    double nextS;     // distance (le long de la route) du prochain chunk
     int noiseSeed;
     Material material;
     Texture2D colorTexture;
@@ -96,12 +99,12 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         if (road == null) road = FindFirstObjectByType<ZigzagRoadGenerator>();
         if (road == null)
         {
-            Debug.LogError("[LowPolyTerrain] Aucune ZigzagRoadGenerator trouvée dans la scène.", this);
+            Debug.LogError("[LowPolyTerrain] Aucune ZigzagRoadGenerator trouvÃ©e dans la scÃ¨ne.", this);
             enabled = false;
             return;
         }
 
-        // Lie la route à ce terrain (la route lira l'altitude via BaseHeight)
+        // Lie la route Ã  ce terrain
         if (road.terrain == null) road.terrain = this;
 
         noiseSeed = seed == 0 ? UnityEngine.Random.Range(1, 100000) : seed;
@@ -111,7 +114,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
     {
         BuildMaterial();
         BuildOffsets();
-        nextZ = -ChunkLength;
+        nextS = -ChunkLength;
         road.OnTrackRebased += HandleTrackRebased;
     }
 
@@ -142,40 +145,30 @@ public class LowPolyTerrainGenerator : MonoBehaviour
 
     void Update()
     {
-        if (road == null || road.player == null) return;
-        float pz = road.TrackZ(road.player.position.z);
+        if (road == null || road.player == null || !road.enabled) return;
+        double ps = road.TotalDistance;
 
-        // Un seul morceau par image, sauf si on est très en retard (au lancement)
-        int budget = nextZ < pz + viewDistance * 0.5f ? 16 : 1;
-        while (budget-- > 0 && nextZ < pz + viewDistance)
+        // Un seul morceau par image, sauf si on est trÃ¨s en retard (au lancement)
+        int budget = nextS < ps + viewDistance * 0.5f ? 16 : 1;
+        while (budget-- > 0 && nextS < ps + viewDistance)
             SpawnChunk();
 
-        while (chunks.Count > 0 && chunks.Peek().transform.localPosition.z + ChunkLength < pz - despawnDistance)
-            DestroyChunk(chunks.Dequeue());
+        while (chunks.Count > 0 && chunks.Peek().endS < ps - despawnDistance)
+            DestroyChunk(chunks.Dequeue().go);
     }
 
-    // La route a ramené le TrackRoot à 0 : on décale nos chunks (invisible, même position monde)
+    // La route a ramenÃ© le TrackRoot Ã  0 : on dÃ©cale nos chunks (invisible, mÃªme position monde)
     void HandleTrackRebased(float shift)
     {
-        foreach (GameObject c in chunks)
-            c.transform.localPosition -= new Vector3(0f, 0f, shift);
-        nextZ -= shift;
+        foreach (var c in chunks)
+            c.go.transform.localPosition -= new Vector3(0f, 0f, shift);
     }
 
-    // ---------- Fonctions de hauteur (coordonnées "piste" = locales au TrackRoot) ----------
+    // ---------- Fonctions de hauteur ----------
 
-    /// <summary>Relief le long de la route : sert à donner l'altitude de la route et de tout le terrain autour.</summary>
-    public float BaseHeight(float x, float localZ)
-    {
-        double az = road.OriginZ + localZ;
-        float n = FractalNoise(x, az, hillWavelength, noiseSeed);
-        float fade = Mathf.SmoothStep(0f, 1f, (float)(az / startFlatDistance)); // 0 au départ, 1 plus loin
-        return n * hillHeight * fade;
-    }
-
-    // Profil en travers : décalage d'altitude par rapport à la route, à la distance e du bord de la route.
+    // Profil en travers : dÃ©calage d'altitude par rapport Ã  la route, Ã  la distance e du bord de la route.
     // voidness : 0 = paroi de montagne contre la route, 1 = falaise (vide) ; entre les deux, la montagne s'enfonce.
-    // bridge : 1 sur un pont, la gorge (plus profonde) commence dès le bord de la route : la route est dans le vide.
+    // bridge : 1 sur un pont, la gorge (plus profonde) commence dÃ¨s le bord de la route : la route est dans le vide.
     float Profile(float e, float voidness, float bridge, float x, double az)
     {
         float ridged = Ridged(x, az, sideReliefWavelength, noiseSeed + 7);
@@ -193,7 +186,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         return Mathf.Lerp(mountain, cliff, voidness);
     }
 
-    // Raide au départ, qui s'aplatit ensuite : paroi / falaise quasi verticale contre la route
+    // Raide au dÃ©part, qui s'aplatit ensuite : paroi / falaise quasi verticale contre la route
     static float EaseOut(float t)
     {
         t = Mathf.Clamp01(t);
@@ -201,13 +194,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         return 1f - u * u;
     }
 
-    static float FractalNoise(double x, double z, float wavelength, int seed)
-    {
-        return 0.7f * ValueNoise(x, z, wavelength, seed)
-             + 0.3f * ValueNoise(x, z, wavelength * 0.4f, seed + 1);
-    }
-
-    // Crêtes de montagne (0..1) : les lignes où le bruit vaut 0.5 deviennent des arêtes, le reste des vallées
+    // CrÃªtes de montagne (0..1) : les lignes oÃ¹ le bruit vaut 0.5 deviennent des arÃªtes, le reste des vallÃ©es
     static float Ridged(double x, double z, float wavelength, int seed)
     {
         float a = 1f - Mathf.Abs(2f * ValueNoise(x, z, wavelength, seed) - 1f);
@@ -216,7 +203,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         return r * r;
     }
 
-    // Bruit de valeur sur grille entière : précis même à des distances énormes (pas de float géant)
+    // Bruit de valeur sur grille entiÃ¨re : prÃ©cis mÃªme Ã  des distances Ã©normes (pas de float gÃ©ant)
     static float ValueNoise(double x, double z, float wavelength, int seed)
     {
         double gx = x / wavelength, gz = z / wavelength;
@@ -244,7 +231,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         }
     }
 
-    // ---------- Matériau (dégradé de couleurs par altitude) ----------
+    // ---------- MatÃ©riau (dÃ©gradÃ© de couleurs par altitude) ----------
 
     void BuildMaterial()
     {
@@ -281,11 +268,13 @@ public class LowPolyTerrainGenerator : MonoBehaviour
 
     void SpawnChunk()
     {
+        double s0 = nextS;
+        float chunkZ = road.PointAt(s0).position.z;
         GameObject go = new GameObject("TerrainChunk");
         go.transform.SetParent(road.TrackRoot, false);
-        go.transform.localPosition = new Vector3(0f, 0f, nextZ);
+        go.transform.localPosition = new Vector3(0f, 0f, chunkZ);
 
-        Mesh mesh = BuildChunkMesh(nextZ);
+        Mesh mesh = BuildChunkMesh(s0, chunkZ);
 
         go.AddComponent<MeshFilter>().sharedMesh = mesh;
         var mr = go.AddComponent<MeshRenderer>();
@@ -302,8 +291,8 @@ public class LowPolyTerrainGenerator : MonoBehaviour
             if (road.RoadPhysics != null) mc.sharedMaterial = road.RoadPhysics;
         }
 
-        chunks.Enqueue(go);
-        nextZ += ChunkLength;
+        chunks.Enqueue((go, s0 + ChunkLength));
+        nextS += ChunkLength;
     }
 
     void DestroyChunk(GameObject chunk)
@@ -313,36 +302,88 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         Destroy(chunk);
     }
 
-    Mesh BuildChunkMesh(float startZ)
+    // Points de la route tous les RoomStep mÃ¨tres (sur une grille fixe de distances s : deux chunks voisins
+    // trouvent exactement les mÃªmes limites sur leur ligne commune, donc pas de trou entre eux)
+    const float RoomStep = 4f;
+    const double RoomWindow = 300.0;
+
+    /// <summary>
+    /// Distance max (depuis le centre de la route) jusqu'oÃ¹ le terrain peut aller de ce cÃ´tÃ© (sgn = -1 gauche, 1 droite) :
+    /// avant le centre du virage Ã  l'intÃ©rieur d'une courbe, et avant la mi-distance avec une autre partie de la route
+    /// qui revient (Ã©pingle, lacets). Dans ce cas other = vrai et otherY = altitude moyenne des deux routes.
+    /// </summary>
+    float Room(in RoadPoint p, int sgn, out bool other, out float otherY)
+    {
+        float hw = p.HalfWidth;
+        float tMax = hw + halfWidth + cellSize;
+        other = false;
+        otherY = p.position.y;
+        Vector2 pos = new Vector2(p.position.x, p.position.z);
+        Vector2 n = new Vector2(p.right.x, p.right.z) * sgn;
+
+        foreach (RoadPoint q in samples)
+        {
+            double ds = Math.Abs(q.s - p.s);
+
+            // IntÃ©rieur d'un virage tout proche : on reste avant son centre (limite qui varie en douceur le long de la route)
+            if (ds <= 80.0 && q.curvature * sgn > 0.0001f)
+                tMax = Mathf.Min(tMax, 0.95f / Mathf.Abs(q.curvature) + (float)ds);
+
+            // Autre partie de la route qui revient prÃ¨s d'ici (beaucoup plus prÃ¨s en ligne droite que le long de la route)
+            Vector2 d = new Vector2(q.position.x, q.position.z) - pos;
+            float dist = d.magnitude;
+            if (ds < hw * 2f || dist >= 0.75f * ds) continue;
+            float along = Vector2.Dot(d, n);
+            if (along <= 0.1f) continue;
+            float t = dist * dist / (2f * along) + 1f; // croisement avec la mÃ©diatrice (+1 m de recouvrement)
+            if (t < tMax)
+            {
+                tMax = t;
+                other = true;
+                otherY = (p.position.y + q.position.y) * 0.5f;
+            }
+        }
+        return Mathf.Max(tMax, hw + 0.5f);
+    }
+
+    Mesh BuildChunkMesh(double startS, float chunkZ)
     {
         int rows = Mathf.Max(1, road.segmentsPerChunk);
-        float dz = road.segmentLength;
+        float ds = road.segmentLength;
         int stride = Mathf.Max(1, coarseRowStride);
         while (stride > 1 && rows % stride != 0) stride--;
 
         int cols = offsets.Count;
-        // Demi-largeur en X de la route à chaque ligne (plus grande dans les diagonales, comme le mesh de la route)
-        var hws = new float[rows + 1];
-
-        // Centre et altitude de la route à chaque ligne (mêmes valeurs que celles utilisées par le mesh de la route)
-        var cxs = new float[rows + 1];
-        var roadYs = new float[rows + 1];
-        var voids = new float[2, rows + 1];  // vide à gauche (0) et à droite (1) à chaque ligne
+        // Points de la route Ã  chaque ligne (mÃªmes valeurs que celles utilisÃ©es par le mesh de la route)
+        var pts = new RoadPoint[rows + 1];
+        var voids = new float[2, rows + 1];  // vide Ã  gauche (0) et Ã  droite (1) Ã  chaque ligne
         var bridges = new float[rows + 1];
         for (int r = 0; r <= rows; r++)
         {
-            float z = startZ + r * dz;
-            cxs[r] = road.CenterXAt(z);
-            hws[r] = road.HalfWidthXAt(z);
-            roadYs[r] = road.RoadHeightAt(z);
-            road.SideAt(z, out voids[0, r], out voids[1, r], out bridges[r]);
+            double s = startS + r * ds;
+            pts[r] = road.PointAt(s);
+            road.SideAt(s, out voids[0, r], out voids[1, r], out bridges[r]);
         }
 
-        // pos[côté, colonne, ligne] : côté 0 = gauche (-X), 1 = droite (+X)
+        // Points de la route autour du chunk, pour savoir jusqu'oÃ¹ le terrain peut aller de chaque cÃ´tÃ©
+        samples.Clear();
+        double g0 = Math.Floor((startS - RoomWindow) / RoomStep) * RoomStep;
+        for (double g = g0; g <= startS + ChunkLength + RoomWindow; g += RoomStep)
+            samples.Add(road.PointAt(g));
+
+        var room = new float[2, rows + 1];
+        var hasOther = new bool[2, rows + 1];
+        var otherY = new float[2, rows + 1];
+        for (int si = 0; si < 2; si++)
+            for (int r = 0; r <= rows; r++)
+                room[si, r] = Room(pts[r], si == 0 ? -1 : 1, out hasOther[si, r], out otherY[si, r]);
+
+        // pos[cÃ´tÃ©, colonne, ligne] : cÃ´tÃ© 0 = gauche, 1 = droite (dans le sens de la route)
         var pos = new Vector3[2, cols, rows + 1];
-        for (int s = 0; s < 2; s++)
+        Vector3 origin = new Vector3(0f, 0f, chunkZ);
+        for (int si = 0; si < 2; si++)
         {
-            int sgn = s == 0 ? -1 : 1;
+            int sgn = si == 0 ? -1 : 1;
 
             for (int j = 0; j < cols; j++)
             {
@@ -351,17 +392,23 @@ public class LowPolyTerrainGenerator : MonoBehaviour
 
                 for (int r = 0; r <= rows; r++)
                 {
-                    if (!fine && r % stride != 0) continue; // interpolé plus bas
+                    if (!fine && r % stride != 0) continue; // interpolÃ© plus bas
 
-                    float z = startZ + r * dz;
-                    float x = cxs[r] + sgn * (hws[r] + e);
-                    double az = road.OriginZ + z;
-                    float fade = Mathf.SmoothStep(0f, 1f, (float)(az / startFlatDistance));
+                    RoadPoint p = pts[r];
+                    float tMax = room[si, r];
+                    float t = Mathf.Min(p.HalfWidth + e, tMax);
+                    Vector3 v = p.position + p.right * (sgn * t);
+                    double az = road.OriginZ + v.z;
+                    float fade = Mathf.SmoothStep(0f, 1f, (float)(p.s / Math.Max(1f, startFlatDistance)));
 
-                    float y = roadYs[r] + Profile(e, voids[s, r], bridges[r], x, az) * fade;
+                    float y = p.position.y + Profile(t - p.HalfWidth, voids[si, r], bridges[r], v.x, az) * fade;
+                    // PrÃ¨s d'une autre branche de la route : on rejoint l'altitude moyenne des deux routes Ã  mi-chemin
+                    if (hasOther[si, r] && j > 0)
+                        y = Mathf.Lerp(y, otherY[si, r], Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f * tMax, tMax, t)));
                     if (j == 0) y -= edgeSink;
 
-                    pos[s, j, r] = new Vector3(x, y, r * dz);
+                    v.y = y;
+                    pos[si, j, r] = v - origin;
                 }
 
                 if (!fine && stride > 1)
@@ -372,14 +419,14 @@ public class LowPolyTerrainGenerator : MonoBehaviour
                         int r0 = (r / stride) * stride;
                         int r1 = r0 + stride;
                         float t = (r - r0) / (float)stride;
-                        pos[s, j, r] = Vector3.Lerp(pos[s, j, r0], pos[s, j, r1], t);
+                        pos[si, j, r] = Vector3.Lerp(pos[si, j, r0], pos[si, j, r1], t);
                     }
                 }
             }
         }
 
-        float colorMin = -(Mathf.Max(cliffDepth, road.gorgeDepth) + 1f);
-        float colorMax = Mathf.Max(0.1f, hillHeight + wallHeight + sideRelief);
+        float colorMin = -(road.elevationAmplitude + Mathf.Max(cliffDepth, road.gorgeDepth) + 1f);
+        float colorMax = Mathf.Max(0.1f, road.elevationAmplitude + wallHeight + sideRelief);
 
         var verts = new List<Vector3>(2 * (cols - 1) * rows * 6);
         var uvs = new List<Vector2>(verts.Capacity);
@@ -387,7 +434,7 @@ public class LowPolyTerrainGenerator : MonoBehaviour
 
         float U(float y) => Mathf.InverseLerp(colorMin, colorMax, y);
 
-        // Ajoute un triangle orienté vers le haut (l'orientation ne dépend que de la projection en XZ)
+        // Ajoute un triangle orientÃ© vers le haut (l'orientation ne dÃ©pend que de la projection en XZ)
         void Tri(Vector3 a, Vector3 b, Vector3 c, float u)
         {
             if (Vector3.Cross(b - a, c - a).y < 0f) { Vector3 tmp = b; b = c; c = tmp; }
@@ -404,23 +451,23 @@ public class LowPolyTerrainGenerator : MonoBehaviour
             {
                 for (int r = 0; r < rows; r++)
                 {
-                    Vector3 a = pos[s, j, r];         // intérieur (côté route), ligne r
-                    Vector3 b = pos[s, j + 1, r];     // extérieur, ligne r
-                    Vector3 c = pos[s, j, r + 1];     // intérieur, ligne r+1
-                    Vector3 d = pos[s, j + 1, r + 1]; // extérieur, ligne r+1
+                    Vector3 a = pos[s, j, r];         // intÃ©rieur (cÃ´tÃ© route), ligne r
+                    Vector3 b = pos[s, j + 1, r];     // extÃ©rieur, ligne r
+                    Vector3 c = pos[s, j, r + 1];     // intÃ©rieur, ligne r+1
+                    Vector3 d = pos[s, j + 1, r + 1]; // extÃ©rieur, ligne r+1
 
                     bool coarse = j >= nearLast;
                     float uFlat = 0f;
                     if (coarse)
                     {
-                        // Une seule couleur par grande case lointaine (même teinte sur toutes ses sous-lignes)
+                        // Une seule couleur par grande case lointaine (mÃªme teinte sur toutes ses sous-lignes)
                         int r0 = (r / stride) * stride;
                         int r1 = r0 + stride;
                         float avg = (pos[s, j, r0].y + pos[s, j + 1, r0].y + pos[s, j, r1].y + pos[s, j + 1, r1].y) * 0.25f;
                         uFlat = U(avg);
                     }
 
-                    // On alterne la diagonale pour éviter un effet "quadrillé" trop régulier
+                    // On alterne la diagonale pour Ã©viter un effet "quadrillÃ©" trop rÃ©gulier
                     if (((j + r) & 1) == 0)
                     {
                         Tri(a, c, b, coarse ? uFlat : U((a.y + c.y + b.y) / 3f));
@@ -444,4 +491,4 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         mesh.RecalculateBounds();
         return mesh;
     }
-}
+}
