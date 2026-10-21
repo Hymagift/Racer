@@ -11,12 +11,12 @@ Shader "Racer/TrafficCone"
         _BandGlow ("Brillance des bandes", Range(0, 1)) = 0.2
         _Smoothness ("Smoothness", Range(0, 1)) = 0.35
 
-        [Header(Forme du cone (metres depuis le pivot du mesh))]
+        [Header(Forme du cone en metres depuis le pivot du mesh)]
         _UpAxis ("Axe vertical du mesh (espace objet)", Vector) = (0, 0, 1, 0)
         _BodyBottom ("Haut du socle", Float) = -0.16
         _BodyTop ("Pointe", Float) = 0.66
 
-        [Header(Bandes (0 = bas du corps, 1 = pointe))]
+        [Header(Bandes de 0 bas du corps a 1 pointe)]
         _Band1 ("Bande basse (debut, fin)", Vector) = (0.26, 0.40, 0, 0)
         _Band2 ("Bande haute (debut, fin)", Vector) = (0.52, 0.66, 0, 0)
     }
