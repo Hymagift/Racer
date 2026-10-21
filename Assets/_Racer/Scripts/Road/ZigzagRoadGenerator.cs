@@ -274,8 +274,10 @@ public class ZigzagRoadGenerator : MonoBehaviour
             Debug.Log($"[ZigzagRoad] scroll={scrollSpeed:F1} m/s | rootZ={RootZ:F1} | playerTrackZ={playerTrackZ:F1} | nextChunkZ={nextChunkZ:F0} | chunks={chunks.Count} | distance={distanceScrolled:F0}", this);
         }
 
-        // Génère devant
-        while (nextChunkZ < playerTrackZ + viewDistance)
+        // Génère devant : un seul morceau par image (sinon le jeu saccade quand plusieurs arrivent ensemble),
+        // sauf si on est très en retard (au lancement ou après un respawn)
+        int budget = nextChunkZ < playerTrackZ + viewDistance * 0.5f ? 16 : 1;
+        while (budget-- > 0 && nextChunkZ < playerTrackZ + viewDistance)
             SpawnChunk();
 
         // Détruit derrière
@@ -355,11 +357,16 @@ public class ZigzagRoadGenerator : MonoBehaviour
         BuildMeshes(nextChunkZ, out Mesh visualMesh, out Mesh collisionMesh, out Mesh railsMesh, out Mesh bridgeMesh);
 
         go.AddComponent<MeshFilter>().sharedMesh = visualMesh;
-        go.AddComponent<MeshRenderer>().sharedMaterial = roadMat;
+        var mr = go.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = roadMat;
+        mr.shadowCastingMode = ShadowCastingMode.Off; // route plate : elle reçoit l'ombre de la voiture mais n'en projette pas
 
         if (collisionMesh != null)
         {
             var mc = go.AddComponent<MeshCollider>();
+            // Préparation du collider plus rapide (moins de saccade à chaque nouveau morceau de route)
+            mc.cookingOptions = MeshColliderCookingOptions.UseFastMidphase | MeshColliderCookingOptions.CookForFasterSimulation
+                              | MeshColliderCookingOptions.WeldColocatedVertices;
             mc.sharedMesh = collisionMesh;
             if (roadPhysics != null) mc.sharedMaterial = roadPhysics;
         }

@@ -87,6 +87,8 @@ public class ScoreManager : MonoBehaviour
     /// <summary>Appelé quand un drift est encaissé, avec les points ajoutés au score (déjà multipliés).</summary>
     public event System.Action<float> OnDriftBanked;
 
+    ComboHUD comboHUD;
+
     /// <summary>Score en cours (à virgule).</summary>
     public float Score { get; private set; }
     /// <summary>Score arrondi, celui qui est affiché et enregistré.</summary>
@@ -134,7 +136,11 @@ public class ScoreManager : MonoBehaviour
             car.OnWallHit += HandleWallHit;
         }
 
-        if (showComboRing && GetComponent<ComboHUD>() == null) gameObject.AddComponent<ComboHUD>();
+        if (showComboRing)
+        {
+            comboHUD = GetComponent<ComboHUD>();
+            if (comboHUD == null) comboHUD = gameObject.AddComponent<ComboHUD>();
+        }
     }
 
     void OnDestroy()
@@ -283,9 +289,12 @@ public class ScoreManager : MonoBehaviour
         }
     }
 
+    // Affichage de secours, seulement dans l'éditeur et les builds de développement (OnGUI est très lent sur téléphone).
+    // En build normal, le score et la distance sont affichés par le ComboHUD.
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     void OnGUI()
     {
-        if (!showHUD || hudScoreText != null) return;
+        if (!showHUD || hudScoreText != null || comboHUD != null) return; // le ComboHUD affiche déjà le score
 
         int size = Mathf.Max(20, Screen.height / 25);
         var style = new GUIStyle(GUI.skin.label)
@@ -296,7 +305,7 @@ public class ScoreManager : MonoBehaviour
         };
 
         // Avec le cercle de combo, multiplicateur et points du drift sont au centre : ici seulement score et distance
-        bool ring = showComboRing && GetComponent<ComboHUD>() != null;
+        bool ring = showComboRing && comboHUD != null;
         string txt = ring
             ? $"{IntScore}\n{Mathf.FloorToInt(Distance)} m"
             : $"{IntScore}\nx{TotalMultiplier:F1}   {Mathf.FloorToInt(Distance)} m";
@@ -305,4 +314,5 @@ public class ScoreManager : MonoBehaviour
         if (!ring && DriftMultiplier > 1f) txt += $"\nDrift x{DriftMultiplier:F1}";
         GUI.Label(new Rect(Screen.width - 20 - size * 12, 15, size * 12, size * 4f), txt, style);
     }
+#endif
 }

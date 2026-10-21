@@ -15,12 +15,20 @@ public static class MenuFx
     static AudioClip[] clips;
     static AudioSource[] sources;
     static int nextSource;
+    static float nextListenerCheck = -1f;
+    static bool hasListener;
 
     /// <summary>Joue un son (pitch : 1 = normal, plus grand = plus aigu).</summary>
     public static void Play(Sfx sfx, float pitch = 1f, float volume = 1f)
     {
         // Pas d'AudioListener (rechargement de la démo en fond) : on ne joue rien plutôt que de spammer la console
-        if (Object.FindAnyObjectByType<AudioListener>() == null) return;
+        // (recherche coûteuse : refaite au plus deux fois par seconde)
+        if (Time.unscaledTime >= nextListenerCheck)
+        {
+            nextListenerCheck = Time.unscaledTime + 0.5f;
+            hasListener = Object.FindAnyObjectByType<AudioListener>() != null;
+        }
+        if (!hasListener) return;
 
         EnsureAudio();
         var src = sources[nextSource];

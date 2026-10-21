@@ -56,6 +56,8 @@ public class BoosterShop : MonoBehaviour
     float sectionPunch, boutiqueNudge;
 
     BoosterCarousel carousel;
+    readonly List<Pack> order = new List<Pack>(); // réutilisée à chaque image (pas d'allocation)
+    int frontPack = -1;
     readonly List<Pack> packs = new List<Pack>();
     RectTransform carouselArea, packsRoot;
     MenuParticles pageParticles;
@@ -147,7 +149,7 @@ public class BoosterShop : MonoBehaviour
 
         float dt = Time.unscaledDeltaTime;
         if (sectionTabs.Count > 0) AnimateTabs(dt);
-        if (carousel != null && boostersBody.gameObject.activeInHierarchy) AnimateInvocations(dt);
+        if (carousel != null && boostersBody.gameObject.activeInHierarchy && OnScreen(carouselArea)) AnimateInvocations(dt);
         if (OverlayOpen) AnimateOverlay(dt);
     }
 
@@ -173,6 +175,7 @@ public class BoosterShop : MonoBehaviour
         Area(carouselArea, 0f, 0.36f, 1f, 1f);
         Fill(carouselArea, Color.clear).raycastTarget = true; // capte le glissé du doigt
         carouselArea.gameObject.AddComponent<RectMask2D>();   // les boosters voisins dépassent juste du bord
+        Isolate(carouselArea, true); // tout bouge à chaque image dans le carrousel : sous-canvas (perf)
         carousel = carouselArea.gameObject.AddComponent<BoosterCarousel>();
         carousel.spacing = 430f; // les boosters voisins dépassent d'environ 180 px de chaque côté
         carousel.Count = catalog.boosters.Count;
@@ -201,6 +204,7 @@ public class BoosterShop : MonoBehaviour
         // Points de pagination
         var dotsRow = Node("Pagination", body);
         Area(dotsRow, 0.3f, 0.335f, 0.7f, 0.365f);
+        Isolate(dotsRow, true);
         var dl = dotsRow.gameObject.AddComponent<HorizontalLayoutGroup>();
         dl.spacing = 26f;
         dl.childAlignment = TextAnchor.MiddleCenter;
@@ -220,6 +224,7 @@ public class BoosterShop : MonoBehaviour
         // Infos du booster sélectionné
         infoRoot = Node("Infos", body);
         Area(infoRoot, 0f, 0.1f, 1f, 0.335f);
+        Isolate(infoRoot, false);
 
         nameText = FitLabel(infoRoot, "", 70, 36, TextAnchor.MiddleCenter, Color.white, 4f);
         Area(nameText.rectTransform, 0.05f, 0.7f, 0.95f, 1f);
@@ -261,6 +266,7 @@ public class BoosterShop : MonoBehaviour
         buyButton.GetComponent<LayoutElement>().ignoreLayout = true;
         buyRect = (RectTransform)buyButton.transform;
         Area(buyRect, 0.12f, 0f, 0.88f, 0.095f);
+        Isolate(buyRect, true);
         buyFace = buyRect.Find("Face").GetComponent<Image>();
         buySide = buyRect.Find("Relief").GetComponent<Image>();
         var coin = Coin(buyFace.transform, 62f);
@@ -453,9 +459,16 @@ public class BoosterShop : MonoBehaviour
         }
 
         // Le booster le plus proche du centre passe devant les autres
-        var order = new List<Pack>(packs);
-        order.Sort((a, b) => Mathf.Abs(b.tier - pos).CompareTo(Mathf.Abs(a.tier - pos)));
-        for (int i = 0; i < order.Count; i++) order[i].root.SetSiblingIndex(i);
+        // (seulement quand il change : réordonner l'UI la fait recalculer)
+        int front = Mathf.Clamp(Mathf.RoundToInt(pos), 0, packs.Count - 1);
+        if (front != frontPack)
+        {
+            frontPack = front;
+            order.Clear();
+            order.AddRange(packs);
+            order.Sort((a, b) => Mathf.Abs(b.tier - front).CompareTo(Mathf.Abs(a.tier - front)));
+            for (int i = 0; i < order.Count; i++) order[i].root.SetSiblingIndex(i);
+        }
 
         // Étincelles autour du booster du centre (plus nombreuses pour les boosters chers)
         if (!OverlayOpen && packs.Count > 0)
@@ -500,6 +513,13 @@ public class BoosterShop : MonoBehaviour
         bool canPay = sel != null && CanOpen(sel);
         buyBounce.extraScale = canPay ? 1f + Mathf.Sin(t * 4f) * 0.03f : 1f;
         buyFace.rectTransform.anchoredPosition = new Vector2(Mathf.Sin(t * 70f) * 24f * buyShake, buyFace.rectTransform.anchoredPosition.y);
+    }
+
+    // La page est-elle à l'écran ? (les pages du menu défilent horizontalement)
+    static bool OnScreen(RectTransform rt)
+    {
+        Vector3 c = rt.TransformPoint(rt.rect.center);
+        return c.x > -Screen.width * 0.25f && c.x < Screen.width * 1.25f;
     }
 
     static float Random01() => UnityEngine.Random.value;
@@ -622,6 +642,7 @@ public class BoosterShop : MonoBehaviour
         overlayBg = Fill(panel, WithAlpha(Navy, 0.95f));
         overlayBg.raycastTarget = true; // bloque les clics et glissés vers le menu derrière
         overlay = panel.gameObject;
+        Isolate(panel, true);
 
         stage = Node("Scène", panel);
         Stretch(stage);

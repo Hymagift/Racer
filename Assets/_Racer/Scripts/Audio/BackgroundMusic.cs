@@ -110,7 +110,7 @@ public class BackgroundMusic : MonoBehaviour
         // Notre écouteur ne sert que s'il n'y en a aucun autre (sinon Unity se plaint de deux écouteurs)
         listenerCheck -= Time.unscaledDeltaTime;
         if (listenerCheck > 0f) return;
-        listenerCheck = 0.25f;
+        listenerCheck = 1f;
         bool other = false;
         foreach (var l in FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
             if (l != ownListener && l.isActiveAndEnabled) { other = true; break; }

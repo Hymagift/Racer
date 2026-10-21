@@ -1,5 +1,10 @@
 Shader "Coiriergraphics/WorldGrid"
 {
+    // Mobile version: same grid look as before, but much cheaper per pixel.
+    // - One projection (the dominant axis) instead of 3 blended ones: with the old sharpness of 16
+    //   the blend was almost always 100% one axis anyway.
+    // - The tiny dots are gone: they faded out 5 m from the camera, which is always farther than that.
+    // - Simple diffuse lighting (main light + ambient) instead of full PBR.
     Properties
     {
         [MainColor] _BaseColor ("ColorA", Color) = (0.105, 0.17, 0.22, 1)
@@ -17,6 +22,7 @@ Shader "Coiriergraphics/WorldGrid"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+        // Same layout as before so existing materials and the SRP batcher keep working.
         CBUFFER_START(UnityPerMaterial)
             half4 _BaseColor;
             half4 _LineColor;
@@ -26,12 +32,6 @@ Shader "Coiriergraphics/WorldGrid"
         CBUFFER_END
 
         // Fixed pattern settings (meters, after object scale compensation).
-        #define TRIPLANAR_SHARPNESS 16.0
-        #define DOT_SPACING 0.2
-        #define DOT_DIAMETER 0.026
-        #define DOT_DARKEN 0.30
-        #define DOT_FADE_START 1.5
-        #define DOT_FADE_END 5.0
         #define GRID_WIDTH 0.008
         #define GRID_DARKEN 0.45
         #define MAJOR_GRID_WIDTH 0.015
@@ -42,30 +42,17 @@ Shader "Coiriergraphics/WorldGrid"
         #define MAJOR_CROSS_WIDTH 0.040
         #define CROSS_OPACITY 0.11875
 
-        // Anti-alias the edge, but NEVER inflate tiny shapes by the full pixel
-        // footprint. That was turning the crosses into huge white squares.
         float Stroke(float distanceToCenter, float halfWidth, float pixelWidth)
         {
             float edge = max(min(pixelWidth * 0.5, halfWidth * 0.5), 0.000001);
             return 1.0 - smoothstep(halfWidth - edge, halfWidth + edge, distanceToCenter);
         }
 
-        // x = dots, y = 1m grid, z = 4m major grid, w = small crosses.
-        // Larger 4m crosses are returned separately so they can force the full pattern color.
-        float4 Pattern2D(float2 p, out float majorCrossMask)
+        // x = 1m grid, y = 4m major grid, z = small crosses. Large 4m crosses returned separately.
+        float3 Pattern2D(float2 p, out float majorCrossMask)
         {
             float2 pixel = max(fwidth(p), float2(0.000001, 0.000001));
             float footprint = max(pixel.x, pixel.y);
-
-            float2 dotIndex = floor(p / DOT_SPACING + 0.5);
-            float2 dotLocal = p - dotIndex * DOT_SPACING;
-            float dotMask = Stroke(length(dotLocal), DOT_DIAMETER * 0.5, length(pixel));
-            // Entire dot rows and columns coinciding with a 1m grid line are absent.
-            // This avoids visible circles straddling thin lines (even with AA).
-            float2 distanceToGridIndex = abs((frac(dotIndex / 5.0 + 0.5) - 0.5) * 5.0);
-            dotMask *= step(0.5, min(distanceToGridIndex.x, distanceToGridIndex.y));
-            // Remove sub-pixel dots rather than allowing them to alias or expand.
-            dotMask *= 1.0 - smoothstep(0.004, 0.014, footprint);
 
             float2 cell = frac(p + 0.5) - 0.5;
             float2 gridDist = abs(cell);
@@ -79,33 +66,28 @@ Shader "Coiriergraphics/WorldGrid"
                 Stroke(majorDist.x, MAJOR_GRID_WIDTH * 0.5, pixel.x),
                 Stroke(majorDist.y, MAJOR_GRID_WIDTH * 0.5, pixel.y));
 
-            // True plus signs: intersect two thin, finite line segments.
-            float horizontal = Stroke(abs(cell.y), CROSS_WIDTH * 0.5, pixel.y)
-                             * Stroke(abs(cell.x), CROSS_ARM_LENGTH, pixel.x);
-            float vertical = Stroke(abs(cell.x), CROSS_WIDTH * 0.5, pixel.x)
-                           * Stroke(abs(cell.y), CROSS_ARM_LENGTH, pixel.y);
-            float crossMask = max(horizontal, vertical);
-            // Suppress the ENTIRE cross at 1m intersections located on 4m lines.
-            // Using the nearest integer grid intersection prevents partial crosses.
-            float2 intersection = floor(p + 0.5);
-            float2 intersection4 = abs((frac(intersection / 4.0 + 0.5) - 0.5) * 4.0);
-            crossMask *= step(0.5, min(intersection4.x, intersection4.y));
-            // Crosses are intentionally not drawn when they become sub-pixel.
-            crossMask *= 1.0 - smoothstep(0.025, 0.09, footprint);
+            float crossFade = 1.0 - smoothstep(0.025, 0.09, footprint);
+            float crossMask = 0.0;
+            majorCrossMask = 0.0;
+            if (crossFade > 0.0) // far away (most of the screen): crosses are invisible, skip them
+            {
+                float horizontal = Stroke(abs(cell.y), CROSS_WIDTH * 0.5, pixel.y)
+                                 * Stroke(abs(cell.x), CROSS_ARM_LENGTH, pixel.x);
+                float vertical = Stroke(abs(cell.x), CROSS_WIDTH * 0.5, pixel.x)
+                               * Stroke(abs(cell.y), CROSS_ARM_LENGTH, pixel.y);
+                crossMask = max(horizontal, vertical);
+                float2 intersection = floor(p + 0.5);
+                float2 intersection4 = abs((frac(intersection / 4.0 + 0.5) - 0.5) * 4.0);
+                crossMask *= step(0.5, min(intersection4.x, intersection4.y)) * crossFade;
 
-            // Larger crosses only at intersections of TWO 4m lines.
-            float majorHorizontal = Stroke(majorDist.y, MAJOR_CROSS_WIDTH * 0.5, pixel.y)
-                                  * Stroke(majorDist.x, MAJOR_CROSS_ARM_LENGTH, pixel.x);
-            float majorVertical = Stroke(majorDist.x, MAJOR_CROSS_WIDTH * 0.5, pixel.x)
-                                * Stroke(majorDist.y, MAJOR_CROSS_ARM_LENGTH, pixel.y);
-            majorCrossMask = max(majorHorizontal, majorVertical);
-            majorCrossMask *= 1.0 - smoothstep(0.025, 0.09, footprint);
+                float majorHorizontal = Stroke(majorDist.y, MAJOR_CROSS_WIDTH * 0.5, pixel.y)
+                                      * Stroke(majorDist.x, MAJOR_CROSS_ARM_LENGTH, pixel.x);
+                float majorVertical = Stroke(majorDist.x, MAJOR_CROSS_WIDTH * 0.5, pixel.x)
+                                    * Stroke(majorDist.y, MAJOR_CROSS_ARM_LENGTH, pixel.y);
+                majorCrossMask = max(majorHorizontal, majorVertical) * crossFade;
+            }
 
-            // Dots must not appear on ANY line work: 1m grid, 4m grid, 1m crosses, or 4m crosses.
-            float occupiedByLines = saturate(max(max(gridMask, majorMask), max(crossMask, majorCrossMask)));
-            dotMask *= 1.0 - occupiedByLines;
-
-            return saturate(float4(dotMask, gridMask, majorMask, crossMask));
+            return saturate(float3(gridMask, majorMask, crossMask));
         }
 
         float3 ObjectAxisScales()
@@ -125,17 +107,11 @@ Shader "Coiriergraphics/WorldGrid"
             ZWrite On
 
             HLSLPROGRAM
-            #pragma target 3.5
+            #pragma target 3.0
             #pragma vertex Vert
             #pragma fragment Frag
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
-            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
-            #pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
-            #pragma multi_compile _ _SHADOWS_SOFT
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma multi_compile_fog
-            #pragma multi_compile _ LIGHTMAP_ON
-            #pragma multi_compile _ DIRLIGHTMAP_COMBINED
-            #pragma multi_compile _ _FORWARD_PLUS
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -144,7 +120,6 @@ Shader "Coiriergraphics/WorldGrid"
             {
                 float3 positionOS : POSITION;
                 float3 normalOS : NORMAL;
-                float2 staticLightmapUV : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -153,11 +128,10 @@ Shader "Coiriergraphics/WorldGrid"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 half3 normalWS : TEXCOORD1;
-                float3 positionOS : TEXCOORD5;
-                half3 normalOS : TEXCOORD6;
-                half3 vertexLighting : TEXCOORD2;
-                half fogFactor : TEXCOORD3;
-                DECLARE_LIGHTMAP_OR_SH(staticLightmapUV, vertexSH, 4);
+                float3 patternPos : TEXCOORD2;   // object-local meters
+                half3 normalOS : TEXCOORD3;
+                half3 ambient : TEXCOORD4;
+                half fogFactor : TEXCOORD5;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -170,70 +144,40 @@ Shader "Coiriergraphics/WorldGrid"
                 VertexNormalInputs nrm = GetVertexNormalInputs(input.normalOS);
                 output.positionCS = pos.positionCS;
                 output.positionWS = pos.positionWS;
-                output.positionOS = input.positionOS;
+                // Moving/rotating an object moves/rotates the grid. Scaling it preserves spacing.
+                output.patternPos = input.positionOS * ObjectAxisScales();
                 output.normalOS = input.normalOS;
                 output.normalWS = nrm.normalWS;
-                output.vertexLighting = VertexLighting(pos.positionWS, nrm.normalWS);
+                output.ambient = SampleSH(nrm.normalWS);
                 output.fogFactor = ComputeFogFactor(pos.positionCS.z);
-                OUTPUT_LIGHTMAP_UV(input.staticLightmapUV, unity_LightmapST, output.staticLightmapUV);
-                OUTPUT_SH(output.normalWS, output.vertexSH);
                 return output;
             }
 
             half4 Frag(Varyings input) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(input);
-                float3 n = normalize(input.normalWS);
-                // Object-local projection, expressed in physical meters along each local axis.
-                // Moving/rotating an object moves/rotates the grid. Scaling it preserves spacing.
-                float3 patternPosition = input.positionOS * ObjectAxisScales();
-                float3 localN = normalize((float3)input.normalOS);
-                float3 weights = pow(abs(localN), TRIPLANAR_SHARPNESS);
-                weights /= max(weights.x + weights.y + weights.z, 0.00001);
 
-                float crossX, crossY, crossZ;
-                float4 pattern = Pattern2D(patternPosition.yz, crossX) * weights.x
-                               + Pattern2D(patternPosition.xz, crossY) * weights.y
-                               + Pattern2D(patternPosition.xy, crossZ) * weights.z;
-                float majorCross = saturate(crossX * weights.x + crossY * weights.y + crossZ * weights.z);
+                // Project the pattern along the dominant local axis
+                half3 an = abs(input.normalOS);
+                float3 p = input.patternPos;
+                float2 uv = (an.y >= an.x && an.y >= an.z) ? p.xz : ((an.x >= an.z) ? p.yz : p.xy);
 
-                // Tiny dark dots fade away with camera distance.
-                float cameraDistance = distance(input.positionWS, _WorldSpaceCameraPos);
-                float dotVisibility = 1.0 - smoothstep(DOT_FADE_START, DOT_FADE_END, cameraDistance);
+                float majorCross;
+                float3 pattern = Pattern2D(uv, majorCross);
+
                 half3 albedo = _BaseColor.rgb;
-                float darkening = saturate(pattern.x * DOT_DARKEN * dotVisibility
-                                         + pattern.y * GRID_DARKEN);
-                albedo = lerp(albedo, _DarkColor.rgb, darkening);
-                // "Transparency" is expressed as a color blend factor toward Pattern Color.
-                albedo = lerp(albedo, _LineColor.rgb,
-                              saturate(pattern.z * MAJOR_GRID_OPACITY));
-                albedo = lerp(albedo, _LineColor.rgb,
-                              saturate(pattern.w * CROSS_OPACITY));
-                // 4m crosses always use the full Pattern Color.
+                albedo = lerp(albedo, _DarkColor.rgb, saturate(pattern.x * GRID_DARKEN));
+                albedo = lerp(albedo, _LineColor.rgb, saturate(pattern.y * MAJOR_GRID_OPACITY));
+                albedo = lerp(albedo, _LineColor.rgb, saturate(pattern.z * CROSS_OPACITY));
                 albedo = lerp(albedo, _LineColor.rgb, saturate(majorCross));
 
-                SurfaceData surface = (SurfaceData)0;
-                surface.albedo = albedo;
-                surface.alpha = 1;
-                surface.metallic = _Metallic;
-                surface.smoothness = _Smoothness;
-                surface.normalTS = half3(0, 0, 1);
-                surface.occlusion = 1;
-
-                InputData lighting = (InputData)0;
-                lighting.positionWS = input.positionWS;
-                lighting.normalWS = n;
-                lighting.viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
-                lighting.shadowCoord = TransformWorldToShadowCoord(input.positionWS);
-                lighting.fogCoord = input.fogFactor;
-                lighting.vertexLighting = input.vertexLighting;
-                lighting.bakedGI = SAMPLE_GI(input.staticLightmapUV, input.vertexSH, n);
-                lighting.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(input.positionCS);
-                lighting.shadowMask = half4(1, 1, 1, 1);
-
-                half4 color = UniversalFragmentPBR(lighting, surface);
-                color.rgb = MixFog(color.rgb, lighting.fogCoord);
-                return color;
+                // Diffuse lighting: main light (+ its shadow when enabled) and ambient
+                Light light = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
+                half3 n = normalize(input.normalWS);
+                half ndl = saturate(dot(n, light.direction));
+                half3 color = albedo * (light.color * (ndl * light.shadowAttenuation) + input.ambient);
+                color = MixFog(color, input.fogFactor);
+                return half4(color, 1);
             }
             ENDHLSL
         }

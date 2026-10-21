@@ -286,7 +286,7 @@ MonoBehaviour:
     AngularDampingMode: 0
     RotationDamping: {x: 1, y: 1, z: 1}
     QuaternionDamping: 1
-  FollowOffset: {x: 0, y: 11.07, z: -9.04}
+  FollowOffset: {x: 0, y: 14, z: -8.5}
 --- !u!114 &567790132
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -311,10 +311,10 @@ MonoBehaviour:
     LookAtTarget: {fileID: 0}
     CustomLookAtTarget: 0
   Lens:
-    FieldOfView: 80
+    FieldOfView: 75
     OrthographicSize: 5
     NearClipPlane: 0.3
-    FarClipPlane: 1000
+    FarClipPlane: 180
     Dutch: 0
     ModeOverride: 0
     PhysicalProperties:
@@ -365,7 +365,7 @@ Light:
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
   m_Shadows:
-    m_Type: 2
+    m_Type: 0
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
@@ -665,7 +665,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 180
   field of view: 80
   orthographic: 0
   orthographic size: 5
@@ -677,8 +677,8 @@ Camera:
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
   m_TargetEye: 3
-  m_HDR: 1
-  m_AllowMSAA: 1
+  m_HDR: 0
+  m_AllowMSAA: 0
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
   m_OcclusionCulling: 1
@@ -1027,7 +1027,7 @@ MonoBehaviour:
   showWalls: 0
   wallMaterial: {fileID: 0}
   rebaseDistance: 500
-  debugLogs: 1
+  debugLogs: 0
 --- !u!4 &2028527756
 Transform:
   m_ObjectHideFlags: 0

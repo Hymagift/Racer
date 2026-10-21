@@ -145,7 +145,9 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         if (road == null || road.player == null) return;
         float pz = road.TrackZ(road.player.position.z);
 
-        while (nextZ < pz + viewDistance)
+        // Un seul morceau par image, sauf si on est très en retard (au lancement)
+        int budget = nextZ < pz + viewDistance * 0.5f ? 16 : 1;
+        while (budget-- > 0 && nextZ < pz + viewDistance)
             SpawnChunk();
 
         while (chunks.Count > 0 && chunks.Peek().transform.localPosition.z + ChunkLength < pz - despawnDistance)
@@ -294,6 +296,8 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         if (addCollider)
         {
             var mc = go.AddComponent<MeshCollider>();
+            mc.cookingOptions = MeshColliderCookingOptions.UseFastMidphase | MeshColliderCookingOptions.CookForFasterSimulation
+                              | MeshColliderCookingOptions.WeldColocatedVertices;
             mc.sharedMesh = mesh;
             if (road.RoadPhysics != null) mc.sharedMaterial = road.RoadPhysics;
         }

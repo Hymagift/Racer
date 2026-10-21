@@ -49,13 +49,16 @@ public class ComboHUD : MonoBehaviour
     Canvas canvas;
     RectTransform root;
     Image fill;
-    Text multiplierText, comboText;
+    Text multiplierText, comboText, scoreText;
     Texture2D ringTexture;
     Sprite ringSprite;
 
     int lastLevel = 1;
     float shownFill, pulse, fullTimer, hitFlash;
     float bankedPoints, bankedTimer, lostTimer, lastPending;
+    // Dernières valeurs affichées : on ne réécrit un texte que s'il change (sinon l'UI est recalculée à chaque image)
+    int shownMult = -1, shownPending = -1, shownScore = -1, shownDist = -1, shownState = -1;
+    float shownScale = -1f;
 
     void Start()
     {
@@ -83,6 +86,7 @@ public class ComboHUD : MonoBehaviour
     {
         bankedPoints = points;
         bankedTimer = messageTime;
+        shownState = -1; // nouveau montant à afficher
         lostTimer = 0f;
     }
 
@@ -134,12 +138,30 @@ public class ComboHUD : MonoBehaviour
         c = Color.Lerp(c, lostColor, hitFlash);
         fill.color = c;
         multiplierText.color = c;
-        multiplierText.text = "x" + (m < 10f ? m.ToString("0.0", CultureInfo.InvariantCulture) : Mathf.FloorToInt(m).ToString());
+        int multKey = m < 10f ? Mathf.FloorToInt(m * 10f + 0.0001f) : 1000 + Mathf.FloorToInt(m);
+        if (multKey != shownMult)
+        {
+            shownMult = multKey;
+            multiplierText.text = "x" + (m < 10f ? (multKey / 10f).ToString("0.0", CultureInfo.InvariantCulture) : Mathf.FloorToInt(m).ToString());
+        }
 
         pulse = Mathf.MoveTowards(pulse, 0f, dt / 0.35f);
-        root.localScale = Vector3.one * (1f + 0.25f * pulse * pulse);
+        float scale = 1f + 0.25f * pulse * pulse;
+        if (scale != shownScale) { shownScale = scale; root.localScale = Vector3.one * scale; }
 
         UpdateCombo(dt);
+        UpdateScore();
+    }
+
+    // Score et distance en haut à droite (remplace l'ancien affichage OnGUI, trop lent sur téléphone)
+    void UpdateScore()
+    {
+        if (scoreText == null) return;
+        int s = score.IntScore, d = Mathf.FloorToInt(score.Distance);
+        if (s == shownScore && d == shownDist) return;
+        shownScore = s;
+        shownDist = d;
+        scoreText.text = FormatPoints(s) + "\n<size=" + Mathf.RoundToInt(scoreText.fontSize * 0.6f) + ">" + d + " m</size>";
     }
 
     void UpdateCombo(float dt)
@@ -150,23 +172,29 @@ public class ComboHUD : MonoBehaviour
 
         if (pending > 0f)
         {
-            comboText.text = "+" + FormatPoints(pending);
+            int p = Mathf.FloorToInt(pending);
+            if (shownState != 0 || p != shownPending) comboText.text = "+" + FormatPoints(p);
+            shownState = 0;
+            shownPending = p;
             comboText.color = Color.white;
             comboText.fontSize = Mathf.RoundToInt(size * 0.19f);
         }
         else if (lostTimer > 0f)
         {
-            comboText.text = "Combo perdu";
+            if (shownState != 1) comboText.text = "Combo perdu";
+            shownState = 1;
             comboText.color = Fade(lostColor, lostTimer);
         }
         else if (bankedTimer > 0f)
         {
-            comboText.text = "+" + FormatPoints(bankedPoints);
+            if (shownState != 2) comboText.text = "+" + FormatPoints(bankedPoints);
+            shownState = 2;
             comboText.color = Fade(bankedColor, bankedTimer);
             comboText.fontSize = Mathf.RoundToInt(size * 0.19f * (1f + 0.15f * Mathf.Clamp01((bankedTimer - messageTime + 0.3f) / 0.3f)));
         }
-        else
+        else if (shownState != 3)
         {
+            shownState = 3;
             comboText.text = "";
         }
 
@@ -237,6 +265,18 @@ public class ComboHUD : MonoBehaviour
         ct.pivot = new Vector2(0.5f, 1f);
         ct.sizeDelta = new Vector2(size * 3f, size * 0.3f);
         ct.anchoredPosition = new Vector2(0f, -size * 0.06f);
+
+        // Score + distance en haut à droite, sauf si la scène a déjà ses propres textes TextMeshPro
+        if (score.hudScoreText == null)
+        {
+            scoreText = NewText(go.transform, 64);
+            scoreText.alignment = TextAnchor.UpperRight;
+            scoreText.supportRichText = true;
+            var st = scoreText.rectTransform;
+            st.anchorMin = st.anchorMax = st.pivot = new Vector2(1f, 1f);
+            st.sizeDelta = new Vector2(600f, 200f);
+            st.anchoredPosition = new Vector2(-40f, -50f);
+        }
     }
 
     // Anneau blanc anti-aliasé généré par code (pas besoin d'image dans le projet)

@@ -137,6 +137,8 @@ public class PremiumShop : MonoBehaviour
     void Update()
     {
         if (root == null || !root.gameObject.activeInHierarchy) return;
+        Vector3 c = root.TransformPoint(root.rect.center);
+        if (c.x < -Screen.width * 0.25f || c.x > Screen.width * 1.25f) return; // page pas à l'écran : rien à animer
         float t = Time.unscaledTime;
         float dt = Time.unscaledDeltaTime;
 
@@ -289,6 +291,7 @@ public class PremiumShop : MonoBehaviour
         card.gameObject.AddComponent<LayoutElement>().preferredHeight = 300f;
 
         wheelIcon = Wheel(card, 170f, Teal);
+        Isolate(wheelIcon, false);
         wheelIcon.anchorMin = wheelIcon.anchorMax = new Vector2(0.15f, 0.5f);
 
         var title = FitLabel(card, "30 S DE CONDUITE PARFAITE", 44, 24, TextAnchor.MiddleLeft, Color.white, 3f);
@@ -490,6 +493,7 @@ public class PremiumShop : MonoBehaviour
         Rounded(b, color, 32f);
         Stretch(FitLabel(b, text, 30, 16, TextAnchor.MiddleCenter, Color.white, 2f).rectTransform);
         badges.Add(b);
+        Isolate(b, false);
     }
 
     // Bouton de prix : en euros (rubisCost = 0) ou en rubis (avec un rubis dessiné)

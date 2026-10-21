@@ -27,6 +27,7 @@ public class ButtonBounce : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         pressed = false;
         current = 1f;
         transform.localScale = Vector3.one * extraScale;
+        applied = extraScale;
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -37,10 +38,17 @@ public class ButtonBounce : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
     public void OnPointerUp(PointerEventData eventData) => pressed = false;
     public void OnPointerExit(PointerEventData eventData) => pressed = false;
 
+    float applied = -1f;
+
     void Update()
     {
         float target = pressed ? pressedScale : 1f;
-        current = Mathf.Lerp(current, target, 1f - Mathf.Exp(-speed * Time.unscaledDeltaTime));
-        transform.localScale = Vector3.one * (current * extraScale);
+        current = Mathf.Abs(current - target) < 0.0005f ? target
+                : Mathf.Lerp(current, target, 1f - Mathf.Exp(-speed * Time.unscaledDeltaTime));
+        // N'écrit la taille que si elle change : sinon l'UI est recalculée à chaque image pour rien
+        float s = current * extraScale;
+        if (Mathf.Abs(s - applied) < 0.0001f) return;
+        applied = s;
+        transform.localScale = Vector3.one * s;
     }
 }

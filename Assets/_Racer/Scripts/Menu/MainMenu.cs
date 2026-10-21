@@ -338,6 +338,7 @@ public class MainMenu : MonoBehaviour
         titleRect = titleText.rectTransform;
         titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.8f);
         titleRect.sizeDelta = new Vector2(1000f, 260f);
+        Isolate(titleRect, false); // le titre se balance à chaque image : sous-canvas (perf)
         var outer = titleText.gameObject.AddComponent<Outline>(); // deuxième contour, coloré, pour un titre bien épais
         outer.effectColor = Orange;
         outer.effectDistance = new Vector2(-6f, 6f);
@@ -366,11 +367,13 @@ public class MainMenu : MonoBehaviour
         playRt.anchorMin = playRt.anchorMax = new Vector2(0.5f, 0.3f);
         playRt.sizeDelta = new Vector2(700f, 260f);
         playBounce = play.GetComponent<ButtonBounce>();
+        Isolate(playRt, true);
 
         var hintRow = Node("Indice", page);
         Place(hintRow, 0.08f, 70f);
         swipeHint = Node("Glisse", hintRow);
         Stretch(swipeHint);
+        Isolate(swipeHint, false);
         Stretch(Label(swipeHint, "Glisse pour les invocations  »", 38, TextAnchor.MiddleCenter, WithAlpha(Color.white, 0.85f), 2f).rectTransform);
     }
 
@@ -505,6 +508,7 @@ public class MainMenu : MonoBehaviour
     void BuildTabBar(RectTransform parent)
     {
         var bar = Node("Onglets", parent);
+        Isolate(bar, true); // les onglets s'animent à chaque image : sous-canvas (perf)
         bar.anchorMin = Vector2.zero;
         bar.anchorMax = new Vector2(1f, 0f);
         bar.pivot = new Vector2(0.5f, 0f);

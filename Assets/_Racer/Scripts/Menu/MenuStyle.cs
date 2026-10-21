@@ -356,6 +356,19 @@ public static class MenuStyle
         return slider;
     }
 
+    // ---------- Performance ----------
+
+    /// <summary>
+    /// Met un élément animé (qui bouge à chaque image) dans son propre sous-canvas : Unity ne recalcule alors
+    /// que ce petit morceau au lieu de tout le menu. clickable = il contient des boutons (ajoute un GraphicRaycaster).
+    /// </summary>
+    public static void Isolate(RectTransform rt, bool clickable)
+    {
+        if (rt == null || rt.GetComponent<Canvas>() != null) return;
+        rt.gameObject.AddComponent<Canvas>();
+        if (clickable) rt.gameObject.AddComponent<GraphicRaycaster>();
+    }
+
     // ---------- Zone qui défile ----------
 
     /// <summary>

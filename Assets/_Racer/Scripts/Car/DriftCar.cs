@@ -141,7 +141,7 @@ public class DriftCar : MonoBehaviour
 
     [Header("Debug")]
     [Tooltip("Affiche les valeurs de pilotage en haut à gauche de l'écran")]
-    public bool debugHUD = true;
+    public bool debugHUD = false;
 
     [Header("Menu / autopilote")]
     [Tooltip("Pendant le pilote auto : l'arrière ne décroche pas et accroche au moins autant que rearGrip de pilote auto (son drift est visuel, voir styleDrift). Il reste sûr même sur la route la plus dure.")]
@@ -228,6 +228,7 @@ public class DriftCar : MonoBehaviour
 
         // Modèle 3D de la voiture équipée dans le Garage (remplace celui de la scène, voir CarModelSwap)
         CarModelSwap.ApplyEquipped(this);
+        if (GetComponent<BlobShadow>() == null) gameObject.AddComponent<BlobShadow>(); // ombre simple (pas d'ombres en temps réel)
 
         if (body != null)
         {
@@ -698,6 +699,8 @@ public class DriftCar : MonoBehaviour
 
     // ---------- Debug ----------
 
+    // OnGUI est très lent sur téléphone : il n'existe que dans l'éditeur et les builds de développement
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     void OnGUI()
     {
         if (!debugHUD) return;
@@ -712,6 +715,7 @@ public class DriftCar : MonoBehaviour
         GUI.Box(new Rect(10, 10, style.fontSize * 30, style.fontSize * 5f), GUIContent.none);
         GUI.Label(new Rect(20, 15, style.fontSize * 29, style.fontSize * 5f), txt, style);
     }
+#endif
 
     void LateUpdate() => wallContacts = 0;
 }
