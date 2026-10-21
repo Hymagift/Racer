@@ -13,8 +13,8 @@ using static MenuStyle;
 ///   Sous le booster : nom, nombre de blueprints, probabilités par rareté (barre + pourcentages) et bouton d'achat.
 ///   À l'achat : le booster tremble de plus en plus, explose, puis les cartes se retournent une par une
 ///   (suspense et effets plus forts pour les raretés élevées, tampon "DÉBLOQUÉE !", doublons convertis en pièces).
-/// - Garage : toutes les voitures, triées par rareté, avec les blueprints obtenus / nécessaires,
-///   le nombre de blueprints manquants, et le bouton Équiper pour les voitures débloquées.
+/// - Garage : carrousel d'une grande carte par voiture (photo prise par CarThumbnails devant une étoile qui tourne,
+///   selon la rareté), blueprints obtenus / nécessaires, bouton Équiper. Verrouillée : "???" et silhouette noire.
 ///
 /// Retours : sons et vibrations (MenuFx), particules (MenuParticles), animations partout.
 /// Le contenu (voitures, boosters, prix, probabilités) vient de CarCatalog.
@@ -32,8 +32,6 @@ public class BoosterShop : MonoBehaviour
     public bool OverlayOpen => (overlay != null && overlay.activeSelf) || (premium != null && premium.ConfirmOpen);
 
     Text garageCountText;
-    RectTransform carGrid;
-    GridLayoutGroup carGridLayout;
 
     // ---------- Données de la page Invocations ----------
 
@@ -132,24 +130,17 @@ public class BoosterShop : MonoBehaviour
         if (catalog == null) return;
         RefreshBuyButton();
         if (garageCountText != null)
-            garageCountText.text = catalog.UnlockedCount + " / " + catalog.cars.Count + " voitures débloquées";
+            garageCountText.text = catalog.UnlockedCount + " / " + catalog.cars.Count + " VOITURES";
         RebuildGarage();
         RefreshAgainButton();
     }
 
     void LateUpdate()
     {
-        // Garage : 2 colonnes de cartes qui remplissent la largeur de l'écran, quel que soit son format
-        if (carGridLayout != null)
-        {
-            float w = (carGrid.rect.width - carGridLayout.spacing.x) * 0.5f;
-            if (w > 1f && Mathf.Abs(carGridLayout.cellSize.x - w) > 0.5f)
-                carGridLayout.cellSize = new Vector2(w, carGridLayout.cellSize.y);
-        }
-
         float dt = Time.unscaledDeltaTime;
         if (sectionTabs.Count > 0) AnimateTabs(dt);
         if (carousel != null && boostersBody.gameObject.activeInHierarchy && OnScreen(carouselArea)) AnimateInvocations(dt);
+        if (garageCarousel != null && garageArea.gameObject.activeInHierarchy && OnScreen(garageArea)) AnimateGarage(dt);
         if (OverlayOpen) AnimateOverlay(dt);
     }
 
@@ -1165,124 +1156,249 @@ public class BoosterShop : MonoBehaviour
     // ======================================================================
 
     // ---------- Garage ----------
+    // Carrousel comme les boosters : une grande carte par voiture (nom, photo devant une étoile qui tourne,
+    // rareté, bouton Équiper). Voiture verrouillée : "???" et silhouette noire.
+    // Étoile selon la rareté : aucune (commune), 4 branches (rare), 6 (épique), 8 (légendaire).
+
+    class GarageSlot
+    {
+        public CarCatalog.Car car;
+        public RectTransform root, art, star, barFill;
+        public CanvasGroup group;
+        public Text nameText, barText, equipText;
+        public GameObject bar;
+        public Image carFront, carBack;
+        public Button equip;
+        public Image equipFace, equipSide;
+        public float starSpeed, punch;
+        public int index;
+    }
+
+    readonly List<GarageSlot> slots = new List<GarageSlot>();
+    readonly List<GarageSlot> slotOrder = new List<GarageSlot>(); // réutilisée (pas d'allocation)
+    BoosterCarousel garageCarousel;
+    RectTransform garageArea, arrowLeft, arrowRight;
+    CanvasGroup arrowLeftGroup, arrowRightGroup;
+    int frontSlot = -1;
 
     void BuildGarage(RectTransform body)
     {
         InventoryPanel = body.gameObject;
 
-        var pill = Node("Compteur", body);
-        Area(pill, 0.12f, 0.925f, 0.88f, 1f);
-        Rounded(pill, new Color(0f, 0f, 0f, 0.35f), 40f);
-        garageCountText = FitLabel(pill, "", 40, 24, TextAnchor.MiddleCenter, Color.white, 2f);
-        Stretch(garageCountText.rectTransform);
+        garageCountText = FitLabel(body, "", 34, 20, TextAnchor.MiddleCenter, Color.white, 2f);
+        Area(garageCountText.rectTransform, 0.15f, 0.94f, 0.85f, 1f);
 
-        carGrid = VerticalScroll(body, 0f, 0f, 1f, 0.9f);
-        var grid = carGridLayout = carGrid.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(430f, 420f); // largeur ajustée à l'écran dans LateUpdate
-        grid.spacing = new Vector2(28f, 36f);
-        grid.padding = new RectOffset(0, 0, 16, 30);
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 2;
-        grid.childAlignment = TextAnchor.UpperCenter;
-        carGrid.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        garageArea = Node("Carrousel", body);
+        Area(garageArea, -0.05f, 0f, 1.05f, 0.94f);
+        Fill(garageArea, Color.clear).raycastTarget = true; // capte le glissé du doigt
+        garageArea.gameObject.AddComponent<RectMask2D>();
+        Isolate(garageArea, true); // tout bouge à chaque image dans le carrousel : sous-canvas (perf)
+        garageCarousel = garageArea.gameObject.AddComponent<BoosterCarousel>();
+
+        // Voitures par rareté (ordre du catalogue à rareté égale)
+        var cars = new List<CarCatalog.Car>(catalog.cars);
+        var rank = new Dictionary<CarCatalog.Car, int>();
+        for (int i = 0; i < cars.Count; i++) rank[cars[i]] = i;
+        cars.Sort((a, b) => a.rarity != b.rarity ? a.rarity.CompareTo(b.rarity) : rank[a].CompareTo(rank[b]));
+        foreach (var car in cars)
+        {
+            var slot = GarageCard(garageArea, car);
+            slot.index = slots.Count;
+            slots.Add(slot);
+        }
+        garageCarousel.Count = slots.Count;
+        garageCarousel.OnChanged += i =>
+        {
+            MenuFx.Play(MenuFx.Sfx.Tick, 1f + 0.05f * i, 0.6f);
+            if (i >= 0 && i < slots.Count) slots[i].punch = 1f;
+        };
+
+        // Flèches de chaque côté (un appui = voiture suivante / précédente)
+        arrowLeft = GarageArrow(body, false, out arrowLeftGroup);
+        arrowRight = GarageArrow(body, true, out arrowRightGroup);
+
+        // On arrive sur la voiture équipée
+        int start = Mathf.Max(0, slots.FindIndex(s => s.car == catalog.Equipped));
+        garageCarousel.GoTo(start, true);
+    }
+
+    RectTransform GarageArrow(RectTransform parent, bool right, out CanvasGroup group)
+    {
+        var rt = Node(right ? "Flèche droite" : "Flèche gauche", parent);
+        rt.anchorMin = rt.anchorMax = new Vector2(right ? 1f : 0f, 0.55f);
+        rt.sizeDelta = new Vector2(110f, 110f);
+        var img = Fill(rt, Color.white);
+        img.sprite = StarSprite(3, 0.5f, 128, 0.12f); // triangle blanc cerné de noir
+        img.raycastTarget = true;
+        rt.localRotation = Quaternion.Euler(0f, 0f, right ? 0f : 180f);
+        var button = rt.gameObject.AddComponent<Button>();
+        button.transition = Selectable.Transition.None;
+        button.onClick.AddListener(() => garageCarousel.GoTo(garageCarousel.Current + (right ? 1 : -1)));
+        rt.gameObject.AddComponent<ButtonBounce>();
+        group = rt.gameObject.AddComponent<CanvasGroup>();
+        return rt;
+    }
+
+    GarageSlot GarageCard(RectTransform parent, CarCatalog.Car car)
+    {
+        var s = new GarageSlot { car = car };
+        s.root = Node(car.id, parent);
+        s.root.anchorMin = s.root.anchorMax = new Vector2(0.5f, 0.5f);
+        s.root.sizeDelta = new Vector2(760f, 1100f); // ajusté à la page dans AnimateGarage
+        s.group = s.root.gameObject.AddComponent<CanvasGroup>();
+
+        // Nom (ou "???")
+        s.nameText = FitLabel(s.root, "", 84, 40, TextAnchor.MiddleCenter, Color.white, 5f);
+        Area(s.nameText.rectTransform, 0.02f, 0.84f, 0.98f, 0.97f);
+
+        // Étoile qui tourne derrière la voiture (aucune pour les communes)
+        s.art = Node("Voiture", s.root);
+        Area(s.art, 0f, 0.27f, 1f, 0.84f);
+        int branches = car.rarity == CarRarity.Legendaire ? 8 : car.rarity == CarRarity.Epique ? 6 : car.rarity == CarRarity.Rare ? 4 : 0;
+        if (branches > 0)
+        {
+            s.star = Node("Etoile", s.art);
+            s.star.anchorMin = s.star.anchorMax = new Vector2(0.5f, 0.5f);
+            s.star.sizeDelta = new Vector2(720f, 720f);
+            // Teintée à la couleur de la rareté (le contour noir reste noir)
+            Fill(s.star, Color.Lerp(RarityInfo.Color(car.rarity), Color.white, 0.25f)).sprite = StarSprite(branches, branches == 4 ? 0.3f : branches == 6 ? 0.42f : 0.5f);
+            s.starSpeed = branches == 8 ? 40f : branches == 6 ? 30f : 22f;
+        }
+
+        // Photo : silhouette blanche décalée derrière (liseré), puis la voiture ou sa silhouette noire
+        var photo = CarThumbnails.Get(car);
+        var back = Node("Contour", s.art);
+        var front = Node("Photo", s.art);
+        foreach (var rt in new[] { back, front })
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = photo != null ? new Vector2(700f, 438f) : new Vector2(300f, 300f);
+        }
+        back.anchoredPosition = new Vector2(12f, -10f);
+        s.carBack = back.gameObject.AddComponent<Image>();
+        s.carBack.raycastTarget = false;
+        s.carBack.preserveAspect = true;
+        s.carFront = front.gameObject.AddComponent<Image>();
+        s.carFront.raycastTarget = false;
+        s.carFront.preserveAspect = true;
+        // Pas de modèle 3D : une pastille de la couleur de la voiture
+        s.carFront.sprite = photo != null ? photo : Round;
+        s.carBack.sprite = photo != null ? CarThumbnails.GetMask(car) : Round;
+
+        // Blueprints obtenus / nécessaires (voitures verrouillées)
+        var bar = Node("Blueprints", s.root);
+        Area(bar, 0.18f, 0.18f, 0.82f, 0.245f);
+        Rounded(bar, new Color(0f, 0f, 0f, 0.75f), 30f);
+        s.barFill = Node("Fill", bar);
+        Rounded(s.barFill, RarityInfo.Color(car.rarity), 30f);
+        s.barText = FitLabel(bar, "", 34, 18, TextAnchor.MiddleCenter, Color.white, 3f);
+        Stretch(s.barText.rectTransform);
+        s.bar = bar.gameObject;
+
+        // Rareté (en bas à gauche), à la couleur de la rareté
+        var tag = Node("Rareté", s.root);
+        Area(tag, 0.04f, 0.04f, 0.47f, 0.13f);
+        Rounded(tag, RarityInfo.Color(car.rarity), 50f);
+        var tagText = FitLabel(tag, RarityInfo.Name(car.rarity).ToUpper(), 44, 20, TextAnchor.MiddleCenter, Color.white, 3f);
+        Stretch(tagText.rectTransform);
+        tagText.rectTransform.offsetMin = new Vector2(20f, 4f);
+        tagText.rectTransform.offsetMax = new Vector2(-20f, -4f);
+
+        // Équiper (en bas à droite)
+        s.equip = CandyButton(s.root, "ÉQUIPER", Green, () => Equip(car), 44, 120f);
+        s.equip.GetComponent<LayoutElement>().ignoreLayout = true;
+        Area((RectTransform)s.equip.transform, 0.53f, 0.03f, 0.96f, 0.14f);
+        s.equipText = ButtonText(s.equip);
+        s.equipFace = (Image)s.equip.targetGraphic;
+        s.equipSide = s.equip.transform.Find("Relief").GetComponent<Image>();
+        return s;
     }
 
     void RebuildGarage()
     {
-        if (carGrid == null) return;
-        foreach (Transform child in carGrid)
-        {
-            child.gameObject.SetActive(false);
-            Destroy(child.gameObject);
-        }
-
-        // Débloquées d'abord, puis par rareté, puis par progression
-        var cars = new List<CarCatalog.Car>(catalog.cars);
-        cars.Sort((a, b) =>
-        {
-            int c = b.IsUnlocked.CompareTo(a.IsUnlocked);
-            if (c != 0) return c;
-            c = a.rarity.CompareTo(b.rarity);
-            if (c != 0) return c;
-            return a.Missing.CompareTo(b.Missing);
-        });
-
         var equipped = catalog.Equipped;
-        foreach (var car in cars) CarCard(carGrid, car, car == equipped);
+        foreach (var s in slots)
+        {
+            var car = s.car;
+            bool unlocked = car.IsUnlocked, isEquipped = car == equipped;
+            s.nameText.text = unlocked ? car.displayName.ToUpper() : "???";
+
+            // Débloquée : la voiture en couleur ; verrouillée : silhouette noire
+            bool photo = s.carFront.sprite != Round;
+            s.carFront.color = !unlocked ? Color.black : photo ? Color.white : car.color;
+
+            s.bar.SetActive(!unlocked);
+            if (!unlocked)
+            {
+                float ratio = car.blueprintsToUnlock > 0 ? car.Blueprints / (float)car.blueprintsToUnlock : 0f;
+                s.barFill.gameObject.SetActive(ratio > 0f);
+                s.barFill.anchorMin = Vector2.zero;
+                s.barFill.anchorMax = new Vector2(Mathf.Clamp01(ratio), 1f);
+                s.barFill.offsetMin = s.barFill.offsetMax = Vector2.zero;
+                s.barText.text = car.Blueprints + " / " + car.blueprintsToUnlock + " BLUEPRINTS";
+            }
+
+            s.equipText.text = isEquipped ? "ÉQUIPÉE" : unlocked ? "ÉQUIPER" : "BLOQUÉE";
+            s.equip.interactable = unlocked && !isEquipped;
+            s.equipFace.color = isEquipped ? Yellow : unlocked ? Green : new Color(0.45f, 0.45f, 0.55f); // gris = pas disponible
+            s.equipSide.color = Darken(s.equipFace.color, 0.62f);
+            var colors = s.equip.colors;
+            colors.disabledColor = Color.white; // la couleur de la face dit déjà si c'est disponible
+            s.equip.colors = colors;
+        }
     }
 
-    void CarCard(RectTransform parent, CarCatalog.Car car, bool isEquipped)
+    void AnimateGarage(float dt)
     {
-        Color rc = RarityInfo.Color(car.rarity);
-        bool unlocked = car.IsUnlocked;
+        if (slots.Count == 0) return;
+        float t = Time.unscaledTime;
+        float pos = garageCarousel.Position;
+        float width = garageArea.rect.width, height = garageArea.rect.height;
+        garageCarousel.spacing = Mathf.Max(200f, width * 0.78f);
+        var size = new Vector2(Mathf.Min(760f, width * 0.84f), height);
 
-        var card = Card(car.id, parent, unlocked ? Color.Lerp(Navy, rc, 0.45f) : Color.Lerp(Navy, Color.black, 0.3f), 40f, 10f);
-        if (isEquipped)
+        for (int i = 0; i < slots.Count; i++)
         {
-            var glow = card.Find("Fond").gameObject.AddComponent<Outline>();
-            glow.effectColor = Yellow;
-            glow.effectDistance = new Vector2(6f, -6f);
-        }
+            var s = slots[i];
+            float d = i - pos;
+            float ad = Mathf.Min(Mathf.Abs(d), 1f);
+            float w = 1f - ad; // 1 au centre
 
-        // Étiquette de rareté
-        var tag = Node("Rareté", card);
-        Area(tag, 0.05f, 0.83f, 0.6f, 0.95f);
-        Rounded(tag, unlocked ? rc : Darken(rc, 0.5f), 24f);
-        var tagText = FitLabel(tag, RarityInfo.Name(car.rarity).ToUpper(), 30, 18, TextAnchor.MiddleCenter, Color.white, 2f);
-        Stretch(tagText.rectTransform);
+            if ((s.root.sizeDelta - size).sqrMagnitude > 1f) s.root.sizeDelta = size;
+            s.punch = Mathf.MoveTowards(s.punch, 0f, dt * 3.5f);
+            float punch = Mathf.Sin(s.punch * Mathf.PI) * 0.08f;
+            s.root.anchoredPosition = new Vector2(d * garageCarousel.spacing, 0f);
+            s.root.localScale = Vector3.one * (Mathf.Lerp(1f, 0.72f, ad) * (1f + punch));
+            s.group.alpha = Mathf.Lerp(1f, 0.35f, ad);
 
-        // Aperçu de la couleur de la voiture (assombri tant qu'elle est verrouillée)
-        var swatch = Node("Couleur", card);
-        swatch.anchorMin = swatch.anchorMax = new Vector2(0.8f, 0.82f);
-        swatch.sizeDelta = new Vector2(100f, 100f);
-        var ring = Fill(swatch, Color.white);
-        ring.sprite = Round;
-        var inner = Node("Teinte", swatch);
-        Area(inner, 0.1f, 0.1f, 0.9f, 0.9f);
-        Color cc = car.color;
-        Fill(inner, unlocked ? cc : new Color(cc.r * 0.25f, cc.g * 0.25f, cc.b * 0.25f, 1f)).sprite = Round;
-        if (!unlocked) Stretch(Label(inner, "?", 56, TextAnchor.MiddleCenter, Color.white).rectTransform);
-
-        var nameText = FitLabel(card, car.displayName, 44, 24, TextAnchor.MiddleLeft, unlocked ? Color.white : new Color(0.75f, 0.75f, 0.8f), 3f);
-        Area(nameText.rectTransform, 0.06f, 0.56f, 0.94f, 0.78f);
-
-        // Barre de blueprints
-        var bar = Node("Blueprints", card);
-        Area(bar, 0.06f, 0.37f, 0.94f, 0.52f);
-        Rounded(bar, new Color(0f, 0f, 0f, 0.4f), 30f);
-        float ratio = car.blueprintsToUnlock > 0 ? car.Blueprints / (float)car.blueprintsToUnlock : 1f;
-        if (ratio > 0f)
-        {
-            var fill = Node("Fill", bar);
-            fill.anchorMin = Vector2.zero;
-            fill.anchorMax = new Vector2(Mathf.Clamp01(ratio), 1f);
-            fill.offsetMin = fill.offsetMax = Vector2.zero;
-            Rounded(fill, unlocked ? Green : rc, 30f);
-        }
-        var barText = FitLabel(bar, car.Blueprints + " / " + car.blueprintsToUnlock, 32, 18, TextAnchor.MiddleCenter, Color.white, 2f);
-        Stretch(barText.rectTransform);
-
-        if (unlocked)
-        {
-            var b = CandyButton(card, isEquipped ? "ÉQUIPÉE" : "ÉQUIPER", isEquipped ? Yellow : Green, () => Equip(car), 42, 120f, 32f);
-            b.GetComponent<LayoutElement>().ignoreLayout = true;
-            Area((RectTransform)b.transform, 0.06f, 0.05f, 0.94f, 0.31f);
-            b.interactable = !isEquipped;
-            if (isEquipped)
+            if (Mathf.Abs(d) < 1.6f) // les cartes hors de l'écran ne bougent pas
             {
-                // Bouton désactivé mais en couleur : c'est la voiture choisie
-                var colors = b.colors;
-                colors.disabledColor = Color.white;
-                b.colors = colors;
+                if (s.star != null) s.star.localRotation = Quaternion.Euler(0f, 0f, -t * s.starSpeed);
+                s.art.anchoredPosition = new Vector2(0f, Mathf.Sin(t * 2f + i) * 10f * w); // la voiture flotte
             }
         }
-        else
+
+        // La carte la plus proche du centre passe devant (seulement quand elle change)
+        int front = Mathf.Clamp(Mathf.RoundToInt(pos), 0, slots.Count - 1);
+        if (front != frontSlot)
         {
-            int m = car.Missing;
-            string missing = "Manque " + m + (m > 1 ? " blueprints" : " blueprint");
-            var t = FitLabel(card, missing, 36, 20, TextAnchor.MiddleCenter, Orange, 3f);
-            Area(t.rectTransform, 0.04f, 0.06f, 0.96f, 0.3f);
+            frontSlot = front;
+            slotOrder.Clear();
+            slotOrder.AddRange(slots);
+            slotOrder.Sort((a, b) => Mathf.Abs(b.index - front).CompareTo(Mathf.Abs(a.index - front)));
+            for (int i = 0; i < slotOrder.Count; i++) slotOrder[i].root.SetSiblingIndex(i);
         }
+
+        // Flèches : cachées au bout du carrousel, petite pulsation vers l'extérieur
+        int cur = garageCarousel.Current;
+        bool canLeft = cur > 0, canRight = cur < slots.Count - 1;
+        arrowLeftGroup.alpha = Mathf.MoveTowards(arrowLeftGroup.alpha, canLeft ? 1f : 0f, dt * 6f);
+        arrowRightGroup.alpha = Mathf.MoveTowards(arrowRightGroup.alpha, canRight ? 1f : 0f, dt * 6f);
+        arrowLeftGroup.blocksRaycasts = canLeft;
+        arrowRightGroup.blocksRaycasts = canRight;
+        float nudge = Mathf.Sin(t * 4f) * 6f;
+        arrowLeft.anchoredPosition = new Vector2(10f - nudge, 0f);
+        arrowRight.anchoredPosition = new Vector2(-10f + nudge, 0f);
     }
 
     void Equip(CarCatalog.Car car)

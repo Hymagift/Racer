@@ -99,6 +99,53 @@ public static class MenuStyle
         }
     }
 
+    static readonly System.Collections.Generic.Dictionary<int, Sprite> stars = new System.Collections.Generic.Dictionary<int, Sprite>();
+
+    /// <summary>
+    /// Étoile blanche à contour noir, à "branches" pointes (première pointe vers la droite), à teinter avec la couleur de l'Image.
+    /// inner = rayon des creux / rayon des pointes. 3 branches avec inner 0.5 = triangle (flèches).
+    /// </summary>
+    public static Sprite StarSprite(int branches, float inner, int size = 512, float border = 0.035f)
+    {
+        int key = branches * 100000 + Mathf.RoundToInt(inner * 1000f) * 10 + (size > 256 ? 1 : 0);
+        if (stars.TryGetValue(key, out var cached) && cached != null) return cached;
+
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, true)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+            name = "Etoile" + branches,
+        };
+        float sector = Mathf.PI * 2f / branches;
+        const float outer = 0.96f;
+        var a = new Vector2(outer, 0f);
+        var b = new Vector2(Mathf.Cos(sector * 0.5f), Mathf.Sin(sector * 0.5f)) * (outer * inner);
+        var e = b - a;
+        var n = new Vector2(e.y, -e.x).normalized; // vers l'extérieur
+        float px = 2f / size;                      // un pixel en unités de l'étoile (rayon 1)
+        var colors = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                var p = new Vector2((x + 0.5f) / size * 2f - 1f, (y + 0.5f) / size * 2f - 1f);
+                float r = p.magnitude;
+                float ang = Mathf.Repeat(Mathf.Atan2(p.y, p.x), sector);
+                if (ang > sector * 0.5f) ang = sector - ang; // symétrie : une demi-branche suffit
+                var q = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * r;
+                float d = Vector2.Dot(q - a, n);            // < 0 à l'intérieur
+                float alpha = Mathf.Clamp01(0.5f - d / (px * 1.2f));
+                float white = Mathf.Clamp01(0.5f - (d + border) / (px * 1.2f)); // intérieur moins le contour
+                byte v = (byte)(white * 255f);
+                colors[y * size + x] = new Color32(v, v, v, (byte)(alpha * 255f));
+            }
+        tex.SetPixels32(colors);
+        tex.Apply(true, true);
+        var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+        sprite.name = tex.name;
+        stars[key] = sprite;
+        return sprite;
+    }
+
     // ---------- Rects ----------
 
     public static RectTransform Node(string name, Transform parent)
