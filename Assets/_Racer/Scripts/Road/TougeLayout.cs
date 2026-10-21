@@ -76,6 +76,23 @@ public class TougeLayout
     public float tightHairpinSlowdown = 0.4f;
     /// <summary>Accélération latérale visée dans une épingle serrée (m/s²).</summary>
     public float tightHairpinGrip = 7.5f;
+
+    /// <summary>
+    /// ÉPINGLE DE DRIFT : grand U de montagne à 180°, longue ligne droite en entrée, demi-tour régulier assez large
+    /// pour tenir un gros drift tout du long, longue ligne droite parallèle en sortie. Revient régulièrement :
+    /// une tous les driftHairpinEveryMin à driftHairpinEveryMax mètres (0 = jamais).
+    /// </summary>
+    public float driftHairpinEveryMin = 450f, driftHairpinEveryMax = 800f;
+    /// <summary>Distance de la première épingle de drift (m).</summary>
+    public float driftHairpinFirst = 180f;
+    /// <summary>Vitesse visée dans l'épingle de drift (x la vitesse normale) : on lève à peine le pied.</summary>
+    public float driftHairpinSlowdown = 0.85f;
+    /// <summary>Accélération latérale visée dans l'épingle de drift (m/s²) : rayon = vitesse² / driftHairpinGrip.</summary>
+    public float driftHairpinGrip = 9f;
+    /// <summary>Rayon minimum de l'épingle de drift (m).</summary>
+    public float driftHairpinMinRadius = 14f;
+    /// <summary>Longueur des lignes droites d'entrée et de sortie (m).</summary>
+    public float driftHairpinLegMin = 40f, driftHairpinLegMax = 70f;
     /// <summary>Décélération (m/s²) supposée pour placer le début du ralentissement avant une épingle.</summary>
     public float brakeDecel = 2.5f;
     /// <summary>Longueur des branches entre deux épingles (m, le long de la route).</summary>
@@ -118,6 +135,7 @@ public class TougeLayout
     int lastFigure = -1;
     readonly int[] recentFigures = { -1, -1, -1, -1 }; // dernières figures (anti-répétition)
     int figuresSinceBreak;
+    double nextDriftHairpin = double.NaN; // distance de la prochaine épingle de drift
 
     public TougeLayout(int seed)
     {
@@ -369,6 +387,19 @@ public class TougeLayout
 
     void AddFigure()
     {
+        // Épingle de drift : à intervalles réguliers (au hasard entre min et max), pour être sûr d'en croiser
+        if (driftHairpinEveryMax > 0f)
+        {
+            if (double.IsNaN(nextDriftHairpin)) nextDriftHairpin = driftHairpinFirst;
+            if (EndS >= nextDriftHairpin)
+            {
+                DriftHairpin();
+                nextDriftHairpin = EndS + Rand(driftHairpinEveryMin, Math.Max(driftHairpinEveryMin, driftHairpinEveryMax));
+                lastFigure = 7;
+                return;
+            }
+        }
+
         float d = Difficulty;
         float a = MaxAngle;
         float r = Radius(EndS);
@@ -543,6 +574,50 @@ public class TougeLayout
         float exit = Rand(-0.25f, 0.25f) * a;
         AddPieceS(exit, Radius(EndS) * 1.15f, Hold(4f, 10f) / Math.Max(0.3f, (float)Math.Cos(exit * Deg2Rad)));
         lastDir = -side; // le dernier virage ramenait le cap de side * h vers l'axe
+    }
+
+    /// <summary>
+    /// Grand U de drift : virage d'entrée jusqu'au cap ±90° (la route roule en travers), longue ligne droite, demi-tour de 180°
+    /// d'un seul rayon (ni trop serré ni trop large, faisable en drift à presque pleine vitesse), longue ligne droite parallèle
+    /// à la première, puis retour dans l'axe.
+    /// </summary>
+    void DriftHairpin()
+    {
+        float a = MaxAngle;
+        float cur = EndAngleDeg;
+        double x = EndX;
+        int side;
+        if (Math.Abs(cur) > 15f) side = Math.Sign(cur);
+        else if (Math.Abs(x) > 5.0) side = x > 0.0 ? -1 : 1;
+        else side = rng.NextDouble() < 0.5 ? -1 : 1;
+
+        float legMax = Math.Max(driftHairpinLegMin, driftHairpinLegMax);
+        float leg = Rand(driftHairpinLegMin, legMax);
+        if (side * x > recenterDistance * 0.5) leg = driftHairpinLegMin; // déjà loin de ce côté : entrée plus courte
+        AddPieceS(side * 90f, Radius(EndS) * 1.15f, leg);
+
+        // Le U : un seul arc régulier de 180°
+        side = -side;
+        double sStart = EndS;
+        float v = SpeedAt(sStart);
+        float f = Math.Max(0.3f, Math.Min(1f, driftHairpinSlowdown));
+        float vu = v * f + 1.5f;
+        float halfWidth = Lerp(roadWidthStart, roadWidthEnd, DifficultyAt(sStart)) * 0.5f;
+        float r = Math.Max(Math.Max(driftHairpinMinRadius, halfWidth + 4f), vu * vu / Math.Max(1f, driftHairpinGrip));
+        if (minTurnRadiusAt != null) r = Math.Max(r, minTurnRadiusAt(vu) * 1.2f);
+        // Sortie : ligne droite parallèle, un peu plus longue si elle ramène la route vers le centre
+        float exitLeg = Rand(driftHairpinLegMin, legMax) * (side * x < 0.0 ? 1.2f : 1f);
+        AddPieceS(side * 90f, r, exitLeg);
+        if (f < 0.999f)
+        {
+            float vh = v * f;
+            double brake = (v * v - vh * vh) / (2.0 * Math.Max(0.5f, brakeDecel)) + 0.5 * v;
+            slowZones.Add(new SlowZone { start = sStart - brake, arcStart = sStart, end = sStart + Last.arcLen, factor = f });
+        }
+
+        float exit = Rand(-0.25f, 0.25f) * a;
+        AddPieceS(exit, Radius(EndS) * 1.15f, Hold(4f, 10f) / Math.Max(0.3f, (float)Math.Cos(exit * Deg2Rad)));
+        lastDir = -side;
     }
 
     // Longueur d'une branche en travers : plus courte si elle éloigne la route du centre alors qu'elle en est déjà loin
