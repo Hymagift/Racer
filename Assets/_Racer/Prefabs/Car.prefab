@@ -184,6 +184,7 @@ GameObject:
   - component: {fileID: 7575885088910961289}
   - component: {fileID: 7950052872516396795}
   - component: {fileID: 2103015982619995114}
+  - component: {fileID: 5417230968812047316}
   m_Layer: 0
   m_Name: Car
   m_TagString: Untagged
@@ -325,6 +326,37 @@ MonoBehaviour:
   turnSpeed: 50
   steerSmooth: 8
   grip: 0.22
+--- !u!114 &5417230968812047316
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1983388146718347200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc1f9f04007d44429577a0fb361b6109, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  car: {fileID: 2103015982619995114}
+  smokeMaterial: {fileID: 2100000, guid: e2576f33db29434fa8357a8949d15b34, type: 2}
+  rearWheels: []
+  wheelKeywords:
+  - wheel
+  - roue
+  - tire
+  - pneu
+  rearKeywords:
+  - back
+  - rear
+  - arr
+  colorA: {r: 1, g: 1, b: 1, a: 1}
+  colorB: {r: 0.85, g: 0.85, b: 0.85, a: 1}
+  startSize: {x: 0.3, y: 0.55}
+  lifetime: {x: 0.7, y: 1.1}
+  erosionStart: 0.3
+  groundOffset: 0.15
+  maxParticles: 80
 --- !u!1 &2317508761080583549
 GameObject:
   m_ObjectHideFlags: 0
