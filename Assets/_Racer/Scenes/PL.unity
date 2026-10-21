@@ -886,6 +886,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   road: {fileID: 0}
   conePrefab: {fileID: 8363257287648803979, guid: 1ec3c8778b93292469ba3e0c25ba7394, type: 3}
+  hitEffect: {fileID: 8926484042661614526, guid: 844695cda4a377e4e958738faeb1fbdd, type: 3}
   startDistance: 40
   minGap: 15
   maxGap: 35

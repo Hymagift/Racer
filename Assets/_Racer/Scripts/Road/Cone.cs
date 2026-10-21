@@ -13,6 +13,10 @@ using UnityEngine.SceneManagement;
 [RequireComponent(typeof(Collider))]
 public class Cone : MonoBehaviour
 {
+    [Header("Apparence")]
+    [Tooltip("Matériau appliqué au modèle du cône (TrafficCone.mat). Vide : on garde celui du modèle.")]
+    public Material bodyMaterial;
+
     [Header("Éjection")]
     [Tooltip("Vitesse du cône vers l'avant, en multiple de la vitesse de la voiture")]
     public float forwardKick = 1.2f;
@@ -56,6 +60,9 @@ public class Cone : MonoBehaviour
     {
         col = GetComponent<Collider>();
         col.isTrigger = true;
+
+        if (bodyMaterial != null)
+            foreach (var r in GetComponentsInChildren<Renderer>(true)) r.sharedMaterial = bodyMaterial;
     }
 
     // Si le générateur de route réutilise les cônes, ils redeviennent actifs et "neufs"
@@ -81,10 +88,10 @@ public class Cone : MonoBehaviour
             if (score != null) score.OnConeHit();
         }
 
-        Launch(car, other.attachedRigidbody);
+        Launch(car, other.attachedRigidbody, col.ClosestPoint(car.transform.position));
     }
 
-    void Launch(DriftCar car, Rigidbody carRb)
+    void Launch(DriftCar car, Rigidbody carRb, Vector3 hitPoint)
     {
         road = car.road;
         home = transform.parent;
@@ -97,6 +104,8 @@ public class Cone : MonoBehaviour
         Vector3 away = transform.position - car.transform.position;
         away.y = 0f;
         away = away.sqrMagnitude > 0.0001f ? away.normalized : Vector3.zero;
+
+        ConeHitFX.Play(hitPoint, carVel); // petit effet VFX Graph au point d'impact (rien si pas d'effet dans la scène)
 
         Vector3 kick = carVel * forwardKick
                      + away * sideKick

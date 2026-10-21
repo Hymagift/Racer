@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.VFX;
 
 /// <summary>
 /// Place des cônes le long de la route infinie (ZigzagRoadGenerator), au fur et à mesure qu'elle est générée.
@@ -11,6 +12,7 @@ using UnityEngine;
 ///
 /// Mise en place : GameObject vide "ConeSpawner" avec ce script, et assigne le prefab Cone (Assets/_Racer/Prefabs/Cone.prefab).
 /// La route est trouvée automatiquement. Sans prefab, un cube orange avec le script Cone est créé.
+/// Assigne aussi "Hit Effect" (ConeHit.vfx) pour l'effet d'impact (voir ConeHitFX).
 /// </summary>
 public class ConeSpawner : MonoBehaviour
 {
@@ -18,6 +20,8 @@ public class ConeSpawner : MonoBehaviour
     public ZigzagRoadGenerator road;
     [Tooltip("Prefab du cône (doit avoir le script Cone). Facultatif : un cube est créé sinon.")]
     public Cone conePrefab;
+    [Tooltip("Effet VFX Graph joué quand la voiture tape un cône (ConeHit.vfx, événement OnConeHit). Facultatif.")]
+    public VisualEffectAsset hitEffect;
 
     [Header("Placement")]
     [Tooltip("Pas de cône avant cette distance (laisse le temps au joueur de démarrer)")]
@@ -66,6 +70,7 @@ public class ConeSpawner : MonoBehaviour
     {
         nextZ = startDistance;
         road.OnTrackRebased += HandleTrackRebased;
+        if (hitEffect != null) ConeHitFX.Create(road, hitEffect);
     }
 
     void OnDestroy()
