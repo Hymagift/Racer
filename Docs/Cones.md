@@ -7,7 +7,7 @@
 | `Assets/_Racer/Prefabs/Cone.prefab` | Utilise maintenant `Models/cone.fbx` (enfant `Modele`, échelle 2.5 : ~0.9 m de haut, ~0.95 m de base). BoxCollider recalé sur le modèle |
 | `Assets/_Racer/Shaders/TrafficCone.shader` | Shader URP simple : corps orange, 2 bandes blanches légèrement brillantes, socle sombre. Passes ForwardLit, ShadowCaster, DepthOnly, DepthNormals |
 | `Assets/_Racer/Materials/TrafficCone.mat` | Le matériau. Le script `Cone` l'applique au modèle (champ **Body Material** du prefab) |
-| `Assets/_Racer/Scripts/Road/ConeHitFX.cs` | Petit effet d'impact jaune en Particle System, créé par code |
+| `Assets/_Racer/Scripts/Road/ConeHitFX.cs` | Effet d'impact orange→jaune en Particle System, créé par code |
 | `ConeSpawner.cs` | Case **Hit Particles** + matériau : crée l'effet sous le TrackRoot (les particules défilent avec la route) |
 
 ## 0. Vérifier le cône (30 s)
@@ -27,7 +27,7 @@ Ouvre `Cone.prefab` :
 ## 1. Effet d'impact (Particle System)
 
 Plus de VFX Graph : `ConeHitFX` crée tout seul, au lancement, deux Particle Systems sous `TrackRoot`
-(bouffées rondes jaunes + étincelles étirées), avec le matériau `ConeHitParticle.mat`
+(bouffées rondes + étincelles étirées, teintes aléatoires de l'orange au jaune), avec le matériau `ConeHitParticle.mat`
 (shader `Racer/ParticleSoft`, un disque doux sans texture).
 
 - Activer/désactiver : case **Hit Particles** du ConeSpawner (scène `PL`).

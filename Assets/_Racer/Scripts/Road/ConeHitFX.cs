@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Petit effet d'impact jaune (Particle System) quand la voiture tape un cône. Tout est créé par code, rien à monter.
+/// Effet d'impact orange→jaune (Particle System) quand la voiture tape un cône. Tout est créé par code, rien à monter.
 ///
 /// Deux systèmes : des bouffées rondes qui gonflent puis rétrécissent, et des étincelles étirées qui giclent plus loin.
 /// Ils simulent dans l'espace du TrackRoot (simulation space Custom) : les particules défilent avec la route,
@@ -11,19 +11,22 @@ using UnityEngine;
 /// </summary>
 public class ConeHitFX : MonoBehaviour
 {
-    [Header("Couleur")]
-    public Color color = new Color(1f, 0.85f, 0.1f, 1f);
+    [Header("Couleur (chaque particule tire une teinte entre les deux, puis vire à l'orange en fondant)")]
+    public Color colorA = new Color(1f, 0.45f, 0.05f, 1f);   // orange
+    public Color colorB = new Color(1f, 0.88f, 0.1f, 1f);    // jaune
+    [Tooltip("Teinte vers laquelle les particules glissent en fin de vie (multipliée)")]
+    public Color endTint = new Color(1f, 0.6f, 0.35f, 1f);
 
     [Header("Bouffées")]
-    public int puffCount = 8;
-    public Vector2 puffSize = new Vector2(0.25f, 0.45f);
-    public Vector2 puffSpeed = new Vector2(1.5f, 3.5f);
-    public Vector2 puffLifetime = new Vector2(0.3f, 0.45f);
+    public int puffCount = 12;
+    public Vector2 puffSize = new Vector2(0.45f, 0.8f);
+    public Vector2 puffSpeed = new Vector2(2f, 4.5f);
+    public Vector2 puffLifetime = new Vector2(0.35f, 0.55f);
 
     [Header("Étincelles")]
-    public int sparkCount = 12;
-    public Vector2 sparkSize = new Vector2(0.06f, 0.1f);
-    public Vector2 sparkSpeed = new Vector2(5f, 9f);
+    public int sparkCount = 18;
+    public Vector2 sparkSize = new Vector2(0.1f, 0.16f);
+    public Vector2 sparkSpeed = new Vector2(6f, 11f);
     public Vector2 sparkLifetime = new Vector2(0.2f, 0.35f);
 
     [Header("Direction")]
@@ -79,7 +82,7 @@ public class ConeHitFX : MonoBehaviour
         main.simulationSpace = ParticleSystemSimulationSpace.Custom;
         main.customSimulationSpace = road.TrackRoot;
         main.scalingMode = ParticleSystemScalingMode.Hierarchy;
-        main.startColor = color;
+        main.startColor = new ParticleSystem.MinMaxGradient(colorA, colorB); // aléatoire entre orange et jaune
         main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
         main.gravityModifier = stretched ? 1.5f : 0.3f;
         Vector2 size = stretched ? sparkSize : puffSize;
@@ -96,7 +99,7 @@ public class ConeHitFX : MonoBehaviour
         shape.enabled = true;
         shape.shapeType = ParticleSystemShapeType.Cone; // ouvert vers +Z de l'émetteur
         shape.angle = spreadAngle;
-        shape.radius = 0.15f;
+        shape.radius = 0.25f;
 
         // Les bouffées gonflent vite puis fondent, les étincelles rétrécissent
         var sizeOverLife = ps.sizeOverLifetime;
@@ -110,7 +113,7 @@ public class ConeHitFX : MonoBehaviour
         colorOverLife.enabled = true;
         var gradient = new Gradient();
         gradient.SetKeys(
-            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 0.3f), new GradientColorKey(endTint, 1f) },
             new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 0.6f), new GradientAlphaKey(0f, 1f) });
         colorOverLife.color = gradient;
 
