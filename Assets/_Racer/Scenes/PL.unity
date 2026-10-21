@@ -994,11 +994,11 @@ MonoBehaviour:
   terrain: {fileID: 1338708054}
   roadWidth: 9
   roadWidthEnd: 6
-  straightStart: 50
-  maxAngleStart: 40
-  maxAngleEnd: 66
-  distanceToMaxDifficulty: 1500
-  difficultyCurve: 0.9
+  straightStart: 20
+  maxAngleStart: 70
+  maxAngleEnd: 70
+  distanceToMaxDifficulty: 947
+  difficultyCurve: 1.5
   cornerGrip: 6.5
   cornerGripEnd: 10.5
   minCornerRadius: 9
@@ -1011,9 +1011,9 @@ MonoBehaviour:
   minSideLength: 350
   maxSideLength: 800
   minBridgeLength: 50
-  maxBridgeLength: 90
-  sideRampLength: 30
-  gorgeDepth: 45
+  maxBridgeLength: 69.7
+  sideRampLength: 12.3
+  gorgeDepth: 7.2
   deckThickness: 1.4
   pillarSpacing: 18
   pillarDepth: 2

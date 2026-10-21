@@ -107,7 +107,7 @@ MonoBehaviour:
       countersteer: 0.85
       grip: 0.97
       driftGrip: 0.92
-      driftAngle: 0.95
+      driftAngle: 0.6
       driftThreshold: 0.9
       driftEngage: 1.15
       driftRecover: 0.8
@@ -155,12 +155,12 @@ MonoBehaviour:
       steerResponse: 1
       rotationInertia: 1
       countersteer: 1
-      grip: 1
-      driftGrip: 1
-      driftAngle: 1
+      grip: 1.28
+      driftGrip: 1.43
+      driftAngle: 0.77
       driftThreshold: 1
       driftEngage: 1
-      driftRecover: 1
+      driftRecover: 1.55
       driftSpeedKeep: 1
       bodyRoll: 1
   boosters:
@@ -185,7 +185,7 @@ MonoBehaviour:
     - 28
     - 12
     color: {r: 1, g: 0.8, b: 0.2, a: 1}
-    tagline: Plus d'une chance sur quatre d'avoir une Épique
+    tagline: "Plus d'une chance sur quatre d'avoir une \xC9pique"
   - id: diamant
     displayName: Booster Diamant
     price: 1500
@@ -196,9 +196,5 @@ MonoBehaviour:
     - 45
     - 40
     color: {r: 0.45, g: 0.9, b: 1, a: 1}
-    tagline: 40 % de Légendaire, zéro Commune
-  duplicateCoins:
-  - 10
-  - 25
-  - 60
-  - 150
+    tagline: "40 % de L\xE9gendaire, z\xE9ro Commune"
+  duplicateCoins: 0a000000190000003c00000096000000
