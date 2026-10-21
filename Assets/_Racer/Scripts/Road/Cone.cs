@@ -105,7 +105,7 @@ public class Cone : MonoBehaviour
         away.y = 0f;
         away = away.sqrMagnitude > 0.0001f ? away.normalized : Vector3.zero;
 
-        ConeHitFX.Play(hitPoint, carVel); // petit effet VFX Graph au point d'impact (rien si pas d'effet dans la scène)
+        ConeHitFX.Play(hitPoint, carVel); // petit effet jaune (Particle System) au point d'impact
 
         Vector3 kick = carVel * forwardKick
                      + away * sideKick
