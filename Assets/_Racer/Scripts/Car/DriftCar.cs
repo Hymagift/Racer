@@ -231,6 +231,7 @@ public class DriftCar : MonoBehaviour
         // Modèle 3D de la voiture équipée dans le Garage (remplace celui de la scène, voir CarModelSwap)
         CarModelSwap.ApplyEquipped(this);
         if (GetComponent<BlobShadow>() == null) gameObject.AddComponent<BlobShadow>(); // ombre simple (pas d'ombres en temps réel)
+        if (GetComponent<ChaseCamera>() == null) gameObject.AddComponent<ChaseCamera>(); // caméra toujours derrière la voiture
 
         if (body != null)
         {
