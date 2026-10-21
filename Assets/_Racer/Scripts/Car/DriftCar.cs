@@ -60,9 +60,9 @@ public class DriftCar : MonoBehaviour
     [Tooltip("Adhérence avant (coefficient de friction)")]
     public float frontGrip = 1.15f;
     [Tooltip("Adhérence arrière normale")]
-    public float rearGrip = 1.3f;
+    public float rearGrip = 1.18f;
     [Tooltip("Adhérence arrière en drift. Plus bas = l'arrière glisse plus.")]
-    public float rearDriftGrip = 0.55f;
+    public float rearDriftGrip = 0.47f;
 
     [Header("Direction")]
     [Tooltip("Angle de braquage max à basse vitesse (degrés)")]
@@ -100,22 +100,22 @@ public class DriftCar : MonoBehaviour
     [Tooltip("Contre-braquage automatique max (degrés). Il plafonne en douceur : plus de bascule d'un coup en contre-braquage complet.")]
     public float maxCountersteer = 18f;
     [Tooltip("Angle de drift max (degrés). Au-delà, la rotation est freinée en douceur.")]
-    public float maxDriftAngle = 40f;
+    public float maxDriftAngle = 44f;
     public float angleLimitStrength = 8f;
     [Tooltip("Vitesse à partir de laquelle braquer fort déclenche le drift")]
     public float minDriftSpeed = 7f;
     [Range(0f, 1f)]
     [Tooltip("Braquage (0..1) à partir duquel l'arrière commence à décrocher")]
-    public float driftStartSteer = 0.45f;
+    public float driftStartSteer = 0.38f;
     [Range(0f, 1f)]
     [Tooltip("Braquage (0..1) pour un drift complet. Entre les deux, l'arrière décroche en proportion du braquage.")]
     public float driftFullSteer = 0.95f;
     [Tooltip("Vitesse à laquelle l'arrière décroche quand on braque")]
-    public float driftEngageRate = 1.3f;
+    public float driftEngageRate = 1.7f;
     [Tooltip("Vitesse à laquelle l'arrière se raccroche quand on relâche")]
-    public float driftReleaseRate = 1.8f;
+    public float driftReleaseRate = 1.4f;
     [Tooltip("Stabilise la rotation quand on ne touche pas l'écran")]
-    public float yawDampingNoInput = 4f;
+    public float yawDampingNoInput = 3f;
     [Tooltip("Rotation max (degrés/s)")]
     public float maxYawRate = 120f;
 
@@ -144,6 +144,9 @@ public class DriftCar : MonoBehaviour
     public bool debugHUD = true;
 
     [Header("Menu / autopilote")]
+    [Tooltip("Pendant le pilote auto : l'arrière ne décroche pas et accroche au moins autant que rearGrip de pilote auto (son drift est visuel, voir styleDrift). Il reste sûr même sur la route la plus dure.")]
+    public bool autopilotGrip = true;
+    public float autopilotRearGrip = 1.3f;
     public bool useExternalInput;
     public float externalInput;   // -1 gauche, 0 rien, 1 droite (valeurs intermédiaires = braquage partiel)
 
@@ -408,7 +411,7 @@ public class DriftCar : MonoBehaviour
         // Déclenchement du drift : l'arrière décroche EN PROPORTION du braquage (à vitesse suffisante),
         // au lieu de tout ou rien : un petit coup de doigt = légère glisse, doigt au bord = gros drift
         float driftTarget = 0f;
-        if (vel.magnitude > minDriftSpeed)
+        if (vel.magnitude > minDriftSpeed && !(useExternalInput && autopilotGrip))
         {
             float t = Mathf.InverseLerp(driftStartSteer, Mathf.Max(driftStartSteer + 0.01f, driftFullSteer), Mathf.Abs(steerInput));
             driftTarget = t * t * (3f - 2f * t); // départ et arrivée en douceur
@@ -460,7 +463,8 @@ public class DriftCar : MonoBehaviour
         float L = frontAxle + rearAxle;
         const float g = 9.81f;
         float maxF = frontGrip * mass * g * rearAxle / L;
-        float maxR = Mathf.Lerp(rearGrip, rearDriftGrip, driftFactor) * mass * g * frontAxle / L;
+        float baseRear = useExternalInput && autopilotGrip ? Mathf.Max(rearGrip, autopilotRearGrip) : rearGrip;
+        float maxR = Mathf.Lerp(baseRear, rearDriftGrip, driftFactor) * mass * g * frontAxle / L;
 
         // --- Forces latérales des pneus (saturation douce : pas de cassure brutale quand ça décroche)
         float slipF = Mathf.Atan2(vLat + yawRate * frontAxle, vRef) - steer;

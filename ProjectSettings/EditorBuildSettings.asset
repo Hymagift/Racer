@@ -15,6 +15,8 @@ EditorBuildSettings:
     path: Assets/_Racer/Scenes/Tests/Pilou Controler test.unity
     guid: 99c9720ab356a0642a771bea13969a05
   m_configObjects:
+    com.unity.adaptiveperformance.google.android.provider_settings: {fileID: 11400000, guid: 0555cdbe79ca8754f9a1449f8a7c7e61, type: 2}
+    com.unity.adaptiveperformance.loader_settings: {fileID: 11400000, guid: cf76234514b0ca649a78e73dfb5214ea, type: 2}
     com.unity.adaptiveperformance.simulator.provider_settings: {fileID: 11400000, guid: 20d1e67cf36c53f4fa370a685d178a3d, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

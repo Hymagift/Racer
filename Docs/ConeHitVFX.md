@@ -4,7 +4,7 @@
 
 | Fichier | Rôle |
 |---|---|
-| `Assets/_Racer/Prefabs/Cone.prefab` | Utilise maintenant `Models/cone.fbx` (enfant `Visual`, échelle 2.5 : ~0.9 m de haut, ~0.95 m de base). BoxCollider recalé sur le modèle |
+| `Assets/_Racer/Prefabs/Cone.prefab` | Utilise maintenant `Models/cone.fbx` (enfant `Modele`, échelle 2.5 : ~0.9 m de haut, ~0.95 m de base). BoxCollider recalé sur le modèle |
 | `Assets/_Racer/Shaders/TrafficCone.shader` | Shader URP simple : corps orange, 2 bandes blanches légèrement brillantes, socle sombre. Passes ForwardLit, ShadowCaster, DepthOnly, DepthNormals |
 | `Assets/_Racer/Materials/TrafficCone.mat` | Le matériau. Le script `Cone` l'applique au modèle (champ **Body Material** du prefab) |
 | `Assets/_Racer/Scripts/Road/ConeHitFX.cs` | Envoie l'événement `OnConeHit` au VFX Graph à chaque impact, avec la position et la vitesse |
@@ -17,12 +17,12 @@ Tant que **Hit Effect** est vide, rien ne se passe à l'impact : rien ne casse.
 Ouvre `Cone.prefab` :
 
 - Le cône doit être **debout**, socle en bas, posé à la base du collider vert. S'il est couché ou trop
-  petit/grand, ajuste seulement l'objet `Visual` (rotation, échelle, Y).
+  petit/grand, ajuste seulement l'objet `Modele` (rotation, échelle, Y).
 - Si l'aperçu est gris, c'est normal dans l'éditeur (le matériau est posé au lancement). Pour le voir
   tout de suite : glisse `TrafficCone.mat` sur l'objet `cone`.
 - **Si les bandes sont verticales au lieu d'horizontales** : dans `TrafficCone.mat`, mets
   **Axe vertical du mesh** à `(0, 1, 0)` (au lieu de `(0, 0, 1)`).
-- Si les bandes sont décalées (après un changement d'échelle de `Visual`), règle **Haut du socle** et
+- Si les bandes sont décalées (après un changement d'échelle de `Modele`), règle **Haut du socle** et
   **Pointe** : ce sont des mètres depuis le pivot du mesh (valeurs actuelles pour l'échelle 2.5 :
   -0.16 et 0.66). Les bandes se règlent avec **Bande basse / Bande haute** (début, fin entre 0 et 1).
 

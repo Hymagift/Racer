@@ -28,8 +28,10 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public LowPolyTerrainGenerator terrain;
 
     [Header("Forme de la route")]
-    [Tooltip("Largeur de la route (mesurée perpendiculairement à la route, même dans les diagonales)")]
-    public float roadWidth = 8f;
+    [Tooltip("Largeur de la route au départ (mesurée perpendiculairement à la route, même dans les diagonales)")]
+    public float roadWidth = 9f;
+    [Tooltip("Largeur de la route à la difficulté max : elle rétrécit petit à petit")]
+    public float roadWidthEnd = 6f;
 
     [Header("Tracé touge")]
     [Tooltip("Ligne droite au départ (m)")]
@@ -37,17 +39,23 @@ public class ZigzagRoadGenerator : MonoBehaviour
     [Tooltip("Angle max de la route (degrés) au début. Plus grand = virages plus prononcés")]
     [Range(10f, 70f)] public float maxAngleStart = 40f;
     [Tooltip("Angle max de la route (degrés) à la difficulté max. Une épingle fait 2x cet angle (60 -> 120°)")]
-    [Range(10f, 70f)] public float maxAngleEnd = 60f;
+    [Range(10f, 70f)] public float maxAngleEnd = 66f;
     [Tooltip("Distance parcourue pour atteindre la difficulté max (angles max, épingles et S fréquents)")]
-    public float distanceToMaxDifficulty = 1500f;
+    public float distanceToMaxDifficulty = 900f;
+    [Tooltip("Forme de la montée de difficulté : 1 = régulière, plus petit = difficile plus tôt")]
+    [Range(0.3f, 1.5f)] public float difficultyCurve = 0.75f;
     [Tooltip("Accélération latérale visée dans les virages (m/s²). Rayon = vitesse² / cornerGrip. Plus grand = virages plus serrés (plus dur)")]
-    public float cornerGrip = 8f;
+    public float cornerGrip = 6.5f;
+    [Tooltip("Même chose à la difficulté max : les virages se resserrent petit à petit (au-delà de ~11, injouable)")]
+    public float cornerGripEnd = 10.5f;
     [Tooltip("Rayon de virage minimum (m)")]
     public float minCornerRadius = 8f;
     [Tooltip("Au-delà de cet écart latéral (m), les virages ramènent la route vers le centre")]
     public float recenterDistance = 40f;
     [Tooltip("Une courte ligne droite de répit toutes les N figures environ (0 = jamais). Plus grand = plus dur")]
-    public int figuresBetweenBreaks = 8;
+    public int figuresBetweenBreaks = 5;
+    [Tooltip("Même chose à la difficulté max : les lignes droites deviennent rares (et plus courtes)")]
+    public int figuresBetweenBreaksEnd = 18;
 
     [Header("Touge : côté du vide et ponts")]
     [Tooltip("Côté du vide (falaise) au départ : -1 = à gauche (montagne à droite), 1 = à droite")]
@@ -293,10 +301,13 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 maxAngleStart = maxAngleStart,
                 maxAngleEnd = maxAngleEnd,
                 distanceToMaxDifficulty = distanceToMaxDifficulty,
+                difficultyCurve = difficultyCurve,
                 cornerGrip = cornerGrip,
+                cornerGripEnd = cornerGripEnd,
                 minRadius = minCornerRadius,
                 recenterDistance = recenterDistance,
                 figuresBetweenBreaks = figuresBetweenBreaks,
+                figuresBetweenBreaksEnd = figuresBetweenBreaksEnd,
                 speedAt = car == null ? null : (Func<double, float>)(z =>
                     Mathf.Lerp(car.startSpeed, car.maxSpeed, (float)(z / Math.Max(1f, car.speedRampDistance)))),
             };
@@ -400,7 +411,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
             float x = GetCenterX(z);
             float y = RoadHeightAt(z); // la route suit le relief (plate dans la largeur)
             float k = WidthScale(z);
-            float hw = roadWidth * 0.5f * k;
+            float hw = WidthAt(z) * 0.5f * k;
 
             // Les bords de la route sont décalés en X pur : le terrain utilise exactement les mêmes points,
             // donc la roche et la falaise se raccordent parfaitement au bord de la route.
@@ -581,7 +592,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
             Vector3 forward = new Vector3(slope, 0f, 1f).normalized;
             Vector3 side = new Vector3(forward.z, 0f, -forward.x); // à droite du sens de la route
             Vector3 top = new Vector3(x, y - deck, z - startZ);
-            AddPillar(verts, tris, top, side, forward, roadWidth * 0.3f, Mathf.Max(0.5f, pillarDepth) * 0.5f, gorgeDepth + 15f);
+            AddPillar(verts, tris, top, side, forward, WidthAt(z) * 0.3f, Mathf.Max(0.5f, pillarDepth) * 0.5f, gorgeDepth + 15f);
         }
 
         if (verts.Count == 0) return null;
@@ -702,7 +713,13 @@ public class ZigzagRoadGenerator : MonoBehaviour
     /// Demi-largeur de la route mesurée en X à un Z "piste". Égale à roadWidth / 2 en ligne droite,
     /// plus grande dans les diagonales (les bords sont décalés en X pur). À utiliser à la place de roadWidth * 0.5f.
     /// </summary>
-    public float HalfWidthXAt(float trackZ) => roadWidth * 0.5f * WidthScale(trackZ);
+    public float HalfWidthXAt(float trackZ) => WidthAt(trackZ) * 0.5f * WidthScale(trackZ);
+
+    /// <summary>Largeur de la route (perpendiculairement) à un Z "piste" : de roadWidth au départ à roadWidthEnd à la difficulté max.</summary>
+    public float WidthAt(float trackZ) => Mathf.Lerp(roadWidth, roadWidthEnd, Layout.DifficultyAt(originZ + trackZ));
+
+    /// <summary>Difficulté de la route (0 = départ, 1 = max) à un Z "piste".</summary>
+    public float DifficultyAt(float trackZ) => Layout.DifficultyAt(originZ + trackZ);
 
     /// <summary>Altitude de la route à un Z "piste". 0 s'il n'y a pas de terrain.</summary>
     public float RoadHeightAt(float trackZ) => terrain != null ? terrain.BaseHeight(GetCenterX(trackZ), trackZ) : 0f;
