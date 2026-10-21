@@ -406,6 +406,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         var right = new Vector3[rows];
         var rightDir = new Vector3[rows];
         var uvs = new Vector2[rows * 2];
+        var uvs2 = new Vector2[rows * 2]; // x = largeur de la route (m) : le shader RoadLines place ses lignes avec
         var voidL = new float[rows];
         var voidR = new float[rows];
         var bridge = new float[rows];
@@ -431,6 +432,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
             float v = (z + uvOffset) / uvTileLength;
             uvs[r * 2] = new Vector2(0f, v);
             uvs[r * 2 + 1] = new Vector2(1f, v);
+            uvs2[r * 2] = uvs2[r * 2 + 1] = new Vector2(WidthAt(z), 0f);
         }
 
         // ----- Mesh visuel : une simple bande (gauche/droite) -----
@@ -452,6 +454,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         visualMesh = new Mesh { name = "RoadChunkMesh" };
         visualMesh.vertices = vertices;
         visualMesh.uv = uvs;
+        visualMesh.uv2 = uvs2;
         visualMesh.triangles = triangles;
         visualMesh.RecalculateNormals();
         visualMesh.RecalculateBounds();
