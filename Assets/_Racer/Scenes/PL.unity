@@ -986,16 +986,31 @@ MonoBehaviour:
   player: {fileID: 181816594}
   roadMaterial: {fileID: 2100000, guid: 42f2a4b4d6dd8a9489aba11ae1b22f8d, type: 2}
   terrain: {fileID: 1338708054}
-  roadWidth: 8
+  roadWidth: 9
+  roadWidthEnd: 6
   straightStart: 50
   maxAngleStart: 40
-  maxAngleEnd: 60
+  maxAngleEnd: 66
   distanceToMaxDifficulty: 1500
-  cornerGrip: 8
-  minCornerRadius: 8
+  difficultyCurve: 0.9
+  cornerGrip: 6.5
+  cornerGripEnd: 10.5
+  minCornerRadius: 9
   recenterDistance: 40
-  figuresBetweenBreaks: 8
+  figuresBetweenBreaks: 5
+  figuresBetweenBreaksEnd: 18
   cliffSide: -1
+  switchSides: 1
+  firstSideLength: 450
+  minSideLength: 350
+  maxSideLength: 800
+  minBridgeLength: 50
+  maxBridgeLength: 90
+  sideRampLength: 30
+  gorgeDepth: 45
+  deckThickness: 1.4
+  pillarSpacing: 18
+  pillarDepth: 2
   segmentLength: 2
   segmentsPerChunk: 15
   viewDistance: 150

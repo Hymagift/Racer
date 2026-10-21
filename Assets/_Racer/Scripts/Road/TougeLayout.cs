@@ -22,18 +22,24 @@ public class TougeLayout
 
     /// <summary>Ligne droite au départ (m).</summary>
     public float straightStart = 50f;
-    /// <summary>Distance pour atteindre la difficulté max (angles max, épingles et S fréquents).</summary>
-    public float distanceToMaxDifficulty = 1500f;
+    /// <summary>Distance pour atteindre la difficulté max. La difficulté monte vite au début puis plus doucement.</summary>
+    public float distanceToMaxDifficulty = 900f;
+    /// <summary>Forme de la montée : 1 = linéaire, plus petit = difficile plus tôt.</summary>
+    public float difficultyCurve = 0.75f;
     /// <summary>Angle max de la route par rapport à l'axe (degrés) au début / à la difficulté max.</summary>
-    public float maxAngleStart = 40f, maxAngleEnd = 60f;
-    /// <summary>Rayon de virage minimum absolu (m).</summary>
-    public float minRadius = 8f;
-    /// <summary>Accélération latérale visée dans les virages serrés (m/s²) : rayon = vitesse² / cornerGrip.</summary>
-    public float cornerGrip = 8f;
+    public float maxAngleStart = 40f, maxAngleEnd = 66f;
+    /// <summary>Rayon de virage minimum absolu (m), au début / à la difficulté max.</summary>
+    public float minRadius = 9f, minRadiusEnd = 6f;
+    /// <summary>Accélération latérale visée dans les virages (m/s²) au début / à la difficulté max : rayon = vitesse² / cornerGrip.</summary>
+    public float cornerGrip = 6.5f, cornerGripEnd = 10.5f;
+    /// <summary>Longueur des portions droites entre deux virages, au début / à la difficulté max (x la longueur normale).</summary>
+    public float holdScaleStart = 1.3f, holdScaleEnd = 0.35f;
     /// <summary>Écart latéral (m) à partir duquel les virages ramènent nettement la route vers x = 0.</summary>
     public float recenterDistance = 40f;
-    /// <summary>Nombre moyen de figures entre deux courtes lignes droites de répit (0 = jamais de répit).</summary>
-    public int figuresBetweenBreaks = 8;
+    /// <summary>Figures entre deux lignes droites de répit, au début / à la difficulté max (0 = jamais de répit).</summary>
+    public int figuresBetweenBreaks = 5, figuresBetweenBreaksEnd = 18;
+    /// <summary>Longueur d'une ligne droite de répit (m) au début / à la difficulté max.</summary>
+    public float breakLengthStart = 24f, breakLengthEnd = 8f;
     /// <summary>Vitesse de la voiture (m/s) à une distance donnée, pour calculer les rayons. Null = 12 m/s.</summary>
     public Func<double, float> speedAt;
 
@@ -134,32 +140,48 @@ public class TougeLayout
 
     float Rand(float a, float b) => a + (b - a) * (float)rng.NextDouble();
 
-    /// <summary>Rayon de virage faisable à la vitesse prévue à cet endroit.</summary>
-    float Radius(double z)
+    static float Lerp(float a, float b, float t) => a + (b - a) * Math.Max(0f, Math.Min(1f, t));
+
+    /// <summary>Difficulté (0 = départ, 1 = max) à un z absolu. Sert aussi à la largeur de la route.</summary>
+    public float DifficultyAt(double z)
     {
-        float v = speedAt != null ? speedAt(z) : 12f;
-        return Math.Max(minRadius, v * v / Math.Max(1f, cornerGrip));
+        double t = Math.Min(1.0, Math.Max(0.0, z / Math.Max(1f, distanceToMaxDifficulty)));
+        return (float)Math.Pow(t, Math.Max(0.1f, difficultyCurve));
     }
 
-    float Difficulty => (float)Math.Min(1.0, Math.Max(0.0, EndZ / Math.Max(1f, distanceToMaxDifficulty)));
-    float MaxAngle => maxAngleStart + (maxAngleEnd - maxAngleStart) * Difficulty;
+    /// <summary>Rayon de virage faisable à la vitesse prévue à cet endroit (de plus en plus serré avec la difficulté).</summary>
+    float Radius(double z)
+    {
+        float d = DifficultyAt(z);
+        float v = speedAt != null ? speedAt(z) : 12f;
+        float grip = Lerp(cornerGrip, cornerGripEnd, d);
+        return Math.Max(Lerp(minRadius, minRadiusEnd, d), v * v / Math.Max(1f, grip));
+    }
+
+    float Difficulty => DifficultyAt(EndZ);
+    float MaxAngle => Lerp(maxAngleStart, maxAngleEnd, Difficulty);
+
+    // Longueur d'une portion droite : de plus en plus courte avec la difficulté
+    float Hold(float min, float max) => Rand(min, max) * Lerp(holdScaleStart, holdScaleEnd, Difficulty);
 
     void AddFigure()
     {
         float d = Difficulty;
         float a = MaxAngle;
         float r = Radius(EndZ);
+        int breakEvery = figuresBetweenBreaks <= 0 ? 0 : (int)Math.Round(Lerp(figuresBetweenBreaks, Math.Max(figuresBetweenBreaks, figuresBetweenBreaksEnd), d));
 
         // 0 virage serré, 1 épingle, 2 double épingle, 3 S, 4 chicane, 5 virage qui se referme, 6 répit
+        // Avec la difficulté : moins de virages simples, beaucoup plus d'épingles, de S et de chicanes
         float[] w =
         {
-            2.0f,
-            2.0f + 1.5f * d,
-            0.4f + 1.6f * d,
-            2.0f + 1.0f * d,
-            1.5f,
-            1.2f,
-            figuresBetweenBreaks > 0 && figuresSinceBreak >= figuresBetweenBreaks ? 4f : 0f,
+            Lerp(2.5f, 0.8f, d),
+            Lerp(1.5f, 3.5f, d),
+            Lerp(0.2f, 2.8f, d),
+            Lerp(1.5f, 3.5f, d),
+            Lerp(1.0f, 2.5f, d),
+            Lerp(1.0f, 1.5f, d),
+            breakEvery > 0 && figuresSinceBreak >= breakEvery ? 6f : 0f,
         };
         if (lastFigure >= 0 && lastFigure < w.Length && lastFigure != 3) w[lastFigure] *= 0.5f; // un peu de variété
         int fig = Pick(w);
@@ -169,42 +191,45 @@ public class TougeLayout
         switch (fig)
         {
             case 0: // virage serré
-                Turn(NextDir(), 0.7f * a, 1.5f * a, r * Rand(1.1f, 1.4f), Rand(3f, 9f));
+                Turn(NextDir(), 0.7f * a, 1.5f * a, r * Rand(1.1f, 1.4f), Hold(3f, 9f));
                 break;
 
             case 1: // épingle : bascule d'un bord à l'autre (jusqu'à 2 x l'angle max)
-                Hairpin(a, r, Rand(3f, 9f));
+                Hairpin(a, r, Hold(3f, 9f));
                 break;
 
             case 2: // double épingle : gauche-droite (ou droite-gauche) collées
-                Hairpin(a, r, Rand(2f, 6f));
-                Hairpin(a, r, Rand(3f, 9f));
+                Hairpin(a, r, Hold(2f, 6f));
+                Hairpin(a, r, Hold(3f, 9f));
                 break;
 
-            case 3: // enchaînement en S : 3 à 6 virages alternés, presque sans ligne droite
+            case 3: // enchaînement en S : de 3 virages au début jusqu'à 7 à la difficulté max, presque sans ligne droite
             {
-                int n = 3 + rng.Next(3 + (int)Math.Round(d));
+                int n = 3 + rng.Next(1 + (int)Math.Round(4f * d));
                 for (int i = 0; i < n; i++)
-                    Turn(NextDir(), 0.6f * a, 1.3f * a, r * Rand(1f, 1.25f), Rand(0.5f, 4f));
+                    Turn(NextDir(), 0.6f * a, 1.3f * a, r * Rand(1f, 1.25f), Hold(0.5f, 4f));
                 break;
             }
 
             case 4: // chicane : deux coups de volant secs et rapprochés
-                Turn(NextDir(), 0.6f * a, 1.0f * a, r * Rand(0.9f, 1.1f), Rand(0f, 2f));
-                Turn(NextDir(), 0.6f * a, 1.0f * a, r * Rand(0.9f, 1.1f), Rand(3f, 8f));
+                Turn(NextDir(), 0.6f * a, 1.0f * a, r * Rand(0.9f, 1.1f), Hold(0f, 2f));
+                Turn(NextDir(), 0.6f * a, 1.0f * a, r * Rand(0.9f, 1.1f), Hold(3f, 8f));
                 break;
 
             case 5: // virage qui se referme : rayon large puis serré, dans le MÊME sens
             {
                 int dir = NextDir();
-                if (Turn(dir, 0.35f * a, 0.6f * a, r * 2f, Rand(0f, 3f)))
-                    Turn(dir, 0.35f * a, 1.0f * a, r, Rand(3f, 8f), keepDir: true, cross: false);
+                if (Turn(dir, 0.35f * a, 0.6f * a, r * 2f, Hold(0f, 3f)))
+                    Turn(dir, 0.35f * a, 1.0f * a, r, Hold(3f, 8f), keepDir: true, cross: false);
                 break;
             }
 
-            case 6: // répit : courte ligne droite (le cap revient presque dans l'axe)
-                Turn(-Math.Sign(EndAngleDeg) == 0 ? NextDir() : -Math.Sign(EndAngleDeg), 0f, Math.Abs(EndAngleDeg), r * 1.5f, Rand(12f, 22f), toward: 0f, cross: false);
+            case 6: // répit : ligne droite (de plus en plus courte), le cap revient presque dans l'axe
+            {
+                float len = Lerp(breakLengthStart, breakLengthEnd, d) * Rand(0.8f, 1.2f);
+                Turn(-Math.Sign(EndAngleDeg) == 0 ? NextDir() : -Math.Sign(EndAngleDeg), 0f, Math.Abs(EndAngleDeg), r * 1.5f, len, toward: 0f, cross: false);
                 break;
+            }
         }
     }
 
