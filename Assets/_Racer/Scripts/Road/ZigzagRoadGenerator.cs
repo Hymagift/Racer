@@ -79,15 +79,6 @@ public class ZigzagRoadGenerator : MonoBehaviour
     [Tooltip("Vitesse visée dans une épingle (x la vitesse normale) : la voiture lève le pied avant et réaccélère après. " +
              "1 = pas de ralentissement (les épingles deviennent très larges)")]
     [Range(0.4f, 1f)] public float hairpinSlowdown = 0.7f;
-    [Tooltip("Probabilité (à la difficulté max, x0.4 au début) qu'une épingle soit SERRÉE, type demi-tour de montagne : " +
-             "gros ralentissement et rayon très court. 0 = jamais")]
-    [Range(0f, 1f)] public float tightHairpinChance = 0.35f;
-    [Tooltip("Rayon minimum d'une épingle serrée (m, au centre de la route). Jamais moins que le braquage de la voiture")]
-    public float tightHairpinRadius = 8f;
-    [Tooltip("Vitesse visée dans une épingle serrée (x la vitesse normale)")]
-    [Range(0.2f, 1f)] public float tightHairpinSlowdown = 0.4f;
-    [Tooltip("Accélération latérale visée dans une épingle serrée (m/s²). Plus grand = encore plus serré")]
-    public float tightHairpinGrip = 7.5f;
     [Tooltip("Longueur des branches en travers entre deux épingles (m, au hasard entre min et max)")]
     public float legLengthMin = 22f;
     public float legLengthMax = 45f;
@@ -401,10 +392,6 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 hairpinGrip = hairpinGrip,
                 minHairpinRadius = minHairpinRadius,
                 hairpinSlowdown = hairpinSlowdown,
-                tightHairpinChance = tightHairpinChance,
-                tightHairpinRadius = tightHairpinRadius,
-                tightHairpinSlowdown = tightHairpinSlowdown,
-                tightHairpinGrip = tightHairpinGrip,
                 legLengthMin = legLengthMin,
                 legLengthMax = Mathf.Max(legLengthMin, legLengthMax),
                 maxLacets = maxLacets,

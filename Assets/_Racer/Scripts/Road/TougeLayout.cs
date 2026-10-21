@@ -14,7 +14,6 @@ using System.Collections.Generic;
 /// Le cap reste toujours entre -90° et +90° (0 = vers +Z) : la route ne recule jamais en Z, donc elle ne peut pas se recouper,
 /// mais elle peut rouler en travers (branches de lacets) et faire de vrais demi-tours (de +90° à -90° = 180°).
 /// Le rayon est choisi pour que le virage reste faisable à la vitesse de la voiture à cet endroit ;
-/// de temps en temps, une épingle à 180° est SERRÉE (demi-tour de montagne, rayon ~8-9 m, gros ralentissement) ;
 /// avant une épingle à 180°, une zone de ralentissement (SpeedFactor) fait lever le pied à la voiture.
 ///
 /// Classe C# simple (pas un MonoBehaviour), utilisée par ZigzagRoadGenerator. Entièrement déterministe pour une seed.
@@ -65,17 +64,6 @@ public class TougeLayout
     public float minHairpinRadius = 10f;
     /// <summary>Vitesse visée dans une épingle (x la vitesse normale). 1 = la voiture ne ralentit pas (épingles très larges).</summary>
     public float hairpinSlowdown = 0.7f;
-    /// <summary>
-    /// Probabilité (à la difficulté max) qu'une épingle à 180° soit une épingle SERRÉE de montagne : la voiture ralentit fort
-    /// et tourne presque sur place. Plus rare au début (x 0.4). 0 = jamais.
-    /// </summary>
-    public float tightHairpinChance = 0.35f;
-    /// <summary>Rayon minimum d'une épingle serrée (m, au centre de la route).</summary>
-    public float tightHairpinRadius = 8f;
-    /// <summary>Vitesse visée dans une épingle serrée (x la vitesse normale).</summary>
-    public float tightHairpinSlowdown = 0.4f;
-    /// <summary>Accélération latérale visée dans une épingle serrée (m/s²).</summary>
-    public float tightHairpinGrip = 7.5f;
     /// <summary>Décélération (m/s²) supposée pour placer le début du ralentissement avant une épingle.</summary>
     public float brakeDecel = 2.5f;
     /// <summary>Longueur des branches entre deux épingles (m, le long de la route).</summary>
@@ -341,12 +329,11 @@ public class TougeLayout
     }
 
     /// <summary>Rayon d'une épingle à 180° : à la vitesse réduite (plus une marge : la voiture ralentit en retard), jamais plus serré que la voiture.</summary>
-    float HairpinRadius(double s, bool tight)
+    float HairpinRadius(double s)
     {
-        float v = SpeedAt(s) * HairpinSlowdown(tight) + 1.5f;
+        float v = SpeedAt(s) * Math.Max(0.3f, Math.Min(1f, hairpinSlowdown)) + 1.5f;
         float halfWidth = Lerp(roadWidthStart, roadWidthEnd, DifficultyAt(s)) * 0.5f;
-        float r = tight ? Math.Max(tightHairpinRadius, v * v / Math.Max(1f, tightHairpinGrip))
-                        : Math.Max(minHairpinRadius, v * v / Math.Max(1f, hairpinGrip));
+        float r = Math.Max(minHairpinRadius, v * v / Math.Max(1f, hairpinGrip));
         if (minTurnRadiusAt != null) r = Math.Max(r, minTurnRadiusAt(v) * 1.2f);
         return Math.Max(r, halfWidth + 3f); // le bord intérieur reste un virage, pas un point
     }
@@ -358,8 +345,6 @@ public class TougeLayout
         float t = (float)rng.NextDouble();
         return 1f + t * t * 2.2f * Math.Max(0f, radiusVariety);
     }
-
-    float HairpinSlowdown(bool tight) => Math.Max(0.2f, Math.Min(1f, tight ? tightHairpinSlowdown : hairpinSlowdown));
 
     float Difficulty => DifficultyAt(EndS);
     float MaxAngle => Lerp(maxAngleStart, maxAngleEnd, Difficulty);
@@ -514,9 +499,6 @@ public class TougeLayout
         else if (Math.Abs(x) > 5.0) side = x > 0.0 ? -1 : 1;
         else side = rng.NextDouble() < 0.5 ? -1 : 1;
 
-        // De temps en temps : épingles SERRÉES de montagne (toutes celles de la figure), plus fréquentes avec la difficulté
-        bool tight = rng.NextDouble() < tightHairpinChance * Lerp(0.4f, 1f, Difficulty);
-
         // Entrée : virage normal jusqu'au cap de la branche, puis la branche
         AddPieceS(side * h, Radius(EndS) * 1.15f, Leg(side));
 
@@ -525,12 +507,12 @@ public class TougeLayout
             side = -side;
             double sStart = EndS;
             float v = SpeedAt(sStart);
-            float r = HairpinRadius(sStart, tight);
+            float r = HairpinRadius(sStart);
             bool last = i == count - 1;
             AddPieceS(side * h, r, last ? Rand(4f, 9f) : Leg(side));
 
             // Ralentissement : freinage avant l'épingle, vitesse réduite jusqu'à la sortie de l'arc
-            float f = HairpinSlowdown(tight);
+            float f = Math.Max(0.3f, Math.Min(1f, hairpinSlowdown));
             if (f < 0.999f)
             {
                 float vh = v * f;
