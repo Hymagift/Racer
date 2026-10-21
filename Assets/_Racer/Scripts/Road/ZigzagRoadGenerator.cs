@@ -88,23 +88,6 @@ public class ZigzagRoadGenerator : MonoBehaviour
     [Range(0.2f, 1f)] public float tightHairpinSlowdown = 0.4f;
     [Tooltip("Accélération latérale visée dans une épingle serrée (m/s²). Plus grand = encore plus serré")]
     public float tightHairpinGrip = 7.5f;
-
-    [Header("Épingle de drift (grand U régulier)")]
-    [Tooltip("Une épingle de drift (longue ligne droite, demi-tour à 180° régulier assez large pour tenir un gros drift, " +
-             "longue ligne droite parallèle) revient tous les min à max mètres. Max = 0 : jamais")]
-    public float driftHairpinEveryMin = 450f;
-    public float driftHairpinEveryMax = 800f;
-    [Tooltip("Distance de la première épingle de drift (m)")]
-    public float driftHairpinFirst = 180f;
-    [Tooltip("Vitesse visée dans l'épingle de drift (x la vitesse normale) : on lève à peine le pied")]
-    [Range(0.4f, 1f)] public float driftHairpinSlowdown = 0.85f;
-    [Tooltip("Accélération latérale visée dans le U (m/s²). Rayon = vitesse² / driftHairpinGrip. Plus grand = U plus serré")]
-    public float driftHairpinGrip = 9f;
-    [Tooltip("Rayon minimum du U (m, au centre de la route)")]
-    public float driftHairpinMinRadius = 14f;
-    [Tooltip("Longueur des lignes droites d'entrée et de sortie du U (m, au hasard entre min et max)")]
-    public float driftHairpinLegMin = 40f;
-    public float driftHairpinLegMax = 70f;
     [Tooltip("Longueur des branches en travers entre deux épingles (m, au hasard entre min et max)")]
     public float legLengthMin = 22f;
     public float legLengthMax = 45f;
@@ -422,14 +405,6 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 tightHairpinRadius = tightHairpinRadius,
                 tightHairpinSlowdown = tightHairpinSlowdown,
                 tightHairpinGrip = tightHairpinGrip,
-                driftHairpinEveryMin = driftHairpinEveryMin,
-                driftHairpinEveryMax = driftHairpinEveryMax,
-                driftHairpinFirst = driftHairpinFirst,
-                driftHairpinSlowdown = driftHairpinSlowdown,
-                driftHairpinGrip = driftHairpinGrip,
-                driftHairpinMinRadius = driftHairpinMinRadius,
-                driftHairpinLegMin = driftHairpinLegMin,
-                driftHairpinLegMax = driftHairpinLegMax,
                 legLengthMin = legLengthMin,
                 legLengthMax = Mathf.Max(legLengthMin, legLengthMax),
                 maxLacets = maxLacets,
