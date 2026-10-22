@@ -174,7 +174,7 @@ MonoBehaviour:
     modelYaw: 180
     modelScale: 1
     handling:
-      speed: 1
+      speed: 1.16
       acceleration: 1
       steering: 1
       steerResponse: 1
@@ -182,7 +182,7 @@ MonoBehaviour:
       countersteer: 1
       grip: 1.28
       driftGrip: 1.43
-      driftAngle: 0.77
+      driftAngle: 0.89
       driftThreshold: 1
       driftEngage: 1
       driftRecover: 1.55
