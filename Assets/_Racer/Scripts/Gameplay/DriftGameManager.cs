@@ -41,9 +41,9 @@ public class DriftGameManager : MonoBehaviour
     [Tooltip("Meurt si la voiture tombe sous le niveau de la route")]
     public bool dieOnFall = true;
     [Tooltip("Hauteur de chute sous la route avant la mort")]
-    public float fallDepth = 1.5f;
+    public float fallDepth = 15f;
     [Tooltip("Temps (s) après que la voiture est tombée de la route (DriftCar.HasFallen) avant la mort, même si elle n'est pas encore assez bas")]
-    public float fallKillDelay = 0.5f;
+    public float fallKillDelay = 1.2f;
     [Tooltip("Meurt si la voiture s'éloigne trop du bord de la route (même sans tomber)")]
     public bool dieOffRoad = false;
     public float offRoadMargin = 3f;

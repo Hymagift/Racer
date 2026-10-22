@@ -55,7 +55,7 @@ MonoBehaviour:
   pointsPerMeter: 1
   driftMultiplier: 1
   dieOnFall: 1
-  fallDepth: 1.5
+  fallDepth: 15
   dieOffRoad: 0
   offRoadMargin: 3
   panelDelay: 0.6
