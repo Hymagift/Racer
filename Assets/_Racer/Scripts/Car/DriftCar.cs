@@ -140,6 +140,8 @@ public class DriftCar : MonoBehaviour
     public float offRoadGripRate = 5f;
     [Tooltip("Distance (m) entre le centre de la voiture et le bord de la route, côté vide, au-delà de laquelle elle tombe")]
     public float fallEdgeMargin = 0.3f;
+    [Tooltip("Gravité pendant la chute (x la gravité normale)")]
+    public float fallGravity = 2f;
 
     [Header("Visuel")]
     public float bodyRollMax = 5f;            // degrés d'inclinaison en virage (vers l'extérieur)
@@ -207,7 +209,6 @@ public class DriftCar : MonoBehaviour
     bool wallTouched;     // contact avec un mur pendant le dernier pas de physique
     bool offRoad;         // centre de la voiture hors de la route : pas de drift
     bool fallen;          // tombée de la route (sous le niveau de la route, à côté) : elle ne peut plus y remonter
-    float fallSide;       // -1 tombée à gauche, 1 à droite
     BoxCollider box;
 
     Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modèle (ex : -90° des modèles Blender)
@@ -266,6 +267,7 @@ public class DriftCar : MonoBehaviour
         IsDrifting = false;
         wallTouched = false;
         fallen = false;
+        if (box != null) box.enabled = true;
         float speed = TargetSpeed();
         vel = new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)) * speed;
 
@@ -505,8 +507,9 @@ public class DriftCar : MonoBehaviour
         // Modèle de voiture en plusieurs sous-pas (fluide et stable)
         int n = Mathf.Max(1, substeps);
         float h = dt / n;
-        for (int i = 0; i < n; i++)
-            SimulateStep(h);
+        if (!fallen)   // en chute : plus de pneus au sol, elle garde son élan
+            for (int i = 0; i < n; i++)
+                SimulateStep(h);
 
         ConstrainToWalls();
 
@@ -689,19 +692,17 @@ public class DriftCar : MonoBehaviour
             bool overVoid = Mathf.Abs(lateral) > hw + fallEdgeMargin && !road.WallOffsetAt(tz, side, out _);
             if (below || overVoid)
             {
+                // Elle ne touche plus la route : on coupe sa collision et elle tombe tout droit, en gardant son élan.
+                // Sans collision elle ne peut plus remonter sur la route.
                 fallen = true;
-                fallSide = Mathf.Sign(lateral);
+                box.enabled = false;
             }
         }
         if (fallen)
         {
-            float minX = cx + fallSide * (hw + half + 0.05f);   // centre de la voiture au moins à cette distance
-            if (fallSide * (p.x - minX) < 0f)
-            {
-                p.x = minX;
-                rb.position = p;
-                if (fallSide * vel.x < 0f) vel.x = 0f;
-            }
+            Vector3 v = rb.linearVelocity;
+            v.y -= Physics.gravity.magnitude * Mathf.Max(0f, fallGravity - 1f) * Time.fixedDeltaTime; // chute plus franche
+            rb.linearVelocity = v;
             return;
         }
 
