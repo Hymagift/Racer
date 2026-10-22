@@ -150,6 +150,7 @@ public class DriftGameManager : MonoBehaviour
     {
         if (IsDead) return;
         IsDead = true;
+        CarCameraFeel.Death(); // secousse de caméra (rien pendant la démo du menu)
 
         // Arrête la voiture et le défilement du décor
         if (car != null) car.enabled = false; // DriftCar remet le défilement à 0 quand il est désactivé

@@ -86,6 +86,8 @@ public class ScoreManager : MonoBehaviour
 
     /// <summary>Appelé quand un drift est encaissé, avec les points ajoutés au score (déjà multipliés).</summary>
     public event System.Action<float> OnDriftBanked;
+    /// <summary>Appelé quand la voiture touche un cône (secousse de caméra, effets...).</summary>
+    public event System.Action OnCone;
 
     ComboHUD comboHUD;
 
@@ -216,6 +218,7 @@ public class ScoreManager : MonoBehaviour
         coneTarget = Mathf.Min(maxMultiplier, coneTarget + multiplierPerCone);
         Score += conePoints * TotalMultiplier;
         timeSinceCone = 0f;
+        OnCone?.Invoke();
     }
 
     void HandleDriftEnded(float points)

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Particules d'UI légères (petits ronds colorés) : éclats, étincelles, confettis.
 /// À mettre sur un RectTransform qui couvre la zone (positions en coordonnées locales de ce rect).
-/// Les images sont recyclées. Utilisé par BoosterShop.
+/// Les images sont recyclées. Utilisé par BoosterShop et le ComboHUD.
 /// </summary>
 public class MenuParticles : MonoBehaviour
 {
@@ -18,6 +18,9 @@ public class MenuParticles : MonoBehaviour
         public Color color;
         public bool shrink;
     }
+
+    [Tooltip("Image des particules (vide = petit rond)")]
+    public Sprite sprite;
 
     readonly List<Particle> alive = new List<Particle>();
     readonly Stack<Particle> pool = new Stack<Particle>();
@@ -42,6 +45,10 @@ public class MenuParticles : MonoBehaviour
               size * Random.Range(0.6f, 1.3f), Random.Range(0.7f, 1.4f), 0f, 0.5f, false);
     }
 
+    /// <summary>Une particule, entièrement réglée par l'appelant (gravity en unités/s², drag = freinage par seconde).</summary>
+    public void Emit(Vector2 position, Vector2 velocity, Color color, float size, float life, float gravity, float drag, bool shrink) =>
+        Spawn(position, velocity, color, size, life, gravity, drag, shrink);
+
     void Spawn(Vector2 pos, Vector2 vel, Color color, float size, float life, float gravity, float drag, bool shrink)
     {
         var p = pool.Count > 0 ? pool.Pop() : Create();
@@ -64,7 +71,7 @@ public class MenuParticles : MonoBehaviour
         var rt = MenuStyle.Node("Particule", transform);
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
         var img = MenuStyle.Fill(rt, Color.white);
-        img.sprite = MenuStyle.Round;
+        img.sprite = sprite != null ? sprite : MenuStyle.Round;
         return new Particle { rt = rt, img = img };
     }
 
