@@ -50,6 +50,7 @@ public class Cone : MonoBehaviour
     float startY;
     bool touching;
     Collider col;
+    Renderer[] renderers;      // mis en cache : OnEnable est rappelé à chaque réutilisation du cône
     Rigidbody rb;
     Transform home;            // le TrackRoot (parent d'origine)
     ZigzagRoadGenerator road;
@@ -61,8 +62,9 @@ public class Cone : MonoBehaviour
         col = GetComponent<Collider>();
         col.isTrigger = true;
 
+        renderers = GetComponentsInChildren<Renderer>(true);
         if (bodyMaterial != null)
-            foreach (var r in GetComponentsInChildren<Renderer>(true)) r.sharedMaterial = bodyMaterial;
+            foreach (var r in renderers) r.sharedMaterial = bodyMaterial;
     }
 
     // Si le générateur de route réutilise les cônes, ils redeviennent actifs et "neufs"
@@ -70,7 +72,7 @@ public class Cone : MonoBehaviour
     {
         hit = false;
         StopFlight(false); // le ConeSpawner l'a déjà remis dans le TrackRoot
-        foreach (var r in GetComponentsInChildren<Renderer>()) r.enabled = true;
+        foreach (var r in renderers) r.enabled = true;
         col.enabled = true;
     }
 
@@ -84,7 +86,7 @@ public class Cone : MonoBehaviour
         if (!hit)
         {
             hit = true;
-            if (score == null) score = FindFirstObjectByType<ScoreManager>();
+            if (score == null) score = ScoreManager.Instance != null ? ScoreManager.Instance : FindFirstObjectByType<ScoreManager>();
             if (score != null) score.OnConeHit();
         }
 
@@ -153,7 +155,7 @@ public class Cone : MonoBehaviour
         if (transform.position.y < startY - fallLimit)
         {
             // Tombé hors de la route : il disparaît (comme avant)
-            foreach (var r in GetComponentsInChildren<Renderer>()) r.enabled = false;
+            foreach (var r in renderers) r.enabled = false;
             col.enabled = false;
             StopFlight(true);
         }

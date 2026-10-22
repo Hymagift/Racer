@@ -52,6 +52,7 @@ public class AutopilotBoost : MonoBehaviour
     bool running;
     float remaining;
     int lastWarnSecond;
+    int shownSeconds = -1;
 
     void Start()
     {
@@ -258,7 +259,8 @@ public class AutopilotBoost : MonoBehaviour
 
         remaining -= Time.deltaTime;
         hudFill.fillAmount = Mathf.Clamp01(remaining / duration);
-        hudTime.text = Mathf.CeilToInt(Mathf.Max(0f, remaining)) + " s";
+        int shown = Mathf.CeilToInt(Mathf.Max(0f, remaining));
+        if (shown != shownSeconds) { shownSeconds = shown; hudTime.text = shown + " s"; } // texte refait seulement quand il change
         hudWheel.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 3f) * 40f);
 
         // 3 dernières secondes : on prévient, avec un bip par seconde
