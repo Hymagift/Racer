@@ -100,6 +100,10 @@ public class ZigzagRoadGenerator : MonoBehaviour
     [Tooltip("Hauteur du mur de collision invisible côté montagne (la roche est dessinée par le terrain)")]
     public float rockWallColliderHeight = 4f;
     public float wallThickness = 0.5f;
+    [Tooltip("Paroi de collision invisible côté montagne, même sans Add Side Walls (la roche du terrain est en biais : sans elle la voiture grimpe ou rebondit dessus)")]
+    public bool rockSideWalls = true;
+    [Tooltip("Épaisseur des murs de collision (m). Épais = jamais traversés, même dans les diagonales à pleine vitesse")]
+    public float wallColliderThickness = 3f;
     [Tooltip("Sol sans friction : le sol défile sous la voiture, la friction n'a pas de sens ici")]
     public bool frictionlessRoad = true;
 
@@ -407,6 +411,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         var rightDir = new Vector3[rows];
         var uvs = new Vector2[rows * 2];
         var uvs2 = new Vector2[rows * 2]; // x = largeur de la route (m) : le shader RoadLines place ses lignes avec
+        var uvs3 = new Vector2[rows * 2]; // x = centre de la route en X, y = demi-largeur en X : lignes bien droites (RoadLines)
         var voidL = new float[rows];
         var voidR = new float[rows];
         var bridge = new float[rows];
@@ -433,6 +438,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
             uvs[r * 2] = new Vector2(0f, v);
             uvs[r * 2 + 1] = new Vector2(1f, v);
             uvs2[r * 2] = uvs2[r * 2 + 1] = new Vector2(WidthAt(z), 0f);
+            uvs3[r * 2] = uvs3[r * 2 + 1] = new Vector2(x, hw);
         }
 
         // ----- Mesh visuel : une simple bande (gauche/droite) -----
@@ -455,6 +461,7 @@ public class ZigzagRoadGenerator : MonoBehaviour
         visualMesh.vertices = vertices;
         visualMesh.uv = uvs;
         visualMesh.uv2 = uvs2;
+        visualMesh.SetUVs(2, uvs3);
         visualMesh.triangles = triangles;
         visualMesh.RecalculateNormals();
         visualMesh.RecalculateBounds();
@@ -484,34 +491,56 @@ public class ZigzagRoadGenerator : MonoBehaviour
         AddStrip(verts, tris, leftBottom, left);          // flanc gauche
         AddStrip(verts, tris, right, rightBottom);        // flanc droit
 
-        if (addSideWalls)
+        // Murs : côté montagne toujours (paroi verticale invisible, la roche dessinée par le terrain est en biais
+        // et ferait grimper ou rebondir la voiture), côté vide seulement avec addSideWalls (sinon on peut tomber).
+        // Murs épais : la route défile vite, un mur fin serait traversé dans les diagonales.
+        if (addSideWalls || rockSideWalls)
         {
-            float wt = Mathf.Max(0.1f, wallThickness);
-            var hL = new float[left.Length];
-            var hR = new float[left.Length];
-            for (int r = 0; r < left.Length; r++)
+            float wt = Mathf.Max(0.1f, wallColliderThickness);
+            int n = left.Length;
+            var hL = new float[n];
+            var hR = new float[n];
+            var wallL = new float[n];
+            var wallR = new float[n];
+            for (int r = 0; r < n; r++)
             {
                 hL[r] = Mathf.Lerp(rockWallColliderHeight, wallHeight, voidL[r]);
                 hR[r] = Mathf.Lerp(rockWallColliderHeight, wallHeight, voidR[r]);
+                wallL[r] = addSideWalls ? 1f : 1f - voidL[r];
+                wallR[r] = addSideWalls ? 1f : 1f - voidR[r];
             }
 
             // Mur gauche (le bord intérieur est le bord de la route)
-            Vector3[] liT = ShiftAlong(left, rightDir, 0f, hL);
-            Vector3[] loT = ShiftAlong(left, rightDir, -wt, hL);
-            Vector3[] loB = ShiftAlong(left, rightDir, -wt, -th);
-            AddStrip(verts, tris, liT, leftBottom);       // face intérieure
-            AddStrip(verts, tris, loT, liT);              // dessus
-            AddStrip(verts, tris, loB, loT);              // face extérieure
-            AddStrip(verts, tris, leftBottom, loB);       // dessous
+            foreach (var (a, b) in Runs(wallL, 0.5f, extend: 1))
+            {
+                var edge = Slice(left, a, b);
+                var bottom = Slice(leftBottom, a, b);
+                var dir = Slice(rightDir, a, b);
+                var h = Slice(hL, a, b);
+                Vector3[] liT = ShiftAlong(edge, dir, 0f, h);
+                Vector3[] loT = ShiftAlong(edge, dir, -wt, h);
+                Vector3[] loB = ShiftAlong(edge, dir, -wt, -th);
+                AddStrip(verts, tris, liT, bottom);       // face intérieure
+                AddStrip(verts, tris, loT, liT);          // dessus
+                AddStrip(verts, tris, loB, loT);          // face extérieure
+                AddStrip(verts, tris, bottom, loB);       // dessous
+            }
 
             // Mur droit
-            Vector3[] riT = ShiftAlong(right, rightDir, 0f, hR);
-            Vector3[] roT = ShiftAlong(right, rightDir, wt, hR);
-            Vector3[] roB = ShiftAlong(right, rightDir, wt, -th);
-            AddStrip(verts, tris, rightBottom, riT);      // face intérieure
-            AddStrip(verts, tris, riT, roT);              // dessus
-            AddStrip(verts, tris, roT, roB);              // face extérieure
-            AddStrip(verts, tris, roB, rightBottom);      // dessous
+            foreach (var (a, b) in Runs(wallR, 0.5f, extend: 1))
+            {
+                var edge = Slice(right, a, b);
+                var bottom = Slice(rightBottom, a, b);
+                var dir = Slice(rightDir, a, b);
+                var h = Slice(hR, a, b);
+                Vector3[] riT = ShiftAlong(edge, dir, 0f, h);
+                Vector3[] roT = ShiftAlong(edge, dir, wt, h);
+                Vector3[] roB = ShiftAlong(edge, dir, wt, -th);
+                AddStrip(verts, tris, bottom, riT);       // face intérieure
+                AddStrip(verts, tris, riT, roT);          // dessus
+                AddStrip(verts, tris, roT, roB);          // face extérieure
+                AddStrip(verts, tris, roB, bottom);       // dessous
+            }
         }
 
         var mesh = new Mesh { name = "RoadChunkCollision" };
@@ -652,9 +681,9 @@ public class ZigzagRoadGenerator : MonoBehaviour
         }
     }
 
-    static Vector3[] Slice(Vector3[] src, int start, int end)
+    static T[] Slice<T>(T[] src, int start, int end)
     {
-        var res = new Vector3[end - start + 1];
+        var res = new T[end - start + 1];
         Array.Copy(src, start, res, 0, res.Length);
         return res;
     }

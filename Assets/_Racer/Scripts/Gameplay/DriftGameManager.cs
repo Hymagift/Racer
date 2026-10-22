@@ -97,6 +97,8 @@ public class DriftGameManager : MonoBehaviour
 
         // Pilote auto proposé au début de chaque partie (voir AutopilotBoost, inactif dans la démo du menu)
         if (GetComponent<AutopilotBoost>() == null) gameObject.AddComponent<AutopilotBoost>();
+        // Petit tutoriel au tout début : glisser le doigt de gauche à droite (voir Onboarding)
+        if (GetComponent<Onboarding>() == null) gameObject.AddComponent<Onboarding>();
     }
 
     void Update()

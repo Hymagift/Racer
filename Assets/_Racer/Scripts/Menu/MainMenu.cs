@@ -162,6 +162,7 @@ public class MainMenu : MonoBehaviour
     public void ResetProgress()
     {
         PlayerData.ResetAll();
+        Onboarding.ResetTutorial(); // le tutoriel du début revient
         AudioListener.volume = 1f;
         if (volumeSlider != null) volumeSlider.SetValueWithoutNotify(1f);
         RefreshTexts();

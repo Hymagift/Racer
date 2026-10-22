@@ -112,6 +112,7 @@ Shader "Racer/RoadLines"
                 float3 normalOS : NORMAL;
                 float2 uv : TEXCOORD0;
                 float2 uv2 : TEXCOORD1;
+                float2 uv3 : TEXCOORD2; // x = centre de la route en X, y = demi-largeur en X (0 si absent)
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -123,6 +124,7 @@ Shader "Racer/RoadLines"
                 float2 uv : TEXCOORD2;
                 half fogFactor : TEXCOORD3;
                 float roadWidth : TEXCOORD4;
+                float3 across : TEXCOORD5; // x local, centre, demi-largeur : position en travers exacte
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -137,6 +139,7 @@ Shader "Racer/RoadLines"
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 output.uv = input.uv;
                 output.roadWidth = RoadWidthFrom(input.uv2);
+                output.across = float3(input.positionOS.x, input.uv3.x, input.uv3.y);
                 output.fogFactor = ComputeFogFactor(pos.positionCS.z);
                 return output;
             }
@@ -146,8 +149,14 @@ Shader "Racer/RoadLines"
                 UNITY_SETUP_INSTANCE_ID(input);
                 half3 n = normalize(input.normalWS);
 
+                // Position en travers calculée depuis la géométrie (centre et demi-largeur constants sur chaque ligne
+                // du mesh) plutôt que depuis l'UV interpolé : l'UV se tord dans les quads en trapèze (virages,
+                // route qui rétrécit) et les lignes faisaient des zigzags.
+                float2 uv = input.uv;
+                if (input.across.z > 0.01) uv.x = (input.across.x - input.across.y) / (2.0 * input.across.z) + 0.5;
+
                 // Grain de l'asphalte en mètres (u * largeur, v * longueur d'UV) pour des nuances de gris
-                float2 meters = float2(input.uv.x * input.roadWidth, input.uv.y * _UVTileLength);
+                float2 meters = float2(uv.x * input.roadWidth, uv.y * _UVTileLength);
                 float grain = Hash12(floor(meters / _GrainSize));
                 half3 albedo = _BaseColor.rgb * (1.0 + (grain - 0.5) * 2.0 * _Grain);
 
@@ -159,7 +168,7 @@ Shader "Racer/RoadLines"
                 half3 color = albedo * lit;
 
                 // Lignes émissives (HDR : active le Bloom pour qu'elles brillent)
-                float lines = RoadLineMask(input.uv, input.roadWidth);
+                float lines = RoadLineMask(uv, input.roadWidth);
                 color = lerp(color, _LineEmission.rgb, lines);
 
                 color = MixFog(color, input.fogFactor);
