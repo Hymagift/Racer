@@ -45,8 +45,10 @@ public class DriftSmoke : MonoBehaviour
     [Tooltip("Hauteur de l'émetteur au-dessus du bas de la voiture (m)")]
     public float groundOffset = 0.15f;
     public int maxParticles = 80;
+    [Tooltip("Finesse des boules : 1 = 80 triangles (léger, mobile), 2 = 320 triangles (plus rondes, 4x plus de triangles)")]
+    [Range(1, 2)] public int puffDetail = 1;
 
-    static Mesh puffMesh;
+    static readonly Mesh[] puffMeshes = new Mesh[3];
 
     readonly List<ParticleSystem> systems = new List<ParticleSystem>();
     Transform placedFor;   // modèle pour lequel les émetteurs ont été placés
@@ -218,7 +220,7 @@ public class DriftSmoke : MonoBehaviour
 
         var rend = go.GetComponent<ParticleSystemRenderer>();
         rend.renderMode = ParticleSystemRenderMode.Mesh;
-        rend.mesh = PuffMesh();
+        rend.mesh = PuffMesh(puffDetail);
         rend.alignment = ParticleSystemRenderSpace.World;
         rend.SetActiveVertexStreams(new List<ParticleSystemVertexStream>
         {
@@ -235,9 +237,10 @@ public class DriftSmoke : MonoBehaviour
 
     // ---------- Mesh d'une bouffée : icosphère (rayon ~1) déformée par quelques bosses ----------
 
-    static Mesh PuffMesh()
+    static Mesh PuffMesh(int detail)
     {
-        if (puffMesh != null) return puffMesh;
+        detail = Mathf.Clamp(detail, 1, 2);
+        if (puffMeshes[detail] != null) return puffMeshes[detail];
 
         float t = (1f + Mathf.Sqrt(5f)) / 2f;
         var verts = new List<Vector3>
@@ -255,8 +258,8 @@ public class DriftSmoke : MonoBehaviour
             4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
         };
 
-        // 2 subdivisions : 320 triangles, assez rond pour l'éclairage 2 tons
-        for (int s = 0; s < 2; s++)
+        // 1 subdivision : 80 triangles (2 × 80 boules max = 12 800 triangles) ; 2 subdivisions : 320 triangles, plus rond
+        for (int s = 0; s < detail; s++)
         {
             var mid = new Dictionary<long, int>();
             var next = new List<int>(tris.Count * 4);
@@ -278,11 +281,12 @@ public class DriftSmoke : MonoBehaviour
             verts[i] = d * (1f + bump);
         }
 
-        puffMesh = new Mesh { name = "DriftSmokePuff" };
+        var puffMesh = new Mesh { name = "DriftSmokePuff" };
         puffMesh.SetVertices(verts);
         puffMesh.SetTriangles(tris, 0);
         puffMesh.RecalculateNormals();
         puffMesh.RecalculateBounds();
+        puffMeshes[detail] = puffMesh;
         return puffMesh;
     }
 

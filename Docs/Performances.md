@@ -19,8 +19,8 @@ Rien d'alarmant, donc. Ce qui risque de coûter le plus sur un téléphone moyen
 | # | Impact | Problème | Statut |
 |---|--------|----------|--------|
 | 1 | Fort (iPhone) | Qualité par défaut iPhone/tvOS = niveau 2, qui n'existe pas (il n'y a que 0 = Mobile et 1 = PC). Risque de tourner avec le réglage PC (HDR, MSAA, ombres douces, render scale 1). | **Corrigé** |
-| 2 | Moyen | Fumée de drift : jusqu'à 2 × 80 boules de 320 triangles (~50 000 triangles), assemblées par le CPU à chaque image (pas d'instancing GPU), shader en alpha-test (`clip`) : coûteux sur les GPU mobiles. | À proposer |
-| 3 | Moyen | Décor : quelques centaines d'objets séparés (sapins, rochers, palmiers), un draw call par objet et par matériau, matériaux URP/Lit complets importés des FBX, aucun LOD. Le décor est aussi généré jusqu'à 220 m alors que la caméra s'arrête à 180 m. | À proposer |
+| 2 | Moyen | Fumée de drift : jusqu'à 2 × 80 boules de 320 triangles (~50 000 triangles), assemblées par le CPU à chaque image (pas d'instancing GPU), shader en alpha-test (`clip`) : coûteux sur les GPU mobiles. | **Allégé** : boules à 80 triangles, 12 800 max (champ `Puff Detail` sur DriftSmoke, 2 = ancien rendu) |
+| 3 | Moyen | Décor : quelques centaines d'objets séparés (sapins, rochers, palmiers), un draw call par objet et par matériau, matériaux URP/Lit complets importés des FBX, aucun LOD. Le décor est aussi généré jusqu'à 220 m alors que la caméra s'arrête à 180 m. | **Appliqué** : génération à 190 m, forêt en contrebas 70 → 50, matériaux en Simple Lit (case `Simple Lit` sur DecorSpawner) |
 | 4 | Faible à moyen | Chaque sapin, rocher, palmier et cône avait un composant **Animator** inutile (rig « Generic » à l'import). | **Corrigé** |
 | 5 | Faible | Petites saccades possibles au moment où un nouveau morceau de route arrive : mesh + collider calculés sur le thread principal (avec des allocations). | À surveiller |
 | 6 | Faible | ComboHUD : le cercle suit la voiture à chaque image dans le Canvas principal (il re-batch le score avec) ; chaque particule d'UI est une Image (jusqu'à ~60 en même temps aux gros paliers). | À proposer |

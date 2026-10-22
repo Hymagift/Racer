@@ -95,14 +95,18 @@ public class DecorSpawner : MonoBehaviour
     public float startDistance = -30f;
 
     [Header("Génération")]
-    [Tooltip("Distance générée devant le joueur. Restera sous la viewDistance du terrain pour ne pas voir d'arbres flotter.")]
-    public float viewDistance = 230f;
+    [Tooltip("Distance générée devant le joueur. Restera sous la viewDistance du terrain pour ne pas voir d'arbres flotter. " +
+             "Inutile d'aller au-delà du Far Clip de la caméra (180 m) : rien n'y est dessiné.")]
+    public float viewDistance = 190f;
     [Tooltip("Distance gardée derrière le joueur avant de recycler un objet")]
     public float despawnDistance = 40f;
     [Tooltip("Longueur de route traitée d'un coup (m). Plus petit = génération plus lissée.")]
     public float sliceLength = 4f;
     [Tooltip("Ombres portées par le décor (coûteux sur mobile)")]
     public bool castShadows = false;
+    [Tooltip("Remplace les matériaux URP/Lit des FBX par des copies en URP/Simple Lit (même couleur et texture, sans reflet) : " +
+             "bien moins coûteux sur téléphone. Modèle : Resources/DecorSimpleLit.")]
+    public bool simpleLit = true;
     public int seed = 0;                      // 0 = aléatoire à chaque partie
 
     [Header("Couches de décor")]
@@ -132,6 +136,9 @@ public class DecorSpawner : MonoBehaviour
     bool started;
     System.Random rng;
     float noiseOffset;
+    Material simpleLitTemplate;
+    bool simpleLitLoaded;
+    readonly Dictionary<Material, Material> simpleLitCopies = new Dictionary<Material, Material>();
 
     static DecorLayer[] DefaultLayers() => new[]
     {
@@ -139,7 +146,7 @@ public class DecorSpawner : MonoBehaviour
         {
             name = "Forêt en contrebas", modelNames = new[] { "pinetree" },
             placement = Placement.VoidSide, minDistance = 12f, maxDistance = 150f, maxRelativeHeight = -5f,
-            density = 70f, clusterSize = 55f, clusterGaps = 0.35f, minHeight = 7f, maxHeight = 13f
+            density = 50f, clusterSize = 55f, clusterGaps = 0.35f, minHeight = 7f, maxHeight = 13f
         },
         new DecorLayer
         {
@@ -204,6 +211,8 @@ public class DecorSpawner : MonoBehaviour
     void OnDestroy()
     {
         if (road != null) road.OnTrackRebased -= HandleTrackRebased;
+        foreach (var pair in simpleLitCopies)
+            if (pair.Value != pair.Key) Destroy(pair.Value);
     }
 
 #if UNITY_EDITOR
@@ -399,9 +408,51 @@ public class DecorSpawner : MonoBehaviour
                 for (int i = 0; i < mats.Length; i++) mats[i] = overrideMaterial;
                 r.sharedMaterials = mats;
             }
+            else if (simpleLit)
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++) mats[i] = ToSimpleLit(mats[i]);
+                r.sharedMaterials = mats;
+            }
         }
 
         return new Item { t = holder.transform, prefab = prefab };
+    }
+
+    // Copie Simple Lit d'un matériau du FBX (une seule par matériau d'origine, partagée par tous les objets).
+    // Les matériaux transparents ou découpés (alpha clip) sont gardés tels quels.
+    Material ToSimpleLit(Material src)
+    {
+        if (src == null) return null;
+        if (simpleLitCopies.TryGetValue(src, out Material copy)) return copy;
+
+        if (!simpleLitLoaded)
+        {
+            simpleLitLoaded = true;
+            simpleLitTemplate = Resources.Load<Material>("DecorSimpleLit");
+            if (simpleLitTemplate == null)
+                Debug.LogWarning("[DecorSpawner] Resources/DecorSimpleLit introuvable : le décor garde ses matériaux d'origine.", this);
+        }
+
+        copy = src;
+        bool transparent = (src.HasProperty("_Surface") && src.GetFloat("_Surface") > 0.5f)
+                        || (src.HasProperty("_AlphaClip") && src.GetFloat("_AlphaClip") > 0.5f);
+        if (simpleLitTemplate != null && !transparent && src.shader != simpleLitTemplate.shader)
+        {
+            copy = new Material(simpleLitTemplate) { name = src.name + " (Simple Lit)" };
+            if (src.HasProperty("_BaseColor")) copy.SetColor("_BaseColor", src.GetColor("_BaseColor"));
+            else if (src.HasProperty("_Color")) copy.SetColor("_BaseColor", src.GetColor("_Color"));
+            string texProp = src.HasProperty("_BaseMap") ? "_BaseMap" : src.HasProperty("_MainTex") ? "_MainTex" : null;
+            if (texProp != null && src.GetTexture(texProp) != null)
+            {
+                copy.SetTexture("_BaseMap", src.GetTexture(texProp));
+                copy.SetTextureScale("_BaseMap", src.GetTextureScale(texProp));
+                copy.SetTextureOffset("_BaseMap", src.GetTextureOffset(texProp));
+            }
+            if (src.HasProperty("_Cull")) copy.SetFloat("_Cull", src.GetFloat("_Cull")); // feuilles double face
+        }
+        simpleLitCopies[src] = copy;
+        return copy;
     }
 
     // Mesure le prefab à partir de ses meshes (pas besoin de l'instancier ni de l'activer)
