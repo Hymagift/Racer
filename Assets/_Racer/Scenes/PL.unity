@@ -343,6 +343,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b72b18af5ccf4e6986059460778de5c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  intensity: 1
+  speedFov: 6
+  speedDolly: 1
+  speedRumble: 0.12
+  turnRoll: 2.5
+  driftRoll: 2
+  yawRateForMaxRoll: 90
+  lateralLead: 0.8
+  leadSpeed: 10
+  driftFov: 2.5
+  driftRumble: 0.25
+  smoothing: 4
+  coneShake: 0.25
+  coneFovKick: 2
+  wallShake: 0.6
+  wallRollKick: 4
+  deathShake: 0.8
+  levelUpFovKick: 2.5
+  levelUpShake: 0.12
+  maxShakeAngle: 2.2
+  maxShakeOffset: 0.3
+  shakeFrequency: 22
+  shakeDecay: 1.8
 --- !u!1 &593407586
 GameObject:
   m_ObjectHideFlags: 0
@@ -923,6 +946,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1118244024946437850, guid: 8a70a1146d9caae4ca38ac207f299f17, type: 3}
+      propertyPath: fallDepth
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1118244024946437850, guid: 8a70a1146d9caae4ca38ac207f299f17, type: 3}
+      propertyPath: dieOffRoad
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1118244024946437850, guid: 8a70a1146d9caae4ca38ac207f299f17, type: 3}
+      propertyPath: fallKillDelay
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 4225507098246339682, guid: 8a70a1146d9caae4ca38ac207f299f17, type: 3}
       propertyPath: m_Name
       value: GameManager
@@ -972,6 +1007,213 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8a70a1146d9caae4ca38ac207f299f17, type: 3}
+--- !u!1 &1900000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1900000002}
+  - component: {fileID: 1900000003}
+  m_Layer: 0
+  m_Name: DecorSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1900000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1900000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 56cf8ee002094ed18166728f753873d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  road: {fileID: 0}
+  terrain: {fileID: 0}
+  roadClearance: 2.5
+  startDistance: -30
+  viewDistance: 190
+  despawnDistance: 40
+  sliceLength: 4
+  castShadows: 0
+  simpleLit: 1
+  seed: 0
+  layers:
+  - name: "For\xEAt en contrebas"
+    enabled: 1
+    prefabs:
+    - {fileID: 919132149155446097, guid: b5f74fca48f31c448bbabc5c54583f6d, type: 3}
+    modelNames:
+    - pinetree
+    placement: 0
+    minDistance: 12
+    maxDistance: 150
+    minRelativeHeight: -999
+    maxRelativeHeight: -5
+    density: 50
+    clusterSize: 55
+    clusterGaps: 0.35
+    groupMin: 1
+    groupMax: 1
+    groupRadius: 4
+    groupSmallest: 0.35
+    minHeight: 7
+    maxHeight: 13
+    maxTilt: 0
+    sink: 0.05
+    overrideMaterial: {fileID: 0}
+  - name: Pins sur la montagne
+    enabled: 1
+    prefabs:
+    - {fileID: 919132149155446097, guid: b5f74fca48f31c448bbabc5c54583f6d, type: 3}
+    modelNames:
+    - pinetree
+    placement: 1
+    minDistance: 9
+    maxDistance: 130
+    minRelativeHeight: 3
+    maxRelativeHeight: 999
+    density: 20
+    clusterSize: 40
+    clusterGaps: 0.55
+    groupMin: 1
+    groupMax: 1
+    groupRadius: 4
+    groupSmallest: 0.35
+    minHeight: 5
+    maxHeight: 10
+    maxTilt: 0
+    sink: 0.05
+    overrideMaterial: {fileID: 0}
+  - name: "Palmiers au fond de la vall\xE9e"
+    enabled: 1
+    prefabs:
+    - {fileID: 919132149155446097, guid: a852fac849f019e4cbc39fa362fd1bb9, type: 3}
+    - {fileID: 919132149155446097, guid: 05b53ae3626e1e148b8eeaf979c8cd69, type: 3}
+    modelNames:
+    - palmier_1
+    - palmier_2
+    placement: 0
+    minDistance: 30
+    maxDistance: 150
+    minRelativeHeight: -999
+    maxRelativeHeight: -18
+    density: 6
+    clusterSize: 70
+    clusterGaps: 0.6
+    groupMin: 1
+    groupMax: 1
+    groupRadius: 4
+    groupSmallest: 0.35
+    minHeight: 7
+    maxHeight: 11
+    maxTilt: 0
+    sink: 0.05
+    overrideMaterial: {fileID: 0}
+  - name: "Amas de rochers pr\xE8s de la route"
+    enabled: 1
+    prefabs:
+    - {fileID: 919132149155446097, guid: 63ab6fc7eafc5f44d9fbfcd667906f99, type: 3}
+    - {fileID: 919132149155446097, guid: 4265968a351eccf488cab815527cdaf9, type: 3}
+    - {fileID: 919132149155446097, guid: d7ff1291e8c13994f86be05fef521374, type: 3}
+    modelNames:
+    - pierre_ronde
+    - pierre_large
+    - pierre_haute
+    placement: 2
+    minDistance: 3
+    maxDistance: 25
+    minRelativeHeight: -999
+    maxRelativeHeight: 999
+    density: 1.2
+    clusterSize: 0
+    clusterGaps: 0.4
+    groupMin: 3
+    groupMax: 7
+    groupRadius: 4
+    groupSmallest: 0.3
+    minHeight: 2
+    maxHeight: 4
+    maxTilt: 20
+    sink: 0.15
+    overrideMaterial: {fileID: 0}
+  - name: Amas de gros rochers au loin
+    enabled: 1
+    prefabs:
+    - {fileID: 919132149155446097, guid: d7ff1291e8c13994f86be05fef521374, type: 3}
+    - {fileID: 919132149155446097, guid: 4265968a351eccf488cab815527cdaf9, type: 3}
+    - {fileID: 919132149155446097, guid: 63ab6fc7eafc5f44d9fbfcd667906f99, type: 3}
+    modelNames:
+    - pierre_haute
+    - pierre_large
+    - pierre_ronde
+    placement: 2
+    minDistance: 20
+    maxDistance: 160
+    minRelativeHeight: -999
+    maxRelativeHeight: 999
+    density: 2
+    clusterSize: 0
+    clusterGaps: 0.4
+    groupMin: 3
+    groupMax: 8
+    groupRadius: 10
+    groupSmallest: 0.25
+    minHeight: 6
+    maxHeight: 14
+    maxTilt: 12
+    sink: 0.2
+    overrideMaterial: {fileID: 0}
+  - name: "Rochers isol\xE9s"
+    enabled: 1
+    prefabs:
+    - {fileID: 919132149155446097, guid: 63ab6fc7eafc5f44d9fbfcd667906f99, type: 3}
+    - {fileID: 919132149155446097, guid: 4265968a351eccf488cab815527cdaf9, type: 3}
+    - {fileID: 919132149155446097, guid: d7ff1291e8c13994f86be05fef521374, type: 3}
+    modelNames:
+    - pierre_ronde
+    - pierre_large
+    - pierre_haute
+    placement: 2
+    minDistance: 1.5
+    maxDistance: 140
+    minRelativeHeight: -999
+    maxRelativeHeight: 999
+    density: 6
+    clusterSize: 0
+    clusterGaps: 0.4
+    groupMin: 1
+    groupMax: 1
+    groupRadius: 4
+    groupSmallest: 0.35
+    minHeight: 0.8
+    maxHeight: 5
+    maxTilt: 20
+    sink: 0.15
+    overrideMaterial: {fileID: 0}
 --- !u!1 &2028527754
 GameObject:
   m_ObjectHideFlags: 0
@@ -1044,6 +1286,8 @@ MonoBehaviour:
   wallThickness: 0.5
   rockSideWalls: 1
   wallColliderThickness: 3
+  wallTaperWidth: 1.5
+  wallTaperLength: 12
   frictionlessRoad: 1
   showWalls: 0
   wallMaterial: {fileID: 0}
@@ -1183,50 +1427,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 25be4a6257d719741b8a39aad69381fb, type: 3}
---- !u!1 &1900000001
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1900000002}
-  - component: {fileID: 1900000003}
-  m_Layer: 0
-  m_Name: DecorSpawner
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1900000002
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1900000001}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1900000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1900000001}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 56cf8ee002094ed18166728f753873d1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
