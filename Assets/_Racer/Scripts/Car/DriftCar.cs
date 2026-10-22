@@ -135,6 +135,10 @@ public class DriftCar : MonoBehaviour
     [Tooltip("Vitesse latérale max (m/s) qu'un choc avec autre chose qu'un mur (jonction de route, cône...) peut donner à la voiture")]
     public float maxPhysicsKick = 2f;
 
+    [Header("Hors de la route")]
+    [Tooltip("Vitesse à laquelle l'arrière se raccroche quand le centre de la voiture sort de la route (plus de drift hors de la route)")]
+    public float offRoadGripRate = 5f;
+
     [Header("Visuel")]
     public float bodyRollMax = 5f;            // degrés d'inclinaison en virage (vers l'extérieur)
     [Tooltip("Inclinaison max du modèle pour suivre la pente (degrés)")]
@@ -197,6 +201,8 @@ public class DriftCar : MonoBehaviour
     string inputError;
     float lastWallHitTime = -10f;
     bool wallTouched;     // contact avec un mur pendant le dernier pas de physique
+    bool offRoad;         // centre de la voiture hors de la route : pas de drift
+    BoxCollider box;
 
     Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modèle (ex : -90° des modèles Blender)
     Vector3 bodyBaseLocalPos;                            // position d'origine du modèle (compense un pivot mal placé)
@@ -207,6 +213,8 @@ public class DriftCar : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        foreach (var b in GetComponents<BoxCollider>())
+            if (!b.isTrigger) { box = b; break; }
         rb.constraints = RigidbodyConstraints.FreezePositionZ
                        | RigidbodyConstraints.FreezeRotationX
                        | RigidbodyConstraints.FreezeRotationZ;
@@ -475,13 +483,16 @@ public class DriftCar : MonoBehaviour
 
         // Déclenchement du drift : l'arrière décroche EN PROPORTION du braquage (à vitesse suffisante),
         // au lieu de tout ou rien : un petit coup de doigt = légère glisse, doigt au bord = gros drift
+        // Hors de la route (centre de la voiture au-delà du bord) : l'arrière se raccroche vite, plus de drift
+        offRoad = road != null && Mathf.Abs(road.LateralOffset(rb.position)) > road.HalfWidthXAt(road.TrackZ(rb.position.z));
+
         float driftTarget = 0f;
-        if (vel.magnitude > minDriftSpeed && !(useExternalInput && autopilotGrip))
+        if (vel.magnitude > minDriftSpeed && !offRoad && !(useExternalInput && autopilotGrip))
         {
             float t = Mathf.InverseLerp(driftStartSteer, Mathf.Max(driftStartSteer + 0.01f, driftFullSteer), Mathf.Abs(steerInput));
             driftTarget = t * t * (3f - 2f * t); // départ et arrivée en douceur
         }
-        float driftRate = driftTarget > driftFactor ? driftEngageRate : driftReleaseRate;
+        float driftRate = driftTarget > driftFactor ? driftEngageRate : offRoad ? Mathf.Max(driftReleaseRate, offRoadGripRate) : driftReleaseRate;
         driftFactor = Mathf.MoveTowards(driftFactor, driftTarget, driftRate * dt);
 
         // Modèle de voiture en plusieurs sous-pas (fluide et stable)
@@ -489,6 +500,8 @@ public class DriftCar : MonoBehaviour
         float h = dt / n;
         for (int i = 0; i < n; i++)
             SimulateStep(h);
+
+        ConstrainToWalls();
 
         // Application : orientation pilotée par le modèle, X par la physique, Z par le défilement du décor
         rb.angularVelocity = Vector3.zero;
@@ -629,14 +642,58 @@ public class DriftCar : MonoBehaviour
 
         float into = Vector2.Dot(vel, n2);
         if (into < -wallHitMinSpeed && Time.time - lastWallHitTime > wallHitCooldown)
+            WallImpact(n2, into);
+    }
+
+    void WallImpact(Vector2 n2, float into)
+    {
+        lastWallHitTime = Time.time;
+        vel -= n2 * into * 1.2f;   // petit rebond
+        vel *= wallSpeedKeep;
+        yawRate *= 0.5f;
+        driftFactor = 0f;
+        CurrentDriftPoints = 0f;   // drift raté
+        OnWallHit?.Invoke();
+    }
+
+    // Murs calculés à partir du tracé de la route, sans compter sur PhysX : la route défile (ses colliders sont
+    // téléportés à chaque pas) et dans les diagonales le mur "rentre" dans la voiture plus vite que PhysX ne la ressort,
+    // ce qui permettait de traverser les murs et d'aller dans le terrain. Ici la voiture est remise contre le mur
+    // et on retire la vitesse qui rentre dedans (un vrai choc si elle arrive vite).
+    void ConstrainToWalls()
+    {
+        if (road == null) return;
+
+        Vector3 p = rb.position;
+        float tz = road.TrackZ(p.z);
+        float cx = road.CenterXAt(tz);
+        float hw = road.HalfWidthXAt(tz);
+        float half = box != null ? box.bounds.extents.x : 1f;   // demi-largeur de la voiture en X (rotation comprise)
+
+        float dx = (road.CenterXAt(tz + 1f) - road.CenterXAt(tz - 1f)) * 0.5f;
+        Vector2 tangent = new Vector2(dx, 1f).normalized;
+        Vector2 rightN = new Vector2(tangent.y, -tangent.x);
+
+        for (int side = -1; side <= 1; side += 2)
         {
-            lastWallHitTime = Time.time;
-            vel -= n2 * into * 1.2f;   // petit rebond
-            vel *= wallSpeedKeep;
-            yawRate *= 0.5f;
-            driftFactor = 0f;
-            CurrentDriftPoints = 0f;   // drift raté
-            OnWallHit?.Invoke();
+            if (!road.WallOffsetAt(tz, side, out float offset)) continue;
+
+            float limit = cx + side * (hw + offset - half - 0.02f);   // position max du centre de la voiture
+            float pen = side * (p.x - limit);                         // > 0 : la voiture rentre dans le mur
+            // Déjà derrière le mur (tombée dans le vide avant qu'il commence) : on la laisse
+            if (pen <= 0f || pen > road.wallColliderThickness + 2f * half) continue;
+
+            p.x = limit;
+            rb.position = p;
+            wallTouched = true;
+
+            Vector2 n2 = side > 0 ? -rightN : rightN;   // vers le centre de la route
+            float into = Vector2.Dot(vel, n2);
+            if (into >= 0f) continue;
+            if (into < -wallHitMinSpeed && Time.time - lastWallHitTime > wallHitCooldown)
+                WallImpact(n2, into);
+            else
+                vel -= n2 * into;
         }
     }
 
@@ -694,7 +751,7 @@ public class DriftCar : MonoBehaviour
 
     void UpdateDriftScore(float dt, float speed)
     {
-        bool drifting = Mathf.Abs(DriftAngle) > 12f && speed > minDriftSpeed * 0.8f;
+        bool drifting = !offRoad && Mathf.Abs(DriftAngle) > 12f && speed > minDriftSpeed * 0.8f;
 
         if (drifting)
         {

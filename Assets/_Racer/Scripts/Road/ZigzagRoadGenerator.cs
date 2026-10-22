@@ -105,9 +105,9 @@ public class ZigzagRoadGenerator : MonoBehaviour
     [Tooltip("Épaisseur des murs de collision (m). Épais = jamais traversés, même dans les diagonales à pleine vitesse")]
     public float wallColliderThickness = 3f;
     [Tooltip("Là où un mur commence ou s'arrête (sortie de pont, montagne qui revient), il part de ce recul (m) hors de la route et rejoint le bord en douceur : une voiture qui dépasse un peu de la route est ramenée en glissant au lieu de taper le bout du mur de face")]
-    public float wallTaperWidth = 3f;
+    public float wallTaperWidth = 1.5f;
     [Tooltip("Longueur (m) sur laquelle le mur rejoint le bord de la route")]
-    public float wallTaperLength = 14f;
+    public float wallTaperLength = 12f;
     [Tooltip("Sol sans friction : le sol défile sous la voiture, la friction n'a pas de sens ici")]
     public bool frictionlessRoad = true;
 
@@ -572,6 +572,18 @@ public class ZigzagRoadGenerator : MonoBehaviour
         mesh.SetTriangles(tris, 0);
         mesh.RecalculateBounds();
         return mesh;
+    }
+
+    /// <summary>
+    /// Mur de collision de ce côté (-1 gauche, 1 droite) à un Z "piste" ? offset = distance entre le bord de la route
+    /// et la face intérieure du mur (0, sauf près des extrémités du mur où il est en recul).
+    /// </summary>
+    public bool WallOffsetAt(float trackZ, int side, out float offset)
+    {
+        offset = 0f;
+        if (!addCollider || !HasWall(trackZ, side)) return false;
+        if (!addSideWalls) offset = WallTaper(trackZ, side);
+        return true;
     }
 
     // Mur de collision présent de ce côté (-1 gauche, 1 droite) à un Z "piste" (même règle que BuildCollisionMesh)
