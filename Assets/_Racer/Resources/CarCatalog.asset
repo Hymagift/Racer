@@ -146,7 +146,7 @@ MonoBehaviour:
     color: {r: 0.9, g: 0.12, b: 0.1, a: 1}
     material: {fileID: 0}
     model: {fileID: 919132149155446097, guid: 8a10b47cf02e4c14b2ccfc42d5a1b833, type: 3}
-    modelYaw: 0
+    modelYaw: 180
     modelScale: 1
     handling:
       speed: 1.05
