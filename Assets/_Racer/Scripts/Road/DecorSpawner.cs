@@ -51,13 +51,24 @@ public class DecorSpawner : MonoBehaviour
         public float maxRelativeHeight = 999f;
 
         [Header("Combien")]
-        [Tooltip("Nombre d'objets tentés par tranche de 100 m de route, de chaque côté autorisé (avant le regroupement)")]
+        [Tooltip("Nombre d'essais par tranche de 100 m de route, de chaque côté autorisé (avant le regroupement). Un essai pose un amas entier.")]
         public float density = 20f;
         [Tooltip("Taille des bosquets (m). 0 = répartition uniforme, sans regroupement.")]
         public float clusterSize = 60f;
         [Range(0f, 1f)]
         [Tooltip("Part du terrain laissée vide entre les bosquets (0 = partout, 0.8 = petits bosquets isolés)")]
         public float clusterGaps = 0.4f;
+
+        [Header("Amas")]
+        [Tooltip("Nombre minimum d'objets posés ensemble à chaque essai (1 = objets isolés)")]
+        public int groupMin = 1;
+        [Tooltip("Nombre maximum d'objets posés ensemble à chaque essai")]
+        public int groupMax = 1;
+        [Tooltip("Rayon de l'amas autour du plus gros objet (m)")]
+        public float groupRadius = 4f;
+        [Range(0.1f, 1f)]
+        [Tooltip("Taille des petits objets de l'amas, en part de la taille du plus gros (minimum)")]
+        public float groupSmallest = 0.35f;
 
         [Header("Taille et orientation")]
         [Tooltip("Hauteur minimale de l'objet (m), quelle que soit l'échelle du FBX")]
@@ -144,15 +155,23 @@ public class DecorSpawner : MonoBehaviour
         },
         new DecorLayer
         {
-            name = "Rochers au bord de la route", modelNames = new[] { "pierre_ronde", "pierre_large", "pierre_haute" },
-            placement = Placement.BothSides, minDistance = 1.5f, maxDistance = 12f,
-            density = 5f, clusterSize = 0f, minHeight = 0.8f, maxHeight = 2.2f, maxTilt = 20f, sink = 0.15f
+            name = "Amas de rochers près de la route", modelNames = new[] { "pierre_ronde", "pierre_large", "pierre_haute" },
+            placement = Placement.BothSides, minDistance = 3f, maxDistance = 25f,
+            density = 1.2f, clusterSize = 0f, minHeight = 2f, maxHeight = 4f, maxTilt = 20f, sink = 0.15f,
+            groupMin = 3, groupMax = 7, groupRadius = 4f, groupSmallest = 0.3f
         },
         new DecorLayer
         {
-            name = "Gros rochers au loin", modelNames = new[] { "pierre_haute", "pierre_large", "pierre_ronde" },
-            placement = Placement.BothSides, minDistance = 18f, maxDistance = 160f,
-            density = 8f, clusterSize = 80f, clusterGaps = 0.5f, minHeight = 4f, maxHeight = 12f, maxTilt = 12f, sink = 0.2f
+            name = "Amas de gros rochers au loin", modelNames = new[] { "pierre_haute", "pierre_large", "pierre_ronde" },
+            placement = Placement.BothSides, minDistance = 20f, maxDistance = 160f,
+            density = 2f, clusterSize = 0f, minHeight = 6f, maxHeight = 14f, maxTilt = 12f, sink = 0.2f,
+            groupMin = 3, groupMax = 8, groupRadius = 10f, groupSmallest = 0.25f
+        },
+        new DecorLayer
+        {
+            name = "Rochers isolés", modelNames = new[] { "pierre_ronde", "pierre_large", "pierre_haute" },
+            placement = Placement.BothSides, minDistance = 1.5f, maxDistance = 140f,
+            density = 6f, clusterSize = 0f, minHeight = 0.8f, maxHeight = 5f, maxTilt = 20f, sink = 0.15f
         },
     };
 
@@ -295,6 +314,24 @@ public class DecorSpawner : MonoBehaviour
             if (n < layer.clusterGaps) return;
         }
 
+        // Amas : le premier objet est le plus gros, les autres plus petits tout autour
+        int min = Mathf.Max(1, layer.groupMin);
+        int count = rng.Next(min, Mathf.Max(min, layer.groupMax) + 1);
+        float height = Mathf.Lerp(layer.minHeight, Mathf.Max(layer.minHeight, layer.maxHeight), (float)rng.NextDouble());
+        for (int i = 0; i < count; i++)
+        {
+            if (i == 0) { PlaceOne(layer, side, z, e, height); continue; }
+            float a = Rand(0f, Mathf.PI * 2f);
+            float d = Mathf.Max(0f, layer.groupRadius) * Mathf.Sqrt((float)rng.NextDouble());
+            float me = e + Mathf.Cos(a) * d;
+            if (me < 0f) continue; // côté route : on ne déborde pas vers elle
+            PlaceOne(layer, side, z + Mathf.Sin(a) * d, me, height * Rand(layer.groupSmallest, 0.85f));
+        }
+    }
+
+    void PlaceOne(DecorLayer layer, int side, float z, float e, float height)
+    {
+        float x = road.CenterXAt(z) + side * (road.HalfWidthXAt(z) + e);
         float ground = terrain != null ? terrain.GroundHeight(z, side, e) : road.RoadHeightAt(z);
         float rel = ground - road.RoadHeightAt(z);
         if (rel < layer.minRelativeHeight || rel > layer.maxRelativeHeight) return;
@@ -303,7 +340,6 @@ public class DecorSpawner : MonoBehaviour
         if (prefab == null) return;
         PrefabInfo info = GetInfo(prefab);
 
-        float height = Mathf.Lerp(layer.minHeight, Mathf.Max(layer.minHeight, layer.maxHeight), (float)rng.NextDouble());
         float scale = height / info.height;
         if (!IsClearOfRoad(x, z, info.radius * scale + roadClearance)) return;
 
