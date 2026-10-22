@@ -202,6 +202,8 @@ public class DriftCar : MonoBehaviour
     float lastWallHitTime = -10f;
     bool wallTouched;     // contact avec un mur pendant le dernier pas de physique
     bool offRoad;         // centre de la voiture hors de la route : pas de drift
+    bool fallen;          // tombée de la route (sous le niveau de la route, à côté) : elle ne peut plus y remonter
+    float fallSide;       // -1 tombée à gauche, 1 à droite
     BoxCollider box;
 
     Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modèle (ex : -90° des modèles Blender)
@@ -259,6 +261,7 @@ public class DriftCar : MonoBehaviour
         CurrentDriftPoints = 0f;
         IsDrifting = false;
         wallTouched = false;
+        fallen = false;
         float speed = TargetSpeed();
         vel = new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)) * speed;
 
@@ -669,6 +672,29 @@ public class DriftCar : MonoBehaviour
         float cx = road.CenterXAt(tz);
         float hw = road.HalfWidthXAt(tz);
         float half = box != null ? box.bounds.extents.x : 1f;   // demi-largeur de la voiture en X (rotation comprise)
+
+        // Tombée à côté de la route : elle ne doit pas pouvoir revenir dessous (PhysX la ressortait par le dessus
+        // de la route et elle remontait dessus). On la garde à côté de la route jusqu'à la chute fatale.
+        if (!fallen && box != null)
+        {
+            float lateral = p.x - cx;
+            if (Mathf.Abs(lateral) > hw && box.bounds.min.y < road.RoadHeightAt(tz) - 0.3f)
+            {
+                fallen = true;
+                fallSide = Mathf.Sign(lateral);
+            }
+        }
+        if (fallen)
+        {
+            float minX = cx + fallSide * (hw + half + 0.05f);   // centre de la voiture au moins à cette distance
+            if (fallSide * (p.x - minX) < 0f)
+            {
+                p.x = minX;
+                rb.position = p;
+                if (fallSide * vel.x < 0f) vel.x = 0f;
+            }
+            return;
+        }
 
         float dx = (road.CenterXAt(tz + 1f) - road.CenterXAt(tz - 1f)) * 0.5f;
         Vector2 tangent = new Vector2(dx, 1f).normalized;
