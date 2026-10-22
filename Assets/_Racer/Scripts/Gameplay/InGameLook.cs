@@ -8,7 +8,8 @@ using UnityEngine.SceneManagement;
 /// - route avec lignes blanches (bords pleins + pointillés au centre) : Resources/InGame/RoadLines ;
 /// - voitures blanches, contour et arêtes noirs : Resources/InGame/CarWhite (aussi sur les photos du garage) ;
 /// - décor (DecorSpawner) noir, contour et arêtes blancs : Resources/InGame/DecorBlack ;
-/// - fond (ciel) blanc uni.
+/// - terrain blanc à facettes grises : Resources/InGame/TerrainWhite ;
+/// - fond (ciel) blanc uni, et au loin tout se fond dans ce blanc (global _RacerDistanceFade).
 ///
 /// Rien à brancher : s'active tout seul à chaque chargement d'une scène de jeu (ZigzagRoadGenerator),
 /// juste après les Awake (le modèle de la voiture équipée est déjà en place) et avant les Start
@@ -27,7 +28,10 @@ public static class InGameLook
     /// <summary>Vrai dans une vraie partie : DecorSpawner passe alors le décor en noir à traits blancs.</summary>
     public static bool DecorActive { get; private set; }
 
-    static Material roadMat, carMat, decorMat;
+    static readonly int DistanceFade = Shader.PropertyToID("_RacerDistanceFade");
+    static readonly Vector4 FadeInGame = new Vector4(80f, 170f, 1f, 0f); // début, fin (m), force
+
+    static Material roadMat, carMat, decorMat, terrainMat;
     static readonly Dictionary<Mesh, Mesh> meshes = new();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -37,6 +41,7 @@ public static class InGameLook
             if (m != null) Object.Destroy(m);
         meshes.Clear();
         DecorActive = false;
+        Shader.SetGlobalVector(DistanceFade, Vector4.zero);
         SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
@@ -48,13 +53,18 @@ public static class InGameLook
         bool gameScene = false;
         foreach (var root in roots)
             if (root.GetComponentInChildren<ZigzagRoadGenerator>(true) != null) { gameScene = true; break; }
-        if (!gameScene) return;
+        if (!gameScene)
+        {
+            if (mode == LoadSceneMode.Single) Shader.SetGlobalVector(DistanceFade, Vector4.zero); // menu, garage
+            return;
+        }
 
         // Démo du menu (chargée en additif par MenuBackground) : on garde la DA du menu.
         // La vraie partie est chargée en Single : on ne se fie pas seulement à DemoRunning,
         // qui peut encore être vrai le temps que la scène du menu soit détruite.
         bool demo = mode == LoadSceneMode.Additive && MenuBackground.DemoRunning;
         DecorActive = !demo;
+        Shader.SetGlobalVector(DistanceFade, demo ? Vector4.zero : FadeInGame);
         if (demo) return;
 
         foreach (var root in roots)
@@ -63,6 +73,11 @@ public static class InGameLook
             {
                 if (roadMat == null) roadMat = Resources.Load<Material>(Folder + "RoadLines");
                 if (roadMat != null) road.roadMaterial = roadMat;
+            }
+            foreach (var terrain in root.GetComponentsInChildren<LowPolyTerrainGenerator>(true))
+            {
+                if (terrainMat == null) terrainMat = Resources.Load<Material>(Folder + "TerrainWhite");
+                if (terrainMat != null) terrain.terrainMaterial = terrainMat; // copié dans son Start
             }
             foreach (var car in root.GetComponentsInChildren<DriftCar>(true))
                 ApplyCar(car);

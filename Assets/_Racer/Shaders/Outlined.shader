@@ -43,6 +43,15 @@ Shader "Racer/Outlined"
         CBUFFER_END
 
         float _RacerLineBoost; // global : photos du garage (traits plus épais). 0 = normal.
+        float4 _RacerDistanceFade; // global (InGameLook) : x = début, y = fin (m), z = force. 0 = pas de fondu.
+
+        // Fondu vers le blanc du ciel au loin (cache l'apparition du décor)
+        half3 DistanceFade(half3 color, float3 posWS)
+        {
+            float dist = distance(posWS, _WorldSpaceCameraPos);
+            float fade = saturate((dist - _RacerDistanceFade.x) / max(_RacerDistanceFade.y - _RacerDistanceFade.x, 1e-3));
+            return lerp(color, half3(1, 1, 1), fade * _RacerDistanceFade.z);
+        }
 
         // Pixels (en 1080p) -> pixels de l'écran, plus fins au loin
         float LinePixels(float width, float3 posWS)
@@ -79,12 +88,14 @@ Shader "Racer/Outlined"
                 float3 normalWS : TEXCOORD0;
                 half fogFactor : TEXCOORD1;
                 half isEdge : TEXCOORD2;
+                float3 positionWS : TEXCOORD3;
             };
 
             Varyings Vert(Attributes input)
             {
                 Varyings output;
                 float3 posWS = TransformObjectToWorld(input.positionOS.xyz);
+                output.positionWS = posWS;
                 float4 cs;
                 if (input.edge.x > 0.5)
                 {
@@ -131,6 +142,7 @@ Shader "Racer/Outlined"
                     half t = smoothstep(_ShadeStep - _ShadeSoftness, _ShadeStep + _ShadeSoftness, ndl);
                     color = lerp(_ShadeColor.rgb, _BaseColor.rgb, t);
                 }
+                color = DistanceFade(color, input.positionWS);
                 return half4(MixFog(color, input.fogFactor), 1);
             }
             ENDHLSL
@@ -159,11 +171,13 @@ Shader "Racer/Outlined"
             {
                 float4 positionCS : SV_POSITION;
                 half fogFactor : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
             };
 
             Varyings Vert(Attributes input)
             {
                 Varyings output;
+                output.positionWS = 0;
                 if (input.edge.x > 0.5)
                 {
                     // Les quads d'arêtes ne font pas partie de la coque : hors écran, ignorés
@@ -184,13 +198,14 @@ Shader "Racer/Outlined"
                 cs.xy += d * LinePixels(_OutlineWidth, posWS) * 2.0 / px * cs.w;
 
                 output.positionCS = cs;
+                output.positionWS = posWS;
                 output.fogFactor = ComputeFogFactor(cs.z);
                 return output;
             }
 
             half4 Frag(Varyings input) : SV_Target
             {
-                return half4(MixFog(_LineColor.rgb, input.fogFactor), 1);
+                return half4(MixFog(DistanceFade(_LineColor.rgb, input.positionWS), input.fogFactor), 1);
             }
             ENDHLSL
         }

@@ -46,6 +46,8 @@ Shader "Racer/RoadLines"
             float _DashesPerTile, _DashFill;
         CBUFFER_END
 
+        float4 _RacerDistanceFade; // global (InGameLook) : x = début, y = fin (m), z = force. 0 = pas de fondu.
+
         // Bande anti-aliasée : 1 à moins de halfWidth du centre, 0 au-delà
         float Band(float dist, float halfWidth, float aa)
         {
@@ -170,6 +172,11 @@ Shader "Racer/RoadLines"
                 // Lignes émissives (HDR : active le Bloom pour qu'elles brillent)
                 float lines = RoadLineMask(uv, input.roadWidth);
                 color = lerp(color, _LineEmission.rgb, lines);
+
+                // Fondu vers le blanc du ciel au loin, en vraie partie seulement (global posé par InGameLook)
+                float dist = distance(input.positionWS, _WorldSpaceCameraPos);
+                float fade = saturate((dist - _RacerDistanceFade.x) / max(_RacerDistanceFade.y - _RacerDistanceFade.x, 1e-3));
+                color = lerp(color, half3(1, 1, 1), fade * _RacerDistanceFade.z);
 
                 color = MixFog(color, input.fogFactor);
                 return half4(color, 1);
