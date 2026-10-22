@@ -77,6 +77,7 @@ public static class CarModelSwap
             Object.Destroy(old.gameObject);
         }
         car.SetBody(holder);
+        InGameLook.ApplyCar(car); // blanche, contour et arêtes noirs (partie et démo du menu)
 
         var wheels = car.GetComponent<CarWheels>();
         if (wheels != null) wheels.Rebind();

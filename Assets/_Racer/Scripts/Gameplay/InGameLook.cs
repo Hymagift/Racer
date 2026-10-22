@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// DA de la vraie partie seulement (pas dans la démo derrière le menu) :
+/// DA de la vraie partie (la démo derrière le menu n'a que la voiture en blanc) :
 /// - route avec lignes blanches (bords pleins + pointillés au centre) : Resources/InGame/RoadLines ;
 /// - voitures blanches, contour et arêtes noirs : Resources/InGame/CarWhite (aussi sur les photos du garage) ;
 /// - décor (DecorSpawner) noir, contour et arêtes blancs : Resources/InGame/DecorBlack ;
@@ -65,7 +65,14 @@ public static class InGameLook
         bool demo = mode == LoadSceneMode.Additive && MenuBackground.DemoRunning;
         DecorActive = !demo;
         Shader.SetGlobalVector(DistanceFade, demo ? Vector4.zero : FadeInGame);
-        if (demo) return;
+        if (demo)
+        {
+            // La voiture de la démo (autopilote) a quand même la DA du jeu ; le reste garde celle du menu
+            foreach (var root in roots)
+                foreach (var car in root.GetComponentsInChildren<DriftCar>(true))
+                    ApplyCar(car);
+            return;
+        }
 
         foreach (var root in roots)
         {
