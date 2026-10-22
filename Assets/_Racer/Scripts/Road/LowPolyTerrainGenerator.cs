@@ -173,6 +173,29 @@ public class LowPolyTerrainGenerator : MonoBehaviour
         return n * hillHeight * fade;
     }
 
+    /// <summary>
+    /// Altitude du terrain à un Z "piste", du côté side (-1 = gauche, 1 = droite), à la distance e du bord de la route.
+    /// Même calcul que le maillage (interpolé entre deux colonnes comme les triangles) : sert à poser le décor au sol.
+    /// </summary>
+    public float GroundHeight(float localZ, int side, float e)
+    {
+        if (offsets.Count == 0) BuildOffsets();
+        e = Mathf.Clamp(e, 0f, offsets[offsets.Count - 1]);
+        int j = 0;
+        while (j < offsets.Count - 2 && offsets[j + 1] < e) j++;
+        float t = Mathf.InverseLerp(offsets[j], offsets[j + 1], e);
+        return Mathf.Lerp(ColumnHeight(localZ, side, offsets[j]), ColumnHeight(localZ, side, offsets[j + 1]), t);
+    }
+
+    float ColumnHeight(float localZ, int side, float e)
+    {
+        road.SideAt(localZ, out float voidLeft, out float voidRight, out float bridge);
+        float x = road.CenterXAt(localZ) + side * (road.HalfWidthXAt(localZ) + e);
+        double az = road.OriginZ + localZ;
+        float fade = Mathf.SmoothStep(0f, 1f, (float)(az / startFlatDistance));
+        return road.RoadHeightAt(localZ) + Profile(e, side < 0 ? voidLeft : voidRight, bridge, x, az) * fade;
+    }
+
     // Profil en travers : décalage d'altitude par rapport à la route, à la distance e du bord de la route.
     // voidness : 0 = paroi de montagne contre la route, 1 = falaise (vide) ; entre les deux, la montagne s'enfonce.
     // bridge : 1 sur un pont, la gorge (plus profonde) commence dès le bord de la route : la route est dans le vide.
