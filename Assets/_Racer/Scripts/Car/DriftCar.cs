@@ -132,6 +132,8 @@ public class DriftCar : MonoBehaviour
     public float wallHitCooldown = 0.6f;
     [Tooltip("Vitesse latérale min contre le mur pour compter comme un choc (m/s)")]
     public float wallHitMinSpeed = 3f;
+    [Tooltip("Vitesse latérale max (m/s) qu'un choc avec autre chose qu'un mur (jonction de route, cône...) peut donner à la voiture")]
+    public float maxPhysicsKick = 2f;
 
     [Header("Visuel")]
     public float bodyRollMax = 5f;            // degrés d'inclinaison en virage (vers l'extérieur)
@@ -194,6 +196,7 @@ public class DriftCar : MonoBehaviour
     int wallContacts;
     string inputError;
     float lastWallHitTime = -10f;
+    bool wallTouched;     // contact avec un mur pendant le dernier pas de physique
 
     Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modèle (ex : -90° des modèles Blender)
     Vector3 bodyBaseLocalPos;                            // position d'origine du modèle (compense un pivot mal placé)
@@ -247,6 +250,7 @@ public class DriftCar : MonoBehaviour
         driftTime = 0f;
         CurrentDriftPoints = 0f;
         IsDrifting = false;
+        wallTouched = false;
         float speed = TargetSpeed();
         vel = new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)) * speed;
 
@@ -460,8 +464,14 @@ public class DriftCar : MonoBehaviour
     {
         float dt = Time.fixedDeltaTime;
 
-        // La physique Unity a pu modifier X (collisions) : on repart de sa valeur
-        vel.x = rb.linearVelocity.x;
+        // La physique Unity a pu modifier X (collisions). Contre un mur, la route défile et "rentre" dans la voiture :
+        // PhysX la ressort avec une vitesse de dépénétration qui n'est qu'une correction de position. La garder
+        // comme vraie vitesse donnait un gros coup de boost qui envoyait la voiture dans le décor. Les murs sont
+        // gérés par OnCollisionStay (on retire seulement la vitesse qui rentre dedans) : on ignore leur poussée,
+        // et on plafonne celle des autres contacts.
+        float kick = rb.linearVelocity.x - vel.x;
+        vel.x += wallTouched ? 0f : Mathf.Clamp(kick, -maxPhysicsKick, maxPhysicsKick);
+        wallTouched = false;
 
         // Déclenchement du drift : l'arrière décroche EN PROPORTION du braquage (à vitesse suffisante),
         // au lieu de tout ou rien : un petit coup de doigt = légère glisse, doigt au bord = gros drift
@@ -615,6 +625,7 @@ public class DriftCar : MonoBehaviour
     void OnCollisionEnter(Collision collision)
     {
         if (!TryGetWallNormal(collision, out Vector2 n2)) return;
+        wallTouched = true;
 
         float into = Vector2.Dot(vel, n2);
         if (into < -wallHitMinSpeed && Time.time - lastWallHitTime > wallHitCooldown)
@@ -634,6 +645,7 @@ public class DriftCar : MonoBehaviour
     {
         if (!TryGetWallNormal(collision, out Vector2 n2)) return;
         wallContacts++;
+        wallTouched = true;
 
         float into = Vector2.Dot(vel, n2);
         if (into < 0f) vel -= n2 * into;

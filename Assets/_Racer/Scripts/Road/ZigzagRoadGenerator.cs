@@ -104,6 +104,10 @@ public class ZigzagRoadGenerator : MonoBehaviour
     public bool rockSideWalls = true;
     [Tooltip("Épaisseur des murs de collision (m). Épais = jamais traversés, même dans les diagonales à pleine vitesse")]
     public float wallColliderThickness = 3f;
+    [Tooltip("Là où un mur commence ou s'arrête (sortie de pont, montagne qui revient), il part de ce recul (m) hors de la route et rejoint le bord en douceur : une voiture qui dépasse un peu de la route est ramenée en glissant au lieu de taper le bout du mur de face")]
+    public float wallTaperWidth = 3f;
+    [Tooltip("Longueur (m) sur laquelle le mur rejoint le bord de la route")]
+    public float wallTaperLength = 14f;
     [Tooltip("Sol sans friction : le sol défile sous la voiture, la friction n'a pas de sens ici")]
     public bool frictionlessRoad = true;
 
@@ -466,7 +470,20 @@ public class ZigzagRoadGenerator : MonoBehaviour
         visualMesh.RecalculateNormals();
         visualMesh.RecalculateBounds();
 
-        collisionMesh = addCollider ? BuildCollisionMesh(left, right, rightDir, voidL, voidR) : null;
+        float[] taperL = null, taperR = null;
+        if (addCollider && !addSideWalls && rockSideWalls)
+        {
+            taperL = new float[rows];
+            taperR = new float[rows];
+            for (int r = 0; r < rows; r++)
+            {
+                float z = startZ + r * segmentLength;
+                taperL[r] = WallTaper(z, -1);
+                taperR[r] = WallTaper(z, 1);
+            }
+        }
+
+        collisionMesh = addCollider ? BuildCollisionMesh(left, right, rightDir, voidL, voidR, taperL, taperR) : null;
         railsMesh = showWalls ? BuildRailsMesh(left, right, rightDir, voidL, voidR) : null;
         bridgeMesh = BuildBridgeMesh(startZ, left, right, rightDir, bridge);
     }
@@ -476,7 +493,8 @@ public class ZigzagRoadGenerator : MonoBehaviour
     /// Un volume fermé est beaucoup plus fiable qu'un plan sans épaisseur (pas de traversée à haute vitesse).
     /// Côté vide : glissière basse ; côté montagne : mur invisible plus haut (la roche est dessinée par le terrain).
     /// </summary>
-    Mesh BuildCollisionMesh(Vector3[] left, Vector3[] right, Vector3[] rightDir, float[] voidL, float[] voidR)
+    Mesh BuildCollisionMesh(Vector3[] left, Vector3[] right, Vector3[] rightDir, float[] voidL, float[] voidR,
+                            float[] taperL, float[] taperR)
     {
         var verts = new List<Vector3>();
         var tris = new List<int>();
@@ -517,9 +535,12 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 var bottom = Slice(leftBottom, a, b);
                 var dir = Slice(rightDir, a, b);
                 var h = Slice(hL, a, b);
-                Vector3[] liT = ShiftAlong(edge, dir, 0f, h);
-                Vector3[] loT = ShiftAlong(edge, dir, -wt, h);
-                Vector3[] loB = ShiftAlong(edge, dir, -wt, -th);
+                float[] off = Offsets(taperL, a, b, 0f, -1f);
+                float[] offOut = Offsets(taperL, a, b, -wt, -1f);
+                if (taperL != null) bottom = ShiftAlong(edge, dir, off, -th);
+                Vector3[] liT = ShiftAlong(edge, dir, off, h);
+                Vector3[] loT = ShiftAlong(edge, dir, offOut, h);
+                Vector3[] loB = ShiftAlong(edge, dir, offOut, -th);
                 AddStrip(verts, tris, liT, bottom);       // face intérieure
                 AddStrip(verts, tris, loT, liT);          // dessus
                 AddStrip(verts, tris, loB, loT);          // face extérieure
@@ -533,9 +554,12 @@ public class ZigzagRoadGenerator : MonoBehaviour
                 var bottom = Slice(rightBottom, a, b);
                 var dir = Slice(rightDir, a, b);
                 var h = Slice(hR, a, b);
-                Vector3[] riT = ShiftAlong(edge, dir, 0f, h);
-                Vector3[] roT = ShiftAlong(edge, dir, wt, h);
-                Vector3[] roB = ShiftAlong(edge, dir, wt, -th);
+                float[] off = Offsets(taperR, a, b, 0f, 1f);
+                float[] offOut = Offsets(taperR, a, b, wt, 1f);
+                if (taperR != null) bottom = ShiftAlong(edge, dir, off, -th);
+                Vector3[] riT = ShiftAlong(edge, dir, off, h);
+                Vector3[] roT = ShiftAlong(edge, dir, offOut, h);
+                Vector3[] roB = ShiftAlong(edge, dir, offOut, -th);
                 AddStrip(verts, tris, bottom, riT);       // face intérieure
                 AddStrip(verts, tris, riT, roT);          // dessus
                 AddStrip(verts, tris, roT, roB);          // face extérieure
@@ -548,6 +572,41 @@ public class ZigzagRoadGenerator : MonoBehaviour
         mesh.SetTriangles(tris, 0);
         mesh.RecalculateBounds();
         return mesh;
+    }
+
+    // Mur de collision présent de ce côté (-1 gauche, 1 droite) à un Z "piste" (même règle que BuildCollisionMesh)
+    bool HasWall(float z, int side)
+    {
+        if (addSideWalls) return true;
+        if (!rockSideWalls) return false;
+        SideAt(z, out float l, out float r, out _);
+        return 1f - (side < 0 ? l : r) >= 0.5f;
+    }
+
+    // Recul du mur hors de la route près de ses extrémités : wallTaperWidth au bout du mur, 0 à wallTaperLength du bout.
+    // Calculé sur le tracé (et pas seulement dans le chunk) pour que les murs se raccordent d'un chunk à l'autre.
+    float WallTaper(float z, int side)
+    {
+        if (wallTaperWidth <= 0f || wallTaperLength <= 0f) return 0f;
+        int steps = Mathf.Max(1, Mathf.CeilToInt(wallTaperLength / segmentLength));
+        for (int k = 0; k <= steps; k++)
+        {
+            if (!HasWall(z - k * segmentLength, side) || !HasWall(z + k * segmentLength, side))
+            {
+                float t = Mathf.Clamp01((float)k / steps);
+                return wallTaperWidth * (1f - t * t * (3f - 2f * t));
+            }
+        }
+        return 0f;
+    }
+
+    // Décalage vers l'extérieur (sign = -1 à gauche, 1 à droite) de chaque ligne du mur : base + recul
+    static float[] Offsets(float[] taper, int start, int end, float baseOffset, float sign)
+    {
+        var res = new float[end - start + 1];
+        for (int i = 0; i < res.Length; i++)
+            res[i] = baseOffset + (taper != null ? sign * taper[start + i] : 0f);
+        return res;
     }
 
     /// <summary>Glissières visibles, seulement là où il y a du vide (des deux côtés sur un pont).</summary>
@@ -725,6 +784,21 @@ public class ZigzagRoadGenerator : MonoBehaviour
     {
         var res = new Vector3[src.Length];
         for (int i = 0; i < src.Length; i++) res[i] = src[i] + dirs[i] * dist + Vector3.up * dy[i];
+        return res;
+    }
+
+    // Même chose avec un décalage et une hauteur différents à chaque ligne
+    static Vector3[] ShiftAlong(Vector3[] src, Vector3[] dirs, float[] dist, float[] dy)
+    {
+        var res = new Vector3[src.Length];
+        for (int i = 0; i < src.Length; i++) res[i] = src[i] + dirs[i] * dist[i] + Vector3.up * dy[i];
+        return res;
+    }
+
+    static Vector3[] ShiftAlong(Vector3[] src, Vector3[] dirs, float[] dist, float dy)
+    {
+        var res = new Vector3[src.Length];
+        for (int i = 0; i < src.Length; i++) res[i] = src[i] + dirs[i] * dist[i] + Vector3.up * dy;
         return res;
     }
 
