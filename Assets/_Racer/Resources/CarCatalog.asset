@@ -138,6 +138,31 @@ MonoBehaviour:
       driftRecover: 1.25
       driftSpeedKeep: 1
       bodyRoll: 0.8
+  - id: porsche
+    displayName: Porsche
+    rarity: 2
+    blueprintsToUnlock: 5
+    unlockedByDefault: 0
+    color: {r: 0.9, g: 0.12, b: 0.1, a: 1}
+    material: {fileID: 0}
+    model: {fileID: 919132149155446097, guid: 8a10b47cf02e4c14b2ccfc42d5a1b833, type: 3}
+    modelYaw: 0
+    modelScale: 1
+    handling:
+      speed: 1.05
+      acceleration: 1.2
+      steering: 1.02
+      steerResponse: 1.1
+      rotationInertia: 0.85
+      countersteer: 0.95
+      grip: 1.12
+      driftGrip: 1.22
+      driftAngle: 0.82
+      driftThreshold: 0.98
+      driftEngage: 1.1
+      driftRecover: 1.4
+      driftSpeedKeep: 1.03
+      bodyRoll: 0.7
   - id: ryujin
     displayName: Ryujin GT-X
     rarity: 3
@@ -169,10 +194,10 @@ MonoBehaviour:
     price: 100
     cards: 3
     odds:
-    - 70
-    - 24
-    - 5
-    - 1
+    - 72
+    - 25
+    - 2.5
+    - 0.5
     color: {r: 0.8, g: 0.5, b: 0.25, a: 1}
     tagline: Le meilleur rapport pour les Rares
   - id: or
@@ -180,21 +205,21 @@ MonoBehaviour:
     price: 750
     cards: 5
     odds:
-    - 15
-    - 45
-    - 28
-    - 12
+    - 20
+    - 61
+    - 13
+    - 6
     color: {r: 1, g: 0.8, b: 0.2, a: 1}
-    tagline: "Plus d'une chance sur quatre d'avoir une \xC9pique"
+    tagline: "Pr\xE8s de 20 % d'\xC9pique ou de L\xE9gendaire"
   - id: diamant
     displayName: Booster Diamant
     price: 1500
     cards: 5
     odds:
     - 0
+    - 60
+    - 25
     - 15
-    - 45
-    - 40
     color: {r: 0.45, g: 0.9, b: 1, a: 1}
-    tagline: "40 % de L\xE9gendaire, z\xE9ro Commune"
+    tagline: "40 % d'\xC9pique ou de L\xE9gendaire, z\xE9ro Commune"
   duplicateCoins: 0a000000190000003c00000096000000

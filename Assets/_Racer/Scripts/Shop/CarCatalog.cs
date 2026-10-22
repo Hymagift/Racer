@@ -297,12 +297,19 @@ public class CarCatalog : ScriptableObject
             grip = 1.05f, driftGrip = 1.12f, driftAngle = 0.85f, driftThreshold = 1.08f, driftEngage = 0.9f, driftRecover = 1.25f,
             driftSpeedKeep = 1f, bodyRoll = 0.8f,
         });
+        Add("porsche", "Porsche", CarRarity.Epique, new Color(0.9f, 0.12f, 0.1f), new CarHandling
+        {
+            // Sportive moteur arrière : grosse motricité, très précise, l'arrière pivote vite et garde sa vitesse en glisse
+            speed = 1.05f, acceleration = 1.2f, steering = 1.02f, steerResponse = 1.1f, rotationInertia = 0.85f, countersteer = 0.95f,
+            grip = 1.12f, driftGrip = 1.22f, driftAngle = 0.82f, driftThreshold = 0.98f, driftEngage = 1.1f, driftRecover = 1.4f,
+            driftSpeedKeep = 1.03f, bodyRoll = 0.7f,
+        });
         // Voiture de drift : la référence, exactement les réglages du DriftCar de la scène (le meilleur feeling)
         Add("ryujin", "Ryujin GT-X", CarRarity.Legendaire, new Color(1f, 0.75f, 0.1f), new CarHandling());
 
-        cat.boosters.Add(new Booster { id = "bronze", displayName = "Booster Bronze", price = 100, cards = 3, odds = new[] { 70f, 24f, 5f, 1f }, tagline = "Le meilleur rapport pour les Rares", color = new Color(0.8f, 0.5f, 0.25f) });
-        cat.boosters.Add(new Booster { id = "or", displayName = "Booster Or", price = 750, cards = 5, odds = new[] { 15f, 45f, 28f, 12f }, tagline = "Plus d'une chance sur quatre d'avoir une Épique", color = new Color(1f, 0.8f, 0.2f) });
-        cat.boosters.Add(new Booster { id = "diamant", displayName = "Booster Diamant", price = 1500, cards = 5, odds = new[] { 0f, 15f, 45f, 40f }, tagline = "40 % de Légendaire, zéro Commune", color = new Color(0.45f, 0.9f, 1f) });
+        cat.boosters.Add(new Booster { id = "bronze", displayName = "Booster Bronze", price = 100, cards = 3, odds = new[] { 72f, 25f, 2.5f, 0.5f }, tagline = "Le meilleur rapport pour les Rares", color = new Color(0.8f, 0.5f, 0.25f) });
+        cat.boosters.Add(new Booster { id = "or", displayName = "Booster Or", price = 750, cards = 5, odds = new[] { 20f, 61f, 13f, 6f }, tagline = "Près de 20 % d'Épique ou de Légendaire", color = new Color(1f, 0.8f, 0.2f) });
+        cat.boosters.Add(new Booster { id = "diamant", displayName = "Booster Diamant", price = 1500, cards = 5, odds = new[] { 0f, 60f, 25f, 15f }, tagline = "40 % d'Épique ou de Légendaire, zéro Commune", color = new Color(0.45f, 0.9f, 1f) });
         return cat;
     }
 }
