@@ -138,6 +138,8 @@ public class DriftCar : MonoBehaviour
     [Header("Hors de la route")]
     [Tooltip("Vitesse à laquelle l'arrière se raccroche quand le centre de la voiture sort de la route (plus de drift hors de la route)")]
     public float offRoadGripRate = 5f;
+    [Tooltip("Distance (m) entre le centre de la voiture et le bord de la route, côté vide, au-delà de laquelle elle tombe")]
+    public float fallEdgeMargin = 0.3f;
 
     [Header("Visuel")]
     public float bodyRollMax = 5f;            // degrés d'inclinaison en virage (vers l'extérieur)
@@ -177,6 +179,8 @@ public class DriftCar : MonoBehaviour
     /// </summary>
     [System.NonSerialized] public float styleDrift;
     float physicalDriftAngle, styleShown;
+    /// <summary>Vrai quand la voiture est tombée de la route (elle ne peut plus y remonter, voir DriftGameManager).</summary>
+    public bool HasFallen => fallen;
     /// <summary>Vrai quand la voiture glisse franchement.</summary>
     public bool IsDrifting { get; private set; }
     /// <summary>Points du drift en cours (augmente avec l'angle et la vitesse).</summary>
@@ -677,8 +681,13 @@ public class DriftCar : MonoBehaviour
         // de la route et elle remontait dessus). On la garde à côté de la route jusqu'à la chute fatale.
         if (!fallen && box != null)
         {
+            // Tombée : sous le niveau de la route à côté du bord, ou centre au-dessus du vide (côté sans mur).
+            // Sans ça, la voiture restait posée sur le coin de la dalle (elle ne penche pas) et revenait sur la route.
             float lateral = p.x - cx;
-            if (Mathf.Abs(lateral) > hw && box.bounds.min.y < road.RoadHeightAt(tz) - 0.3f)
+            int side = lateral > 0f ? 1 : -1;
+            bool below = Mathf.Abs(lateral) > hw && box.bounds.min.y < road.RoadHeightAt(tz) - 0.15f;
+            bool overVoid = Mathf.Abs(lateral) > hw + fallEdgeMargin && !road.WallOffsetAt(tz, side, out _);
+            if (below || overVoid)
             {
                 fallen = true;
                 fallSide = Mathf.Sign(lateral);

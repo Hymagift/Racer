@@ -41,7 +41,9 @@ public class DriftGameManager : MonoBehaviour
     [Tooltip("Meurt si la voiture tombe sous le niveau de la route")]
     public bool dieOnFall = true;
     [Tooltip("Hauteur de chute sous la route avant la mort")]
-    public float fallDepth = 6f;
+    public float fallDepth = 1.5f;
+    [Tooltip("Temps (s) après que la voiture est tombée de la route (DriftCar.HasFallen) avant la mort, même si elle n'est pas encore assez bas")]
+    public float fallKillDelay = 0.5f;
     [Tooltip("Meurt si la voiture s'éloigne trop du bord de la route (même sans tomber)")]
     public bool dieOffRoad = false;
     public float offRoadMargin = 3f;
@@ -79,6 +81,7 @@ public class DriftGameManager : MonoBehaviour
 
     Rigidbody carRb;
     bool stopArmed;   // la voiture a démarré : l'arrêt peut maintenant tuer
+    float fallenTime; // temps depuis que la voiture est tombée de la route
     float stoppedFor; // temps passé à l'arrêt
 
     void Awake()
@@ -114,7 +117,8 @@ public class DriftGameManager : MonoBehaviour
         Vector3 p = car.transform.position;
         float trackZ = road.TrackZ(p.z);
 
-        if (dieOnFall && p.y < road.RoadHeightAt(trackZ) - fallDepth)
+        fallenTime = car.HasFallen ? fallenTime + Time.deltaTime : 0f;
+        if (dieOnFall && (p.y < road.RoadHeightAt(trackZ) - fallDepth || fallenTime > fallKillDelay))
         {
             Die();
             return;
@@ -214,6 +218,7 @@ public class DriftGameManager : MonoBehaviour
         car.enabled = true;
         car.Respawn(new Vector3(x, road.RoadHeightAt(z) + 1f, p.z), heading);
         stoppedFor = 0f;
+        fallenTime = 0f;
         IsDead = false;
     }
 
