@@ -272,7 +272,7 @@ public class CarCameraFeel : CinemachineExtension
     protected override void PostPipelineStageCallback(CinemachineVirtualCameraBase vcam, CinemachineCore.Stage stage,
                                                       ref CameraState state, float deltaTime)
     {
-        if (stage != CinemachineCore.Stage.Finish || intensity <= 0f) return;
+        if (stage != CinemachineCore.Stage.Finalize || intensity <= 0f) return;
 
         Quaternion rot = state.RawOrientation;
         state.PositionCorrection += rot * outOffset;
