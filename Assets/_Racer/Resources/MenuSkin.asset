@@ -12,11 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deaf6a60e1f1fb261030abda491a7939, type: 3}
   m_Name: MenuSkin
   m_EditorClassIdentifier: 
+  recordBox: {fileID: 21300000, guid: e10f7b463f83791c2d10f49748d4cdc9, type: 3}
+  rubisCounter: {fileID: 21300000, guid: 445faf61d3b715167499d11ab77f57b2, type: 3}
+  coinCounter: {fileID: 21300000, guid: 71f3e3886783832a5d94afd0caefcc81, type: 3}
   tabPlay: {fileID: 21300000, guid: 7a0e64728f3dd3d4c900aebffb6aec97, type: 3}
   tabInvocations: {fileID: 21300000, guid: 02cd8dab4dad4f344bd87b9b668428e8, type: 3}
   tabGarage: {fileID: 21300000, guid: b2c7d1cbad61e3a46b5e022328c42e39, type: 3}
   tabOptions: {fileID: 21300000, guid: c658c534383e19a4bb872faf721fdd99, type: 3}
   playButton: {fileID: 21300000, guid: 511bdecf8321c234aabaaced12716547, type: 3}
+  logo: {fileID: 21300000, guid: 4d45fd9144dfa599f99510eedae175b0, type: 3}
+  swipeHint: {fileID: 21300000, guid: af3e36f632ee72f7b67ced5e14542660, type: 3}
+  emptyPanel: {fileID: 21300000, guid: 03c6fa6b19ad3fcf4e868a1e5fdf7d15, type: 3}
+  volumeTitle: {fileID: 21300000, guid: d91552de7d6c74606aa49e627e0b6976, type: 3}
+  sliderBar: {fileID: 21300000, guid: 70a851939f7e5f4f7e16f33cd8a36ab3, type: 3}
+  sliderKnob: {fileID: 21300000, guid: a0bb46da245af2dd7e813fd45635c49d, type: 3}
+  resetButton: {fileID: 21300000, guid: 4a0d5d3565df853d703465e7c8192d9e, type: 3}
+  quitButton: {fileID: 21300000, guid: b0c18c94d47974e7925f9c808066c5fc, type: 3}
   invocationsPanel: {fileID: 21300000, guid: ba6bdde6e1aaedd4f8e201e0ccd6e497, type: 3}
   tabBoosters: {fileID: 21300000, guid: 386592e8c54b79b4baaf0c4f7fac2cae, type: 3}
   tabBoutique: {fileID: 21300000, guid: 06ef1bc7f72dd1a49869cf6063b75eae, type: 3}
@@ -51,6 +62,33 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 1ac060c551b8bd8428baa202e2facdf7, type: 3}
   - price: 200
     sprite: {fileID: 21300000, guid: c7f06a4278f695548b6b0687c1ecdda7, type: 3}
+  rubisBalance: {fileID: 21300000, guid: c61cb21786ed7fffa115c7dd41396f64, type: 3}
+  reserveBalance: {fileID: 21300000, guid: 531f746ea151d3f9a273c678e6aaa189, type: 3}
+  starterPackCard: {fileID: 21300000, guid: 1944848071f181d949160036549a2797, type: 3}
+  carPackCard: {fileID: 21300000, guid: 06a90746bc0b5cf9f5418c37a5434f75, type: 3}
+  rubisTitle: {fileID: 21300000, guid: e463bc704f1d3b5fb84dcc2670bb72e3, type: 3}
+  autopilotTitle: {fileID: 21300000, guid: 0006a88d83c1e898c1fbfe131615e5eb, type: 3}
+  coinsTitle: {fileID: 21300000, guid: 6fc048e218624207fe9a5d58c259eaca, type: 3}
+  rubisCards:
+  - price: 80
+    sprite: {fileID: 21300000, guid: 7bab72bc3777bc7348a733ad4caf3070, type: 3}
+  - price: 500
+    sprite: {fileID: 21300000, guid: 8b31edfd668d9f6aa9aac7238b453ef4, type: 3}
+  - price: 1200
+    sprite: {fileID: 21300000, guid: 45314e6143a1ac5ba5ba4e50a5d0e2de, type: 3}
+  autopilotCards:
+  - price: 1
+    sprite: {fileID: 21300000, guid: f6b06ed518573ac1faa7aa9044be50d2, type: 3}
+  - price: 5
+    sprite: {fileID: 21300000, guid: 2eea7aecd7e468eae7e0566b3f0f8078, type: 3}
+  - price: 12
+    sprite: {fileID: 21300000, guid: 718e77dfe9cdb61ab7f06301b359058d, type: 3}
+  coinCards:
+  - price: 1000
+    sprite: {fileID: 21300000, guid: 618ef709f505ab6685de8fab5eda4349, type: 3}
+  - price: 6000
+    sprite: {fileID: 21300000, guid: 2746fbd0bd3fde7e8a7ecc221b90c365, type: 3}
+  autopilotHud: {fileID: 21300000, guid: 755772b23e358eb33295b473a609fcbd, type: 3}
   rarityCommune: {fileID: 21300000, guid: 46a588952d8db2b4f918c23849ab3453, type: 3}
   rarityRare: {fileID: 21300000, guid: 9f8acf61cb1a23242be63e899be0ba0a, type: 3}
   rarityEpique: {fileID: 0}

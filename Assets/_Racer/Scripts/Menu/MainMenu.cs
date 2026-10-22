@@ -60,7 +60,7 @@ public class MainMenu : MonoBehaviour
     readonly List<(ButtonBounce bounce, Image face, Image side, Text label, Color color)> tabs =
         new List<(ButtonBounce, Image, Image, Text, Color)>();
     float resetArmedUntil, tabWidth;
-    bool starting;
+    bool starting, resetSkinned;
 
     void Start()
     {
@@ -213,7 +213,12 @@ public class MainMenu : MonoBehaviour
         }
 
         if (resetLabel != null)
-            resetLabel.text = t < resetArmedUntil ? "SÛR ? APPUIE ENCORE" : "RÉINITIALISER";
+        {
+            bool armed = t < resetArmedUntil;
+            // Bouton en image ("Réinitialiser" dans l'image) : la confirmation s'affiche sous le bouton
+            resetLabel.text = resetSkinned ? (armed ? "SÛR ? APPUIE ENCORE POUR TOUT EFFACER" : "")
+                                           : armed ? "SÛR ? APPUIE ENCORE" : "RÉINITIALISER";
+        }
     }
 
     static bool BackPressed()
@@ -314,9 +319,11 @@ public class MainMenu : MonoBehaviour
 
         var playPage = pager.AddPage("Jouer");
         BuildPlayPage(playPage);
-        var invocations = SheetPage(pager.AddPage("Invocations"), "INVOCATIONS", Purple, MenuSkin.Current != null ? MenuSkin.Current.invocationsPanel : null);
-        var garage = SheetPage(pager.AddPage("Garage"), "GARAGE", Blue);
-        BuildOptionsPage(SheetPage(pager.AddPage("Options"), "OPTIONS", Teal));
+        var skin = MenuSkin.Current;
+        var invocations = SheetPage(pager.AddPage("Invocations"), "INVOCATIONS", Purple, skin != null ? skin.invocationsPanel : null);
+        // Garage et Options : panneau sans titre, avec l'onglet de la page en guise de titre
+        var garage = SheetPage(pager.AddPage("Garage"), "GARAGE", Blue, skin != null ? skin.emptyPanel : null, skin != null ? skin.tabGarage : null);
+        BuildOptionsPage(SheetPage(pager.AddPage("Options"), "OPTIONS", Teal, skin != null ? skin.emptyPanel : null, skin != null ? skin.tabOptions : null));
 
         BuildTopBar(safeArea);
         BuildTabBar(safeArea);
@@ -334,14 +341,26 @@ public class MainMenu : MonoBehaviour
 
     void BuildPlayPage(RectTransform page)
     {
-        var titleText = Label(page, title, 200, TextAnchor.MiddleCenter, Yellow, 8f);
-        titleRect = titleText.rectTransform;
-        titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.8f);
-        titleRect.sizeDelta = new Vector2(1000f, 260f);
+        var skin = MenuSkin.Current;
+        if (skin != null && skin.logo != null)
+        {
+            // Logo RACER du dossier UI
+            titleRect = Node("Logo", page);
+            titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.8f);
+            titleRect.sizeDelta = new Vector2(880f, 880f * skin.logo.rect.height / skin.logo.rect.width);
+            Picture(titleRect, skin.logo);
+        }
+        else
+        {
+            var titleText = Label(page, title, 200, TextAnchor.MiddleCenter, Yellow, 8f);
+            titleRect = titleText.rectTransform;
+            titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.8f);
+            titleRect.sizeDelta = new Vector2(1000f, 260f);
+            var outer = titleText.gameObject.AddComponent<Outline>(); // deuxième contour, coloré, pour un titre bien épais
+            outer.effectColor = Orange;
+            outer.effectDistance = new Vector2(-6f, 6f);
+        }
         Isolate(titleRect, false); // le titre se balance à chaque image : sous-canvas (perf)
-        var outer = titleText.gameObject.AddComponent<Outline>(); // deuxième contour, coloré, pour un titre bien épais
-        outer.effectColor = Orange;
-        outer.effectDistance = new Vector2(-6f, 6f);
 
         // Voiture équipée
         var carPill = Node("Voiture", page);
@@ -375,13 +394,37 @@ public class MainMenu : MonoBehaviour
         swipeHint = Node("Glisse", hintRow);
         Stretch(swipeHint);
         Isolate(swipeHint, false);
-        Stretch(Label(swipeHint, "Glisse pour les invocations  »", 38, TextAnchor.MiddleCenter, WithAlpha(Color.white, 0.85f), 2f).rectTransform);
+        if (skin != null && skin.swipeHint != null) Picture(swipeHint, skin.swipeHint); // texte dans l'image
+        else Stretch(Label(swipeHint, "Glisse pour les invocations  »", 38, TextAnchor.MiddleCenter, WithAlpha(Color.white, 0.85f), 2f).rectTransform);
     }
 
     // Page avec un grand panneau coloré semi-transparent et un bandeau titre ; renvoie la zone sous le titre.
     // image : panneau du dossier UI (titre compris) à la place du panneau dessiné.
-    static RectTransform SheetPage(RectTransform page, string heading, Color color, Sprite image = null)
+    // titleImage : panneau sans titre ; cette image (l'onglet de la page) est posée à cheval sur son bord haut.
+    static RectTransform SheetPage(RectTransform page, string heading, Color color, Sprite image = null, Sprite titleImage = null)
     {
+        if (image != null && titleImage != null)
+        {
+            // Mêmes proportions que le panneau Invocations (titre compris) : le titre dépasse de 7 % au-dessus du cadre
+            const float titleBand = 0.07f;
+            var panel = Node("Panneau", page);
+            Area(panel, 0.035f, 0.02f, 0.965f, 0.95f);
+            var frame = Node("Cadre", panel);
+            Area(frame, 0f, 0f, 1f, 1f - titleBand);
+            Picture(frame, image).preserveAspect = false; // remplit la page
+
+            var titleRt = Node("Titre", panel);
+            Area(titleRt, 0.5f, 1f - titleBand * 2f, 0.5f, 1f);
+            var fit = titleRt.gameObject.AddComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
+            fit.aspectRatio = titleImage.rect.width / titleImage.rect.height;
+            Picture(titleRt, titleImage);
+
+            var inside = Node("Contenu", panel);
+            Area(inside, 0.05f, 0.03f, 0.95f, 1f - titleBand * 2f - 0.01f);
+            return inside;
+        }
+
         if (image != null)
         {
             var panel = Node("Panneau", page);
@@ -436,13 +479,39 @@ public class MainMenu : MonoBehaviour
         layout.childForceExpandHeight = false;
         column.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        var volumeLabel = Label(column, "VOLUME", 56, TextAnchor.MiddleLeft, Color.white, 3f);
-        volumeLabel.gameObject.AddComponent<LayoutElement>().preferredHeight = 80f;
-        volumeSlider = CandySlider(column, Teal);
+        var skin = MenuSkin.Current;
+        if (skin != null && skin.volumeTitle != null)
+        {
+            var volumeRow = Node("Volume", column);
+            volumeRow.gameObject.AddComponent<LayoutElement>().preferredHeight = 90f;
+            var volumeTitle = Node("Image", volumeRow); // calé à gauche, à ses proportions
+            Area(volumeTitle, 0f, 0f, 0f, 1f);
+            volumeTitle.pivot = new Vector2(0f, 0.5f);
+            var fit = volumeTitle.gameObject.AddComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
+            fit.aspectRatio = skin.volumeTitle.rect.width / skin.volumeTitle.rect.height;
+            Picture(volumeTitle, skin.volumeTitle);
+        }
+        else
+        {
+            var volumeLabel = Label(column, "VOLUME", 56, TextAnchor.MiddleLeft, Color.white, 3f);
+            volumeLabel.gameObject.AddComponent<LayoutElement>().preferredHeight = 80f;
+        }
+        volumeSlider = skin != null && skin.sliderBar != null && skin.sliderKnob != null
+            ? SkinSlider(column, skin.sliderBar, skin.sliderKnob)
+            : CandySlider(column, Teal);
 
         Spacer(column, 40f);
-        resetLabel = ButtonText(CandyButton(column, "RÉINITIALISER", Red, ResetButton, 52, 150f));
-        CandyButton(column, "QUITTER", Pink, Quit, 52, 150f);
+        var reset = CandyButton(column, "RÉINITIALISER", Red, ResetButton, 52, 150f);
+        resetLabel = ButtonText(reset);
+        if (skin != null && Skin(reset, skin.resetButton))
+        {
+            resetSkinned = true;
+            resetLabel = Label(column, "", 34, TextAnchor.MiddleCenter, Color.white, 3f); // confirmation, sous le bouton
+            resetLabel.gameObject.AddComponent<LayoutElement>().preferredHeight = 50f;
+        }
+        var quit = CandyButton(column, "QUITTER", Pink, Quit, 52, 150f);
+        if (skin != null) Skin(quit, skin.quitButton);
 
         var version = Label(body, "Version " + Application.version, 30, TextAnchor.MiddleCenter, WithAlpha(Color.white, 0.5f), 0f);
         Place(version.rectTransform, 0.04f, 50f);
@@ -460,6 +529,13 @@ public class MainMenu : MonoBehaviour
         bar.anchorMax = Vector2.one;
         bar.pivot = new Vector2(0.5f, 1f);
         bar.sizeDelta = new Vector2(0f, TopBarHeight);
+
+        var skin = MenuSkin.Current;
+        if (skin != null && skin.recordBox != null && skin.rubisCounter != null && skin.coinCounter != null)
+        {
+            BuildSkinnedTopBar(bar, skin);
+            return;
+        }
 
         // Record (à gauche)
         var best = Pill(bar, new Vector2(0.18f, 0.5f), Orange, 300f);
@@ -497,6 +573,33 @@ public class MainMenu : MonoBehaviour
         Stretch(autoCoinsText.rectTransform);
         autoCoinsText.rectTransform.offsetMin = new Vector2(70f, 6f);
         autoCoinsText.rectTransform.offsetMax = new Vector2(-34f, -6f);
+    }
+
+    // Barre du haut en images du dossier UI : record, rubis (un appui ouvre la boutique), pièces
+    void BuildSkinnedTopBar(RectTransform bar, MenuSkin skin)
+    {
+        var best = Counter(bar, 0.18f, skin.recordBox);
+        autoBestText = FitLabel(best, "0", 54, 24, TextAnchor.MiddleCenter, Color.white, 3f);
+        Area(autoBestText.rectTransform, 0.08f, 0.1f, 0.92f, 0.68f); // sous l'étiquette RECORD
+
+        var rubis = Counter(bar, 0.5f, skin.rubisCounter);
+        autoRubisText = FitLabel(rubis, "0", 50, 24, TextAnchor.MiddleCenter, Color.white, 3f);
+        Area(autoRubisText.rectTransform, 0.28f, 0.15f, 0.78f, 0.85f); // entre le rubis et le +
+        rubis.GetComponent<Image>().raycastTarget = true;
+        rubis.gameObject.AddComponent<Button>().onClick.AddListener(OpenBoutique);
+        rubis.gameObject.AddComponent<ButtonBounce>();
+
+        var coins = Counter(bar, 0.82f, skin.coinCounter);
+        autoCoinsText = FitLabel(coins, "0", 50, 24, TextAnchor.MiddleCenter, Color.white, 3f);
+        Area(autoCoinsText.rectTransform, 0.3f, 0.15f, 0.92f, 0.85f); // à droite de la pièce
+    }
+
+    static RectTransform Counter(RectTransform bar, float x, Sprite sprite)
+    {
+        var slot = Node("Pastille", bar);
+        slot.anchorMin = slot.anchorMax = new Vector2(x, 0.5f);
+        slot.sizeDelta = new Vector2(320f, TopBarHeight - 20f);
+        return SkinBox(slot, sprite);
     }
 
     /// <summary>Ouvre la boutique (rubis, pilote auto) dans la page Invocations.</summary>

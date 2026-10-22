@@ -1202,12 +1202,13 @@ public class BoosterShop : MonoBehaviour
     // ---------- Garage ----------
     // Carrousel comme les boosters : une grande carte par voiture (nom, photo devant une étoile qui tourne,
     // rareté, bouton Équiper). Voiture verrouillée : "???" et silhouette noire.
-    // Étoile selon la rareté : aucune (commune), 4 branches (rare), 6 (épique), 8 (légendaire).
+    // Étoile blanche à ombre noire (style des images de l'UI) derrière les voitures épiques (4 pointes en X)
+    // et légendaires (explosion à 9 pointes) : elle tourne et "respire" (pulsation très légère).
 
     class GarageSlot
     {
         public CarCatalog.Car car;
-        public RectTransform root, art, star, barFill;
+        public RectTransform root, art, starRoot, star, starShadow, barFill;
         public CanvasGroup group;
         public Text nameText, barText, equipText;
         public GameObject bar;
@@ -1311,18 +1312,24 @@ public class BoosterShop : MonoBehaviour
             s.unknown = Picture(unknown, MenuSkin.Current.unknownName);
         }
 
-        // Étoile qui tourne derrière la voiture (aucune pour les communes)
+        // Étoile qui tourne derrière la voiture (épiques et légendaires seulement)
         s.art = Node("Voiture", s.root);
         Area(s.art, 0f, 0.27f, 1f, 0.84f);
-        int branches = car.rarity == CarRarity.Legendaire ? 8 : car.rarity == CarRarity.Epique ? 6 : car.rarity == CarRarity.Rare ? 4 : 0;
-        if (branches > 0)
+        bool legendary = car.rarity == CarRarity.Legendaire;
+        if (legendary || car.rarity == CarRarity.Epique)
         {
-            s.star = Node("Etoile", s.art);
-            s.star.anchorMin = s.star.anchorMax = new Vector2(0.5f, 0.5f);
-            s.star.sizeDelta = new Vector2(720f, 720f);
-            // Teintée à la couleur de la rareté (le contour noir reste noir)
-            Fill(s.star, Color.Lerp(RarityInfo.Color(car.rarity), Color.white, 0.25f)).sprite = StarSprite(branches, branches == 4 ? 0.3f : branches == 6 ? 0.42f : 0.5f);
-            s.starSpeed = branches == 8 ? 40f : branches == 6 ? 30f : 22f;
+            var star = legendary ? BurstSprite(9, 0.56f, 0.22f, 90f, 7) : BurstSprite(4, 0.3f, 0f, 45f);
+            s.starRoot = Node("Etoile", s.art); // grossit et rétrécit (pulsation)
+            s.starRoot.anchorMin = s.starRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            s.starRoot.sizeDelta = new Vector2(720f, 720f);
+            s.starShadow = Node("Ombre", s.starRoot); // ombre noire décalée en bas à droite, qui tourne avec l'étoile
+            Stretch(s.starShadow);
+            s.starShadow.anchoredPosition = new Vector2(18f, -18f);
+            Fill(s.starShadow, Color.black).sprite = star;
+            s.star = Node("Blanc", s.starRoot);
+            Stretch(s.star);
+            Fill(s.star, Color.white).sprite = star;
+            s.starSpeed = legendary ? 26f : 18f;
         }
 
         // Photo : silhouette blanche décalée derrière (liseré), puis la voiture ou sa silhouette noire
@@ -1348,9 +1355,9 @@ public class BoosterShop : MonoBehaviour
         // Blueprints obtenus / nécessaires (voitures verrouillées)
         var bar = Node("Blueprints", s.root);
         Area(bar, 0.18f, 0.18f, 0.82f, 0.245f);
-        Rounded(bar, new Color(0f, 0f, 0f, 0.75f), 30f);
+        Rounded(bar, new Color(0f, 0f, 0f, 0.85f), 30f);
         s.barFill = Node("Fill", bar);
-        Rounded(s.barFill, RarityInfo.Color(car.rarity), 30f);
+        Rounded(s.barFill, Color.white, 30f);
         s.barText = FitLabel(bar, "", 34, 18, TextAnchor.MiddleCenter, Color.white, 3f);
         Stretch(s.barText.rectTransform);
         s.bar = bar.gameObject;
@@ -1362,7 +1369,7 @@ public class BoosterShop : MonoBehaviour
         if (tagSprite != null) Picture(tag, tagSprite);
         else
         {
-            Rounded(tag, RarityInfo.Color(car.rarity), 50f);
+            Rounded(tag, Color.black, 50f); // pas d'image pour cette rareté : pastille noire, comme les autres en noir et blanc
             var tagText = FitLabel(tag, RarityInfo.Name(car.rarity).ToUpper(), 44, 20, TextAnchor.MiddleCenter, Color.white, 3f);
             Stretch(tagText.rectTransform);
             tagText.rectTransform.offsetMin = new Vector2(20f, 4f);
@@ -1454,7 +1461,13 @@ public class BoosterShop : MonoBehaviour
 
             if (Mathf.Abs(d) < 1.6f) // les cartes hors de l'écran ne bougent pas
             {
-                if (s.star != null) s.star.localRotation = Quaternion.Euler(0f, 0f, -t * s.starSpeed);
+                if (s.star != null)
+                {
+                    var spin = Quaternion.Euler(0f, 0f, -t * s.starSpeed);
+                    s.star.localRotation = spin;
+                    s.starShadow.localRotation = spin;
+                    s.starRoot.localScale = Vector3.one * (1f + 0.035f * Mathf.Sin(t * 2.4f + i)); // pulsation très légère
+                }
                 s.art.anchoredPosition = new Vector2(0f, Mathf.Sin(t * 2f + i) * 10f * w); // la voiture flotte
             }
         }

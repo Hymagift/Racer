@@ -19,8 +19,9 @@ public static class MenuStyle
     public static readonly Color Pink = Hex(0xFF4F9A);
     public static readonly Color Red = Hex(0xFF4B4B);
     public static readonly Color Yellow = Hex(0xFFD23F);
-    public static readonly Color Navy = Hex(0x1B1446);
-    public static readonly Color Ink = Hex(0x120B30); // contours des textes
+    // DA noir et blanc (images de l'UI) : fonds presque noirs, contours des textes noirs
+    public static readonly Color Navy = Hex(0x151515);
+    public static readonly Color Ink = Hex(0x000000); // contours des textes
 
     public static Color Hex(int rgb, float a = 1f)
     {
@@ -99,6 +100,25 @@ public static class MenuStyle
         }
     }
 
+    static Sprite white;
+
+    /// <summary>Carré blanc : pour une Image de type Filled sans coins arrondis (une Image sans sprite ignore le remplissage).</summary>
+    public static Sprite WhiteSprite
+    {
+        get
+        {
+            if (white != null) return white;
+            var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[16];
+            for (int i = 0; i < px.Length; i++) px[i] = new Color32(255, 255, 255, 255);
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            white = Sprite.Create(tex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 100f);
+            white.name = "MenuWhite";
+            return white;
+        }
+    }
+
     static readonly System.Collections.Generic.Dictionary<int, Sprite> stars = new System.Collections.Generic.Dictionary<int, Sprite>();
 
     /// <summary>
@@ -143,6 +163,67 @@ public static class MenuStyle
         var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
         sprite.name = tex.name;
         stars[key] = sprite;
+        return sprite;
+    }
+
+    static readonly System.Collections.Generic.Dictionary<int, Sprite> bursts = new System.Collections.Generic.Dictionary<int, Sprite>();
+
+    /// <summary>
+    /// Étoile "explosion" blanche pleine, sans contour, comme sur les images de l'UI (son ombre noire = la même, teintée en noir).
+    /// tips = nombre de pointes, inner = rayon des creux / rayon des pointes, jitter = irrégularité des pointes (0 = régulière),
+    /// startDeg = angle de la première pointe (90 = vers le haut).
+    /// </summary>
+    public static Sprite BurstSprite(int tips, float inner, float jitter = 0f, float startDeg = 90f, int seed = 1, int size = 512)
+    {
+        int key = tips * 1000003 + Mathf.RoundToInt(inner * 1000f) * 7919 + Mathf.RoundToInt(jitter * 1000f) * 131
+                  + Mathf.RoundToInt(startDeg) * 17 + seed * 3 + size;
+        if (bursts.TryGetValue(key, out var cached) && cached != null) return cached;
+
+        // Contour : pointes et creux en alternance, un peu irréguliers pour un effet "BD"
+        var rng = new System.Random(seed);
+        int n = tips * 2;
+        var pts = new Vector2[n];
+        float step = Mathf.PI / tips;
+        for (int i = 0; i < n; i++)
+        {
+            bool tip = i % 2 == 0;
+            float r = tip ? 0.96f * (1f - jitter * (float)rng.NextDouble())
+                          : 0.96f * inner * (1f - jitter * 0.5f * (float)rng.NextDouble());
+            float ang = startDeg * Mathf.Deg2Rad + i * step + (tip ? (float)(rng.NextDouble() - 0.5) * jitter * step : 0f);
+            pts[i] = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * r;
+        }
+
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, true)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+            name = "Explosion" + tips,
+        };
+        float px = 2f / size; // un pixel en unités de l'étoile (rayon 1)
+        var colors = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                var p = new Vector2((x + 0.5f) / size * 2f - 1f, (y + 0.5f) / size * 2f - 1f);
+                bool inside = false;
+                float best = float.MaxValue;
+                for (int i = 0, j = n - 1; i < n; j = i++)
+                {
+                    Vector2 a = pts[j], b = pts[i];
+                    if ((b.y > p.y) != (a.y > p.y) && p.x < (a.x - b.x) * (p.y - b.y) / (a.y - b.y) + b.x) inside = !inside;
+                    Vector2 e = a - b;
+                    float k = Mathf.Clamp01(Vector2.Dot(p - b, e) / e.sqrMagnitude);
+                    best = Mathf.Min(best, (p - (b + e * k)).sqrMagnitude);
+                }
+                float d = Mathf.Sqrt(best) * (inside ? 1f : -1f);
+                byte alpha = (byte)(Mathf.Clamp01(0.5f + d / (px * 1.2f)) * 255f); // bord adouci
+                colors[y * size + x] = new Color32(255, 255, 255, alpha);
+            }
+        tex.SetPixels32(colors);
+        tex.Apply(true, true);
+        var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+        sprite.name = tex.name;
+        bursts[key] = sprite;
         return sprite;
     }
 
@@ -418,6 +499,30 @@ public static class MenuStyle
         return img;
     }
 
+    /// <summary>
+    /// Image de l'UI posée dans le parent à ses proportions (la plus grande qui tient, centrée) ; renvoie son rect,
+    /// pour y placer des textes ou des boutons par rapport à l'image elle-même.
+    /// </summary>
+    public static RectTransform SkinBox(RectTransform parent, Sprite sprite, string name = "Image")
+    {
+        var rt = Node(name, parent);
+        Stretch(rt);
+        var img = Picture(rt, sprite);
+        img.preserveAspect = false; // le rect a déjà les proportions de l'image
+        var fit = rt.gameObject.AddComponent<AspectRatioFitter>();
+        fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+        fit.aspectRatio = sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
+        return rt;
+    }
+
+    /// <summary>Texte noir à contour blanc (sur les fonds sombres des images de l'UI, comme "PILOTE AUTO").</summary>
+    public static Text Inverted(Text t)
+    {
+        t.color = Color.black;
+        foreach (var sh in t.GetComponents<Shadow>()) sh.effectColor = Color.white; // Outline compris (c'est un Shadow)
+        return t;
+    }
+
     // ---------- Slider ----------
 
     public static Slider CandySlider(Transform parent, Color color)
@@ -452,6 +557,40 @@ public static class MenuStyle
 
         var slider = rt.gameObject.AddComponent<Slider>();
         slider.fillRect = fill;
+        slider.handleRect = handle;
+        slider.targetGraphic = handleImg;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        return slider;
+    }
+
+    /// <summary>Curseur en images de l'UI : barre (9-slice) et bouton rond. Même comportement que CandySlider.</summary>
+    public static Slider SkinSlider(Transform parent, Sprite bar, Sprite knob)
+    {
+        var rt = Node("Slider", parent);
+        rt.gameObject.AddComponent<LayoutElement>().preferredHeight = 100f;
+
+        var bg = Node("Fond", rt);
+        Area(bg, 0f, 0.3f, 1f, 0.7f);
+        var barImg = Fill(bg, Color.white);
+        barImg.sprite = bar;
+        barImg.type = Image.Type.Sliced;
+        barImg.pixelsPerUnitMultiplier = bar.rect.height / 40f; // bouts arrondis à la hauteur de la barre (40)
+        barImg.raycastTarget = true; // un appui sur la barre déplace le curseur
+
+        var handleArea = Node("Handle Slide Area", rt);
+        Stretch(handleArea);
+        handleArea.offsetMin = new Vector2(45f, 0f);
+        handleArea.offsetMax = new Vector2(-45f, 0f);
+        var handle = Node("Handle", handleArea);
+        handle.sizeDelta = new Vector2(90f, 0f);
+        var handleImg = Fill(handle, Color.white);
+        handleImg.sprite = knob;
+        handleImg.preserveAspect = true;
+        handleImg.raycastTarget = true;
+
+        var slider = rt.gameObject.AddComponent<Slider>();
         slider.handleRect = handle;
         slider.targetGraphic = handleImg;
         slider.direction = Slider.Direction.LeftToRight;

@@ -169,3 +169,10 @@ Packages/packages-lock.json linguist-generated
 
 # Exceptions for .asset files such as lightning pre-baking
 LightingData.asset     binary
+
+# Images de l'UI dérivées de celles de Paul (panneau sans titre, compteur du pilote auto sans le temps, curseur découpé) :
+# poussées depuis un environnement sans accès en écriture à LFS, donc gardées directement dans git (moins de 1 Mo en tout).
+Assets/_Racer/UI/PanneauVide.png        -filter -diff -merge binary
+Assets/_Racer/UI/PiloteAutoVide.png     -filter -diff -merge binary
+Assets/_Racer/UI/SliderBarre.png        -filter -diff -merge binary
+Assets/_Racer/UI/SliderBouton.png       -filter -diff -merge binary

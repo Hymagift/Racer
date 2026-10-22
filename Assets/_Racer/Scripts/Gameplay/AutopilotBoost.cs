@@ -53,6 +53,7 @@ public class AutopilotBoost : MonoBehaviour
     float remaining;
     int lastWarnSecond;
     int shownSeconds = -1;
+    string secondsSuffix = " s";
 
     void Start()
     {
@@ -260,7 +261,7 @@ public class AutopilotBoost : MonoBehaviour
         remaining -= Time.deltaTime;
         hudFill.fillAmount = Mathf.Clamp01(remaining / duration);
         int shown = Mathf.CeilToInt(Mathf.Max(0f, remaining));
-        if (shown != shownSeconds) { shownSeconds = shown; hudTime.text = shown + " s"; } // texte refait seulement quand il change
+        if (shown != shownSeconds) { shownSeconds = shown; hudTime.text = shown + secondsSuffix; } // texte refait seulement quand il change
         hudWheel.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 3f) * 40f);
 
         // 3 dernières secondes : on prévient, avec un bip par seconde
@@ -353,6 +354,39 @@ public class AutopilotBoost : MonoBehaviour
     {
         hud = Node("PiloteAuto", root);
         hud.anchorMin = hud.anchorMax = new Vector2(0.5f, 0.9f);
+        var art = MenuSkin.Current != null ? MenuSkin.Current.autopilotHud : null;
+        if (art != null) BuildSkinnedHud(art);
+        else BuildDrawnHud();
+
+        warnText = Label(root, "", 64, TextAnchor.MiddleCenter, Yellow, 5f);
+        warnText.rectTransform.anchorMin = warnText.rectTransform.anchorMax = new Vector2(0.5f, 0.8f);
+        warnText.rectTransform.sizeDelta = new Vector2(1000f, 120f);
+        warnText.gameObject.SetActive(false);
+
+        hud.gameObject.SetActive(false);
+    }
+
+    // Compteur en image du dossier UI : volant et "PILOTE AUTO" dans l'image, le jeu ajoute le temps et le remplissage
+    void BuildSkinnedHud(Sprite art)
+    {
+        hud.sizeDelta = new Vector2(600f, 600f * art.rect.height / art.rect.width);
+        Picture(hud, art);
+        hudWheel = Node("Volant", hud); // le volant est dessiné dans l'image : il ne tourne pas
+
+        var bar = Node("Temps", hud);
+        Area(bar, 0.261f, 0.31f, 0.719f, 0.419f); // l'intérieur de la barre blanche de l'image
+        hudFill = Fill(bar, Color.black);
+        hudFill.sprite = WhiteSprite;
+        hudFill.type = Image.Type.Filled;
+        hudFill.fillMethod = Image.FillMethod.Horizontal;
+
+        hudTime = Inverted(FitLabel(hud, "", 56, 26, TextAnchor.MiddleCenter, Color.black, 3f)); // noir cerné de blanc, comme "PILOTE AUTO"
+        Area(hudTime.rectTransform, 0.75f, 0.22f, 0.97f, 0.78f);
+        secondsSuffix = "S";
+    }
+
+    void BuildDrawnHud()
+    {
         hud.sizeDelta = new Vector2(560f, 130f);
         Rounded(hud, WithAlpha(Navy, 0.85f), 65f).gameObject.AddComponent<Outline>().effectColor = Teal;
 
@@ -374,13 +408,6 @@ public class AutopilotBoost : MonoBehaviour
         hudFill.sprite = Round;
         hudFill.type = Image.Type.Filled;
         hudFill.fillMethod = Image.FillMethod.Horizontal;
-
-        warnText = Label(root, "", 64, TextAnchor.MiddleCenter, Yellow, 5f);
-        warnText.rectTransform.anchorMin = warnText.rectTransform.anchorMax = new Vector2(0.5f, 0.8f);
-        warnText.rectTransform.sizeDelta = new Vector2(1000f, 120f);
-        warnText.gameObject.SetActive(false);
-
-        hud.gameObject.SetActive(false);
     }
 
     static void EnsureEventSystem()

@@ -17,6 +17,14 @@ public class MenuSkin : ScriptableObject
         public Sprite sprite;
     }
 
+    [Header("Barre du haut")]
+    [Tooltip("Cadre du record (titre RECORD compris)")]
+    public Sprite recordBox;
+    [Tooltip("Compteur de rubis (rubis et + compris)")]
+    public Sprite rubisCounter;
+    [Tooltip("Compteur de pièces (pièce comprise)")]
+    public Sprite coinCounter;
+
     [Header("Onglets du bas")]
     public Sprite tabPlay;
     public Sprite tabInvocations;
@@ -25,6 +33,22 @@ public class MenuSkin : ScriptableObject
 
     [Header("Page Jouer")]
     public Sprite playButton;
+    [Tooltip("Logo RACER")]
+    public Sprite logo;
+    [Tooltip("\"Glisse pour les invocations >>\"")]
+    public Sprite swipeHint;
+
+    [Header("Pages")]
+    [Tooltip("Panneau sans titre (Garage, Options) : l'onglet de la page sert de titre par-dessus")]
+    public Sprite emptyPanel;
+
+    [Header("Options")]
+    public Sprite volumeTitle;
+    [Tooltip("Barre du curseur de volume (9-slice)")]
+    public Sprite sliderBar;
+    public Sprite sliderKnob;
+    public Sprite resetButton;
+    public Sprite quitButton;
 
     [Header("Invocations")]
     [Tooltip("Panneau de la page Invocations (titre compris)")]
@@ -43,6 +67,25 @@ public class MenuSkin : ScriptableObject
     public PriceSprite[] autopilotPrices;
     [Tooltip("Boutons de prix en rubis des pièces")]
     public PriceSprite[] coinPrices;
+    [Tooltip("Rubis possédés (haut de la boutique)")]
+    public Sprite rubisBalance;
+    [Tooltip("\"Réserve :\" des pilotes auto (haut de la boutique)")]
+    public Sprite reserveBalance;
+    public Sprite starterPackCard;
+    public Sprite carPackCard;
+    public Sprite rubisTitle;
+    public Sprite autopilotTitle;
+    public Sprite coinsTitle;
+    [Tooltip("Cartes des packs de rubis, retrouvées par le nombre de rubis (80, 500...)")]
+    public PriceSprite[] rubisCards;
+    [Tooltip("Cartes des pilotes auto, retrouvées par la quantité (1, 5...), dans l'ordre des offres")]
+    public PriceSprite[] autopilotCards;
+    [Tooltip("Cartes des pièces, retrouvées par la quantité (1000, 6000...)")]
+    public PriceSprite[] coinCards;
+
+    [Header("En jeu")]
+    [Tooltip("Compteur du pilote auto, sans le temps ni le remplissage de la barre (ajoutés par le jeu)")]
+    public Sprite autopilotHud;
 
     [Header("Garage")]
     public Sprite rarityCommune;
