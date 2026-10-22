@@ -129,8 +129,7 @@ public class PremiumShop : MonoBehaviour
         {
             if (tag.rubisCost <= 0) continue;
             bool canPay = PlayerData.Rubis >= tag.rubisCost;
-            tag.face.color = canPay ? tag.color : new Color(0.45f, 0.45f, 0.55f);
-            tag.side.color = Darken(tag.face.color, 0.62f);
+            SetFaceColor(tag.face, tag.side, canPay ? tag.color : new Color(0.45f, 0.45f, 0.55f));
         }
     }
 
@@ -191,7 +190,7 @@ public class PremiumShop : MonoBehaviour
         var valueText = FitLabel(starterCard, "Contenu d'une valeur de " + value + " rubis", 32, 18, TextAnchor.MiddleLeft, Color.white, 2f);
         Area(valueText.rectTransform, 0.05f, 0.06f, 0.58f, 0.28f);
 
-        var buy = PriceButton(starterCard, PremiumStore.PriceOf(p), Yellow, 0, () => BuyReal(p, starterCard));
+        var buy = PriceButton(starterCard, PremiumStore.PriceOf(p), Yellow, 0, SkinPrice(s => s.euroPrices, PremiumStore.PriceOf(p)), () => BuyReal(p, starterCard));
         Area((RectTransform)buy.transform, 0.6f, 0.06f, 0.96f, 0.28f);
     }
 
@@ -249,7 +248,7 @@ public class PremiumShop : MonoBehaviour
                             28, 16, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.85f), 2f);
         Area(note.rectTransform, 0.05f, 0.06f, 0.58f, 0.28f);
 
-        var buy = PriceButton(carPackCard, PremiumStore.PriceOf(p), Yellow, 0, () => BuyReal(p, carPackCard));
+        var buy = PriceButton(carPackCard, PremiumStore.PriceOf(p), Yellow, 0, SkinPrice(s => s.euroPrices, PremiumStore.PriceOf(p)), () => BuyReal(p, carPackCard));
         Area((RectTransform)buy.transform, 0.6f, 0.06f, 0.96f, 0.28f);
     }
 
@@ -281,7 +280,7 @@ public class PremiumShop : MonoBehaviour
         var title = FitLabel(card, p.title, 28, 16, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.8f), 2f);
         Area(title.rectTransform, 0.05f, 0.24f, 0.95f, 0.33f);
 
-        var buy = PriceButton(card, PremiumStore.PriceOf(p), Yellow, 0, () => BuyReal(p, card));
+        var buy = PriceButton(card, PremiumStore.PriceOf(p), Yellow, 0, SkinPrice(s => s.euroPrices, PremiumStore.PriceOf(p)), () => BuyReal(p, card));
         Area((RectTransform)buy.transform, 0.07f, 0.04f, 0.93f, 0.22f);
     }
 
@@ -321,7 +320,7 @@ public class PremiumShop : MonoBehaviour
         Area(amount.rectTransform, 0.05f, 0.3f, 0.95f, 0.47f);
 
         var offer = o;
-        var buy = PriceButton(card, o.price.ToString(), RubyRed, o.price, () =>
+        var buy = PriceButton(card, o.price.ToString(), RubyRed, o.price, SkinPrice(s => s.autopilotPrices, o.price.ToString()), () =>
             BuyWithRubis(offer.price, card, () => PlayerData.AddAutopilots(offer.amount),
                          "+" + offer.amount + (offer.amount > 1 ? " pilotes auto" : " pilote auto"), Teal, true));
         Area((RectTransform)buy.transform, 0.07f, 0.04f, 0.93f, 0.27f);
@@ -343,7 +342,7 @@ public class PremiumShop : MonoBehaviour
         Area(amount.rectTransform, 0.05f, 0.3f, 0.95f, 0.46f);
 
         var offer = o;
-        var buy = PriceButton(card, o.price.ToString(), RubyRed, o.price, () =>
+        var buy = PriceButton(card, o.price.ToString(), RubyRed, o.price, SkinPrice(s => s.coinPrices, o.price.ToString()), () =>
             BuyWithRubis(offer.price, card, () => PlayerData.AddCoins(offer.amount), "+" + offer.amount + " pièces", Yellow, false));
         Area((RectTransform)buy.transform, 0.1f, 0.04f, 0.9f, 0.27f);
     }
@@ -496,8 +495,12 @@ public class PremiumShop : MonoBehaviour
         Isolate(b, false);
     }
 
-    // Bouton de prix : en euros (rubisCost = 0) ou en rubis (avec un rubis dessiné)
-    Button PriceButton(RectTransform parent, string price, Color color, int rubisCost, UnityAction onClick)
+    // Image du dossier UI pour ce prix (null : bouton dessiné)
+    static Sprite SkinPrice(System.Func<MenuSkin, MenuSkin.PriceSprite[]> list, string price) =>
+        MenuSkin.Current != null ? MenuSkin.Price(list(MenuSkin.Current), price) : null;
+
+    // Bouton de prix : en euros (rubisCost = 0) ou en rubis (avec un rubis dessiné). image : bouton en image (prix compris)
+    Button PriceButton(RectTransform parent, string price, Color color, int rubisCost, Sprite image, UnityAction onClick)
     {
         var b = CandyButton(parent, price, color, onClick, 46, 110f, 34f);
         b.GetComponent<LayoutElement>().ignoreLayout = true;
@@ -513,6 +516,7 @@ public class PremiumShop : MonoBehaviour
         else ButtonText(b).color = Ink; // prix en euros sur fond jaune
         var outline = ButtonText(b).GetComponent<Outline>();
         if (rubisCost <= 0 && outline != null) outline.effectColor = WithAlpha(Color.white, 0.4f);
+        Skin(b, image);
         tags.Add(new PriceTag { button = b, face = face, side = side, rubisCost = rubisCost, color = color });
         return b;
     }

@@ -361,6 +361,63 @@ public static class MenuStyle
     /// <summary>Texte du bouton créé par CandyButton.</summary>
     public static Text ButtonText(Button b) => b.GetComponentInChildren<Text>(true);
 
+    // ---------- Images de l'UI (MenuSkin) ----------
+
+    /// <summary>
+    /// Remplace l'apparence d'un bouton créé par CandyButton par une image (texte compris dans l'image) :
+    /// relief, reflet et texte cachés, tout le reste garde son comportement (clic, rebond, sons).
+    /// Ne fait rien si sprite est null (le bouton garde son style dessiné).
+    /// </summary>
+    public static bool Skin(Button b, Sprite sprite)
+    {
+        if (b == null || sprite == null) return false;
+        var rt = (RectTransform)b.transform;
+        var side = rt.Find("Relief");
+        if (side != null) side.GetComponent<Image>().enabled = false;
+        var face = (RectTransform)rt.Find("Face");
+        face.offsetMin = face.offsetMax = Vector2.zero;
+        var img = face.GetComponent<Image>();
+        img.sprite = sprite;
+        img.type = Image.Type.Simple;
+        img.preserveAspect = true;
+        img.pixelsPerUnitMultiplier = 1f;
+        img.color = Color.white;
+        foreach (Transform child in face) child.gameObject.SetActive(false); // reflet, texte, icônes : déjà dans l'image
+        var colors = b.colors;
+        colors.disabledColor = new Color(0.6f, 0.6f, 0.6f, 1f);
+        b.colors = colors;
+        return true;
+    }
+
+    /// <summary>Vrai si le bouton (sa face) affiche une image de l'UI au lieu du style dessiné.</summary>
+    public static bool IsSkinned(Image face) => face != null && face.sprite != null && face.sprite != Round;
+
+    /// <summary>
+    /// Couleur de la face d'un bouton et de son relief. Sur un bouton en image, une couleur vive laisse l'image telle quelle
+    /// et une couleur terne (bouton indisponible, onglet inactif) la grise.
+    /// </summary>
+    public static void SetFaceColor(Image face, Image side, Color color)
+    {
+        if (IsSkinned(face))
+        {
+            Color.RGBToHSV(color, out _, out float s, out float v);
+            face.color = s > 0.35f && v > 0.6f ? Color.white : new Color(0.6f, 0.6f, 0.6f, 1f);
+            return;
+        }
+        face.color = color;
+        if (side != null) side.color = Darken(color, 0.62f);
+    }
+
+    /// <summary>Image simple (sans clic) qui garde ses proportions.</summary>
+    public static Image Picture(RectTransform rt, Sprite sprite)
+    {
+        var img = rt.gameObject.AddComponent<Image>();
+        img.sprite = sprite;
+        img.preserveAspect = true;
+        img.raycastTarget = false;
+        return img;
+    }
+
     // ---------- Slider ----------
 
     public static Slider CandySlider(Transform parent, Color color)

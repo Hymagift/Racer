@@ -75,6 +75,8 @@ public class BoosterShop : MonoBehaviour
     Text buyText;
     float buyShake;
     ButtonBounce buyBounce;
+    RectTransform buyFreeBadge;
+    Text buyFreeText;
 
     CarCatalog.Booster Selected => packs.Count > 0 ? packs[Mathf.Clamp(carousel.Current, 0, packs.Count - 1)].booster : null;
 
@@ -267,6 +269,16 @@ public class BoosterShop : MonoBehaviour
         buyBounce = buyButton.GetComponent<ButtonBounce>();
         buyText.rectTransform.offsetMin = new Vector2(100f, 4f);
 
+        // Pastille "OFFERT" (boosters gratuits) par-dessus le bouton en image
+        buyFreeBadge = Node("Offert", buyRect);
+        buyFreeBadge.anchorMin = buyFreeBadge.anchorMax = new Vector2(0.92f, 0.85f);
+        buyFreeBadge.sizeDelta = new Vector2(230f, 76f);
+        buyFreeBadge.localRotation = Quaternion.Euler(0f, 0f, -8f);
+        Rounded(buyFreeBadge, Yellow, 38f);
+        buyFreeText = FitLabel(buyFreeBadge, "", 36, 18, TextAnchor.MiddleCenter, Ink, 0f);
+        Stretch(buyFreeText.rectTransform);
+        buyFreeBadge.gameObject.SetActive(false);
+
 
         carousel.OnChanged += i =>
         {
@@ -290,12 +302,16 @@ public class BoosterShop : MonoBehaviour
         layout.childControlWidth = layout.childControlHeight = true;
         layout.childForceExpandWidth = layout.childForceExpandHeight = true;
 
-        AddSectionTab(row, "BOOSTERS", Purple, 0);
-        var boutique = AddSectionTab(row, "BOUTIQUE", RubyRed, 1);
-        var gem = Ruby(boutique.Find("Face"), 60f);
-        gem.anchorMin = gem.anchorMax = new Vector2(0f, 0.5f);
-        gem.anchoredPosition = new Vector2(46f, 0f);
-        ButtonText(boutique.GetComponent<Button>()).rectTransform.offsetMin = new Vector2(70f, 4f);
+        var skin = MenuSkin.Current;
+        AddSectionTab(row, "BOOSTERS", Purple, 0, skin != null ? skin.tabBoosters : null);
+        var boutique = AddSectionTab(row, "BOUTIQUE", RubyRed, 1, skin != null ? skin.tabBoutique : null);
+        if (!IsSkinned(boutique.Find("Face").GetComponent<Image>())) // l'image a déjà son rubis
+        {
+            var gem = Ruby(boutique.Find("Face"), 60f);
+            gem.anchorMin = gem.anchorMax = new Vector2(0f, 0.5f);
+            gem.anchoredPosition = new Vector2(46f, 0f);
+            ButtonText(boutique.GetComponent<Button>()).rectTransform.offsetMin = new Vector2(70f, 4f);
+        }
 
         // Pastille "!" tant que le pack de démarrage n'a pas été pris
         boutiqueDot = Node("Nouveau", boutique);
@@ -305,9 +321,10 @@ public class BoosterShop : MonoBehaviour
         Stretch(Label(boutiqueDot, "!", 40, TextAnchor.MiddleCenter, Ink, 0f).rectTransform);
     }
 
-    RectTransform AddSectionTab(RectTransform row, string label, Color color, int index)
+    RectTransform AddSectionTab(RectTransform row, string label, Color color, int index, Sprite image)
     {
         var b = CandyButton(row, label, color, () => ShowSection(index), 40, 100f, 34f);
+        Skin(b, image);
         var rt = (RectTransform)b.transform;
         sectionTabs.Add((rt.Find("Face").GetComponent<Image>(), rt.Find("Relief").GetComponent<Image>(),
                          b.GetComponent<ButtonBounce>(), color));
@@ -337,8 +354,7 @@ public class BoosterShop : MonoBehaviour
             var tab = sectionTabs[i];
             bool active = i == section;
             Color face = active ? tab.color : Color.Lerp(Navy, tab.color, 0.35f);
-            tab.face.color = face;
-            tab.side.color = Darken(face, 0.6f);
+            SetFaceColor(tab.face, tab.side, face);
             tab.bounce.extraScale = active ? 1f + 0.08f * Mathf.Sin(sectionPunch * Mathf.PI) : 0.94f;
             if (i == 1 && !active) tab.bounce.extraScale += 0.1f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 12f)) * Mathf.Min(1f, boutiqueNudge);
         }
@@ -373,8 +389,11 @@ public class BoosterShop : MonoBehaviour
         int free = PlayerData.FreeBoosters(b.id);
         bool canPay = CanOpen(b);
         buyText.text = free > 0 ? "OUVRIR  ·  OFFERT x" + free : "OUVRIR  " + b.price;
-        buyFace.color = canPay ? Green : new Color(0.45f, 0.45f, 0.55f);
-        buySide.color = Darken(buyFace.color, 0.62f);
+        var skin = MenuSkin.Current;
+        bool image = skin != null && Skin(buyButton, MenuSkin.At(skin.boosterOpenButtons, catalog.boosters.IndexOf(b)));
+        buyFreeBadge.gameObject.SetActive(image && free > 0);
+        buyFreeText.text = "OFFERT x" + free;
+        SetFaceColor(buyFace, buySide, canPay ? Green : new Color(0.45f, 0.45f, 0.55f));
     }
 
     // Booster offert (pack de la boutique) ou assez de pièces
@@ -534,6 +553,26 @@ public class BoosterShop : MonoBehaviour
         Area(halo, -0.22f, -0.15f, 1.22f, 1.15f);
         haloImg = Fill(halo, WithAlpha(c, 0.25f));
         haloImg.sprite = Round;
+
+        // Carte du booster en image (dossier UI) : nom, étoiles et nombre de cartes sont dans l'image
+        var cardSprite = MenuSkin.Current != null ? MenuSkin.At(MenuSkin.Current.boosterCards, catalog.boosters.IndexOf(b)) : null;
+        if (cardSprite != null)
+        {
+            var pic = Node("Paquet", root);
+            Stretch(pic);
+            Picture(pic, cardSprite);
+            var sweep = Node("Reflets", pic);
+            Stretch(sweep);
+            sweep.offsetMin = new Vector2(30f, 30f);
+            sweep.offsetMax = new Vector2(-30f, -30f);
+            sweep.gameObject.AddComponent<RectMask2D>();
+            shine = Node("Brillance", sweep);
+            shine.anchorMin = shine.anchorMax = new Vector2(0.5f, 0.5f);
+            shine.sizeDelta = new Vector2(110f, 1500f);
+            shine.localRotation = Quaternion.Euler(0f, 0f, -28f);
+            Rounded(shine, WithAlpha(Color.white, 0.28f), 40f);
+            return root;
+        }
 
         var body = Card("Paquet", root, Darken(c, 0.5f), 60f, 18f);
         Stretch(body);
@@ -1020,8 +1059,13 @@ public class BoosterShop : MonoBehaviour
 
         var tag = Node("Rareté", c.front);
         Area(tag, 0.08f, 0.85f, 0.92f, 0.96f);
-        Rounded(tag, rc, 22f);
-        Stretch(FitLabel(tag, RarityInfo.Name(pull.rarity).ToUpper(), 30, 16, TextAnchor.MiddleCenter, Color.white, 2f).rectTransform);
+        var revealTag = MenuSkin.Rarity(pull.rarity);
+        if (revealTag != null) Picture(tag, revealTag);
+        else
+        {
+            Rounded(tag, rc, 22f);
+            Stretch(FitLabel(tag, RarityInfo.Name(pull.rarity).ToUpper(), 30, 16, TextAnchor.MiddleCenter, Color.white, 2f).rectTransform);
+        }
 
         var nameLabel = FitLabel(c.front, car.displayName, 40, 22, TextAnchor.MiddleCenter, Color.white, 3f);
         Area(nameLabel.rectTransform, 0.05f, 0.62f, 0.95f, 0.83f);
@@ -1169,7 +1213,8 @@ public class BoosterShop : MonoBehaviour
         public GameObject bar;
         public Image carFront, carBack;
         public Button equip;
-        public Image equipFace, equipSide;
+        public Image equipFace, equipSide, unknown;
+        public GameObject equippedLabel;
         public float starSpeed, punch;
         public int index;
     }
@@ -1228,9 +1273,18 @@ public class BoosterShop : MonoBehaviour
         rt.anchorMin = rt.anchorMax = new Vector2(right ? 1f : 0f, 0.55f);
         rt.sizeDelta = new Vector2(110f, 110f);
         var img = Fill(rt, Color.white);
-        img.sprite = StarSprite(3, 0.5f, 128, 0.12f); // triangle blanc cerné de noir
         img.raycastTarget = true;
-        rt.localRotation = Quaternion.Euler(0f, 0f, right ? 0f : 180f);
+        var arrow = MenuSkin.Arrow(right); // flèches du dossier UI
+        if (arrow != null)
+        {
+            img.sprite = arrow;
+            img.preserveAspect = true;
+        }
+        else
+        {
+            img.sprite = StarSprite(3, 0.5f, 128, 0.12f); // triangle blanc cerné de noir
+            rt.localRotation = Quaternion.Euler(0f, 0f, right ? 0f : 180f);
+        }
         var button = rt.gameObject.AddComponent<Button>();
         button.transition = Selectable.Transition.None;
         button.onClick.AddListener(() => garageCarousel.GoTo(garageCarousel.Current + (right ? 1 : -1)));
@@ -1250,6 +1304,12 @@ public class BoosterShop : MonoBehaviour
         // Nom (ou "???")
         s.nameText = FitLabel(s.root, "", 84, 40, TextAnchor.MiddleCenter, Color.white, 5f);
         Area(s.nameText.rectTransform, 0.02f, 0.84f, 0.98f, 0.97f);
+        if (MenuSkin.Current != null && MenuSkin.Current.unknownName != null) // "???" en image pour les voitures verrouillées
+        {
+            var unknown = Node("Inconnue", s.root);
+            Area(unknown, 0.3f, 0.85f, 0.7f, 0.97f);
+            s.unknown = Picture(unknown, MenuSkin.Current.unknownName);
+        }
 
         // Étoile qui tourne derrière la voiture (aucune pour les communes)
         s.art = Node("Voiture", s.root);
@@ -1298,11 +1358,16 @@ public class BoosterShop : MonoBehaviour
         // Rareté (en bas à gauche), à la couleur de la rareté
         var tag = Node("Rareté", s.root);
         Area(tag, 0.04f, 0.04f, 0.47f, 0.13f);
-        Rounded(tag, RarityInfo.Color(car.rarity), 50f);
-        var tagText = FitLabel(tag, RarityInfo.Name(car.rarity).ToUpper(), 44, 20, TextAnchor.MiddleCenter, Color.white, 3f);
-        Stretch(tagText.rectTransform);
-        tagText.rectTransform.offsetMin = new Vector2(20f, 4f);
-        tagText.rectTransform.offsetMax = new Vector2(-20f, -4f);
+        var tagSprite = MenuSkin.Rarity(car.rarity);
+        if (tagSprite != null) Picture(tag, tagSprite);
+        else
+        {
+            Rounded(tag, RarityInfo.Color(car.rarity), 50f);
+            var tagText = FitLabel(tag, RarityInfo.Name(car.rarity).ToUpper(), 44, 20, TextAnchor.MiddleCenter, Color.white, 3f);
+            Stretch(tagText.rectTransform);
+            tagText.rectTransform.offsetMin = new Vector2(20f, 4f);
+            tagText.rectTransform.offsetMax = new Vector2(-20f, -4f);
+        }
 
         // Équiper (en bas à droite)
         s.equip = CandyButton(s.root, "ÉQUIPER", Green, () => Equip(car), 44, 120f);
@@ -1311,6 +1376,13 @@ public class BoosterShop : MonoBehaviour
         s.equipText = ButtonText(s.equip);
         s.equipFace = (Image)s.equip.targetGraphic;
         s.equipSide = s.equip.transform.Find("Relief").GetComponent<Image>();
+        if (MenuSkin.Current != null && Skin(s.equip, MenuSkin.Current.equipButton))
+        {
+            // L'image dit "Equiper" : la voiture équipée affiche un texte à la place du bouton
+            var label = FitLabel(s.root, "ÉQUIPÉE", 52, 24, TextAnchor.MiddleCenter, Yellow, 4f);
+            Area(label.rectTransform, 0.53f, 0.03f, 0.96f, 0.14f);
+            s.equippedLabel = label.gameObject;
+        }
         return s;
     }
 
@@ -1322,6 +1394,11 @@ public class BoosterShop : MonoBehaviour
             var car = s.car;
             bool unlocked = car.IsUnlocked, isEquipped = car == equipped;
             s.nameText.text = unlocked ? car.displayName.ToUpper() : "???";
+            if (s.unknown != null)
+            {
+                s.unknown.gameObject.SetActive(!unlocked);
+                s.nameText.enabled = unlocked;
+            }
 
             // Débloquée : la voiture en couleur ; verrouillée : silhouette noire
             bool photo = s.carFront.sprite != Round;
@@ -1340,8 +1417,12 @@ public class BoosterShop : MonoBehaviour
 
             s.equipText.text = isEquipped ? "ÉQUIPÉE" : unlocked ? "ÉQUIPER" : "BLOQUÉE";
             s.equip.interactable = unlocked && !isEquipped;
-            s.equipFace.color = isEquipped ? Yellow : unlocked ? Green : new Color(0.45f, 0.45f, 0.55f); // gris = pas disponible
-            s.equipSide.color = Darken(s.equipFace.color, 0.62f);
+            SetFaceColor(s.equipFace, s.equipSide, isEquipped ? Yellow : unlocked ? Green : new Color(0.45f, 0.45f, 0.55f)); // gris = pas disponible
+            if (s.equippedLabel != null)
+            {
+                s.equippedLabel.SetActive(isEquipped);
+                s.equip.gameObject.SetActive(!isEquipped);
+            }
             var colors = s.equip.colors;
             colors.disabledColor = Color.white; // la couleur de la face dit déjà si c'est disponible
             s.equip.colors = colors;

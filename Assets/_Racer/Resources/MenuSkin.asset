@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: deaf6a60e1f1fb261030abda491a7939, type: 3}
+  m_Name: MenuSkin
+  m_EditorClassIdentifier: 
+  tabPlay: {fileID: 21300000, guid: 7a0e64728f3dd3d4c900aebffb6aec97, type: 3}
+  tabInvocations: {fileID: 21300000, guid: 02cd8dab4dad4f344bd87b9b668428e8, type: 3}
+  tabGarage: {fileID: 21300000, guid: b2c7d1cbad61e3a46b5e022328c42e39, type: 3}
+  tabOptions: {fileID: 21300000, guid: c658c534383e19a4bb872faf721fdd99, type: 3}
+  playButton: {fileID: 21300000, guid: 511bdecf8321c234aabaaced12716547, type: 3}
+  invocationsPanel: {fileID: 21300000, guid: ba6bdde6e1aaedd4f8e201e0ccd6e497, type: 3}
+  tabBoosters: {fileID: 21300000, guid: 386592e8c54b79b4baaf0c4f7fac2cae, type: 3}
+  tabBoutique: {fileID: 21300000, guid: 06ef1bc7f72dd1a49869cf6063b75eae, type: 3}
+  boosterCards:
+  - {fileID: 21300000, guid: 1c78be97e6ee03843af7c7b41c1c4ee3, type: 3}
+  - {fileID: 21300000, guid: 2d3b9adf6355eab4ba55e90ffafd8536, type: 3}
+  - {fileID: 21300000, guid: a226b34946446744b822c7a3278d136f, type: 3}
+  boosterOpenButtons:
+  - {fileID: 21300000, guid: 22841ed28efdb5a4bafef324abf72827, type: 3}
+  - {fileID: 21300000, guid: ddffde8241000a7419f1fb19021be0a1, type: 3}
+  - {fileID: 21300000, guid: eee4ac50380d12f4b9c470c1d04ce54a, type: 3}
+  euroPrices:
+  - price: 299
+    sprite: {fileID: 21300000, guid: 00bc007184beba54aabcfc3ff0d63f11, type: 3}
+  - price: 799
+    sprite: {fileID: 21300000, guid: 92be134fb9972124a9d2dac0ebec0933, type: 3}
+  - price: 099
+    sprite: {fileID: 21300000, guid: 0dd371d823dce864f8218793a8ebb19f, type: 3}
+  - price: 499
+    sprite: {fileID: 21300000, guid: 76b94be48b85fad428622ecc571900ed, type: 3}
+  - price: 999
+    sprite: {fileID: 21300000, guid: 502376b8caaf0d5439174184b42a24a5, type: 3}
+  autopilotPrices:
+  - price: 20
+    sprite: {fileID: 21300000, guid: be1277da849edac4d8bfb27f1f7d8b76, type: 3}
+  - price: 80
+    sprite: {fileID: 21300000, guid: 560542b8ea5a87c4ea0b6392bd5dd06e, type: 3}
+  - price: 200
+    sprite: {fileID: 21300000, guid: 5b7d7b5f6fb4d8748875ca51cdb8c929, type: 3}
+  coinPrices:
+  - price: 40
+    sprite: {fileID: 21300000, guid: 1ac060c551b8bd8428baa202e2facdf7, type: 3}
+  - price: 200
+    sprite: {fileID: 21300000, guid: c7f06a4278f695548b6b0687c1ecdda7, type: 3}
+  rarityCommune: {fileID: 21300000, guid: 46a588952d8db2b4f918c23849ab3453, type: 3}
+  rarityRare: {fileID: 21300000, guid: 9f8acf61cb1a23242be63e899be0ba0a, type: 3}
+  rarityEpique: {fileID: 0}
+  rarityLegendaire: {fileID: 21300000, guid: 7838b84e87c32f54db70c693f21185c6, type: 3}
+  unknownName: {fileID: 21300000, guid: 02bf42c39b4b5f24f8ce39a1eb69c496, type: 3}
+  equipButton: {fileID: 21300000, guid: 3a4753452bb00654d833219f1dd30617, type: 3}
+  arrows: {fileID: 21300000, guid: 5c412e246dde1694fac85f020ac5a7fa, type: 3}

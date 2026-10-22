@@ -208,8 +208,7 @@ public class MainMenu : MonoBehaviour
             var tab = tabs[i];
             tab.bounce.extraScale = 1f + 0.14f * k;
             Color dim = Color.Lerp(Navy, tab.color, 0.35f);
-            tab.face.color = Color.Lerp(dim, tab.color, k);
-            tab.side.color = Darken(tab.face.color, 0.6f);
+            SetFaceColor(tab.face, tab.side, Color.Lerp(dim, tab.color, k));
             tab.label.color = Color.Lerp(new Color(1f, 1f, 1f, 0.6f), Color.white, k);
         }
 
@@ -315,7 +314,7 @@ public class MainMenu : MonoBehaviour
 
         var playPage = pager.AddPage("Jouer");
         BuildPlayPage(playPage);
-        var invocations = SheetPage(pager.AddPage("Invocations"), "INVOCATIONS", Purple);
+        var invocations = SheetPage(pager.AddPage("Invocations"), "INVOCATIONS", Purple, MenuSkin.Current != null ? MenuSkin.Current.invocationsPanel : null);
         var garage = SheetPage(pager.AddPage("Garage"), "GARAGE", Blue);
         BuildOptionsPage(SheetPage(pager.AddPage("Options"), "OPTIONS", Teal));
 
@@ -364,6 +363,7 @@ public class MainMenu : MonoBehaviour
         carNameText.rectTransform.offsetMax = new Vector2(-30f, -8f);
 
         var play = CandyButton(page, "JOUER", Green, Play, 110, 260f, 70f);
+        if (MenuSkin.Current != null) Skin(play, MenuSkin.Current.playButton);
         var playRt = (RectTransform)play.transform;
         playRt.anchorMin = playRt.anchorMax = new Vector2(0.5f, 0.3f);
         playRt.sizeDelta = new Vector2(700f, 260f);
@@ -378,9 +378,22 @@ public class MainMenu : MonoBehaviour
         Stretch(Label(swipeHint, "Glisse pour les invocations  »", 38, TextAnchor.MiddleCenter, WithAlpha(Color.white, 0.85f), 2f).rectTransform);
     }
 
-    // Page avec un grand panneau coloré semi-transparent et un bandeau titre ; renvoie la zone sous le titre
-    static RectTransform SheetPage(RectTransform page, string heading, Color color)
+    // Page avec un grand panneau coloré semi-transparent et un bandeau titre ; renvoie la zone sous le titre.
+    // image : panneau du dossier UI (titre compris) à la place du panneau dessiné.
+    static RectTransform SheetPage(RectTransform page, string heading, Color color, Sprite image = null)
     {
+        if (image != null)
+        {
+            var panel = Node("Panneau", page);
+            Area(panel, 0.035f, 0.02f, 0.965f, 0.95f);
+            var img = Picture(panel, image);
+            img.preserveAspect = false; // remplit la page
+            var inside = Node("Contenu", panel);
+            Area(inside, 0.05f, 0.03f, 0.95f, 1f);
+            inside.offsetMax = new Vector2(0f, -100f);
+            return inside;
+        }
+
         var sheet = Card("Panneau", page, WithAlpha(Color.Lerp(Navy, color, 0.3f), 0.88f), 56f, 14f);
         Area(sheet, 0.035f, 0.02f, 0.965f, 0.95f);
 
@@ -535,15 +548,17 @@ public class MainMenu : MonoBehaviour
         layout.childControlWidth = layout.childControlHeight = true;
         layout.childForceExpandWidth = layout.childForceExpandHeight = true;
 
-        Tab(row, "JOUER", Orange, PagePlay);
-        Tab(row, "INVOCATIONS", Purple, PageInvocations);
-        Tab(row, "GARAGE", Blue, PageGarage);
-        Tab(row, "OPTIONS", Teal, PageOptions);
+        var skin = MenuSkin.Current;
+        Tab(row, "JOUER", Orange, PagePlay, skin != null ? skin.tabPlay : null);
+        Tab(row, "INVOCATIONS", Purple, PageInvocations, skin != null ? skin.tabInvocations : null);
+        Tab(row, "GARAGE", Blue, PageGarage, skin != null ? skin.tabGarage : null);
+        Tab(row, "OPTIONS", Teal, PageOptions, skin != null ? skin.tabOptions : null);
     }
 
-    void Tab(Transform row, string label, Color color, int page)
+    void Tab(Transform row, string label, Color color, int page, Sprite image)
     {
         var b = CandyButton(row, label, color, () => pager.GoTo(page), 34, 140f, 34f);
+        Skin(b, image); // image du dossier UI (texte compris), sinon le bouton dessiné
         var rt = (RectTransform)b.transform;
         rt.pivot = new Vector2(0.5f, 0f); // grossit vers le haut quand l'onglet est actif
         var text = ButtonText(b);
