@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// DA de la vraie partie (la démo derrière le menu n'a que la voiture en blanc) :
+/// DA de la vraie partie (la démo derrière le menu n'a que la voiture en blanc et la route à lignes blanches) :
 /// - route avec lignes blanches (bords pleins + pointillés au centre) : Resources/InGame/RoadLines ;
 /// - voitures blanches, contour et arêtes noirs : Resources/InGame/CarWhite (aussi sur les photos du garage) ;
 /// - décor (DecorSpawner) noir, contour et arêtes blancs : Resources/InGame/DecorBlack ;
@@ -67,20 +67,19 @@ public static class InGameLook
         Shader.SetGlobalVector(DistanceFade, demo ? Vector4.zero : FadeInGame);
         if (demo)
         {
-            // La voiture de la démo (autopilote) a quand même la DA du jeu ; le reste garde celle du menu
+            // La voiture et la route de la démo (autopilote) ont quand même la DA du jeu ; le reste garde celle du menu
             foreach (var root in roots)
+            {
+                ApplyRoads(root);
                 foreach (var car in root.GetComponentsInChildren<DriftCar>(true))
                     ApplyCar(car);
+            }
             return;
         }
 
         foreach (var root in roots)
         {
-            foreach (var road in root.GetComponentsInChildren<ZigzagRoadGenerator>(true))
-            {
-                if (roadMat == null) roadMat = Resources.Load<Material>(Folder + "RoadLines");
-                if (roadMat != null) road.roadMaterial = roadMat;
-            }
+            ApplyRoads(root);
             foreach (var terrain in root.GetComponentsInChildren<LowPolyTerrainGenerator>(true))
             {
                 if (terrainMat == null) terrainMat = Resources.Load<Material>(Folder + "TerrainWhite");
@@ -93,6 +92,16 @@ public static class InGameLook
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = Color.white;
             }
+        }
+    }
+
+    // Route avec lignes blanches (bords pleins + pointillés au centre)
+    static void ApplyRoads(GameObject root)
+    {
+        foreach (var road in root.GetComponentsInChildren<ZigzagRoadGenerator>(true))
+        {
+            if (roadMat == null) roadMat = Resources.Load<Material>(Folder + "RoadLines");
+            if (roadMat != null) road.roadMaterial = roadMat;
         }
     }
 
