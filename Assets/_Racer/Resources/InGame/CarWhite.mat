@@ -28,9 +28,14 @@ Material:
     - _ShadeStep: 0.45
     - _ShadeSoftness: 0.06
     - _OutlineWidth: 3
+    - _EdgeWidth: 2.2
+    - _DepthBias: 0.015
+    - _FadeStart: 40
+    - _FadeEnd: 120
+    - _FarScale: 0.4
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShadeColor: {r: 0.74, g: 0.74, b: 0.77, a: 1}
-    - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
+    - _LineColor: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

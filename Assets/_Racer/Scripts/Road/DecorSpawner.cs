@@ -414,6 +414,8 @@ public class DecorSpawner : MonoBehaviour
                 for (int i = 0; i < mats.Length; i++) mats[i] = ToSimpleLit(mats[i]);
                 r.sharedMaterials = mats;
             }
+            // Vraie partie : décor noir, contour et arêtes blancs (voir InGameLook)
+            if (InGameLook.DecorActive) InGameLook.ApplyDecor(r);
         }
 
         return new Item { t = holder.transform, prefab = prefab };

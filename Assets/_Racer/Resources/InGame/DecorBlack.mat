@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: CarEdges
-  m_Shader: {fileID: 4800000, guid: 77c3c0c0d57045fa8027453c2b2b6532, type: 3}
+  m_Name: DecorBlack
+  m_Shader: {fileID: 4800000, guid: 4ccc607b64d44ee2984691df7ae133d5, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -25,9 +25,17 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _EdgeWidth: 2.2
-    - _DepthBias: 0.015
+    - _ShadeStep: 0.45
+    - _ShadeSoftness: 0.06
+    - _OutlineWidth: 2.5
+    - _EdgeWidth: 1.8
+    - _DepthBias: 0.03
+    - _FadeStart: 40
+    - _FadeEnd: 140
+    - _FarScale: 0.35
     m_Colors:
-    - _EdgeColor: {r: 0, g: 0, b: 0, a: 1}
+    - _BaseColor: {r: 0.12, g: 0.12, b: 0.13, a: 1}
+    - _ShadeColor: {r: 0.04, g: 0.04, b: 0.045, a: 1}
+    - _LineColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

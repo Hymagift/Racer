@@ -15,6 +15,7 @@ public static class CarThumbnails
     const int Width = 640, Height = 400;
     const int Layer = 31;                        // calque réservé aux photos (rien d'autre dessus)
     static readonly Vector3 Far = new Vector3(0f, -5000f, 0f);
+    static readonly int LineBoost = Shader.PropertyToID("_RacerLineBoost"); // voir Racer/Outlined
     static readonly Vector3 ViewDir = new Vector3(-1f, 0.62f, 1f); // trois quarts avant gauche : l'avant pointe à gauche
 
     static readonly Dictionary<string, Sprite> cache = new Dictionary<string, Sprite>();
@@ -47,6 +48,7 @@ public static class CarThumbnails
             var model = Object.Instantiate(car.model, root.transform, false);
             model.transform.localRotation = Quaternion.Euler(0f, car.modelYaw, 0f);
             foreach (var t in model.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = Layer;
+            InGameLook.ApplyCarModel(model); // DA du jeu : blanche, contour et arêtes noirs (verrouillée : teintée en noir)
 
             bool any = false;
             var bounds = new Bounds();
@@ -93,8 +95,10 @@ public static class CarThumbnails
             rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
             cam.targetTexture = rt;
 
+            Shader.SetGlobalFloat(LineBoost, 1.5f); // traits plus épais : la photo est réduite ensuite
             Color32[] onBlack = Shoot(cam, rt, Color.black);
             Color32[] onWhite = Shoot(cam, rt, Color.white);
+            Shader.SetGlobalFloat(LineBoost, 0f);
             if (onBlack == null || onWhite == null) return null;
 
             var tex = new Texture2D(Width, Height, TextureFormat.RGBA32, true)
@@ -126,6 +130,7 @@ public static class CarThumbnails
         }
         finally
         {
+            Shader.SetGlobalFloat(LineBoost, 0f);
             if (camGo != null) Object.DestroyImmediate(camGo);
             if (rt != null) { rt.Release(); Object.DestroyImmediate(rt); }
             Object.DestroyImmediate(root);
