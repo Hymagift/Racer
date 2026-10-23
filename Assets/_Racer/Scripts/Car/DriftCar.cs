@@ -66,13 +66,13 @@ public class DriftCar : MonoBehaviour
 
     [Header("Direction")]
     [Tooltip("Angle de braquage max à basse vitesse (degrés)")]
-    public float maxSteerLow = 26f;
+    public float maxSteerLow = 28f;
     [Tooltip("Angle de braquage max à haute vitesse (degrés)")]
-    public float maxSteerHigh = 14f;
+    public float maxSteerHigh = 18f;
     [Tooltip("Réactivité du volant : plus haut = les roues suivent le doigt plus vite (lissage exponentiel, par seconde)")]
-    public float steerFollowSpeed = 12f;
+    public float steerFollowSpeed = 18f;
     [Tooltip("Vitesse max de rotation du volant (de -1 à 1 en 2/x secondes). Évite les à-coups si le doigt saute.")]
-    public float steerMaxRate = 6f;
+    public float steerMaxRate = 9f;
     [Tooltip("Vitesse à laquelle le volant revient au centre quand on lâche l'écran (par seconde)")]
     public float steerReturnSpeed = 5f;
 
@@ -80,18 +80,23 @@ public class DriftCar : MonoBehaviour
     [Tooltip("PositionEcran : l'angle dépend de la position du doigt par rapport au centre de l'écran.\n" +
              "Glissement : l'angle dépend de la distance glissée depuis l'endroit où le doigt s'est posé.")]
     public SteerMode steerMode = SteerMode.PositionEcran;
+    [Range(0.5f, 4f)]
+    [Tooltip("Sensibilité du doigt : multiplie le mouvement du doigt avant la courbe de réponse.\n" +
+             "1 = réglage d'origine, 2 = il suffit de bouger le doigt deux fois moins pour le même braquage")]
+    public float touchSensitivity = 1.8f;
     [Range(0f, 0.5f)]
     [Tooltip("Zone morte au centre (fraction de la demi-largeur d'écran) : en dessous, roues droites")]
-    public float touchDeadZone = 0.06f;
+    public float touchDeadZone = 0.03f;
     [Range(0.1f, 1f)]
     [Tooltip("Mode PositionEcran : fraction de la demi-largeur d'écran où l'on atteint le braquage max (1 = bord de l'écran)")]
-    public float fullSteerScreenFraction = 0.4f; // braquage max quand le doigt est à 30 % / 70 % de la largeur : pas besoin d'aller au bord
+    public float fullSteerScreenFraction = 0.4f;
     [Range(0.05f, 1f)]
     [Tooltip("Mode Glissement : distance à glisser pour braquer à fond (fraction de la demi-largeur d'écran)")]
     public float fullSteerDragFraction = 0.35f;
-    [Range(1f, 3f)]
-    [Tooltip("Courbe de réponse : 1 = linéaire, plus haut = plus de précision près du centre, braquage fort réservé aux bords")]
-    public float steerCurve = 1.15f;
+    [Range(0.3f, 3f)]
+    [Tooltip("Courbe de réponse : 1 = linéaire. Sous 1 = un petit mouvement du doigt braque déjà fort (réactif).\n" +
+             "Au-dessus de 1 = plus de précision près du centre, braquage fort réservé aux grands mouvements")]
+    public float steerCurve = 0.6f;
 
     [Header("Aides au pilotage")]
     [Range(0f, 1.5f)]
@@ -462,17 +467,17 @@ public class DriftCar : MonoBehaviour
         float offset = steerMode == SteerMode.Glissement
             ? (x - pointerStartX) / (half * fullSteerDragFraction)
             : (x - half) / (half * fullSteerScreenFraction);
-        return ShapeInput(offset);
+        return ShapeInput(offset * Mathf.Max(0.01f, touchSensitivity));
     }
 
-    // Zone morte au centre, saturation à ±1, puis courbe de réponse (précision près du centre)
+    // Zone morte au centre, saturation à ±1, puis courbe de réponse (sous 1 : réactive, au-dessus : précise près du centre)
     float ShapeInput(float v)
     {
         float a = Mathf.Abs(v);
         float dz = Mathf.Clamp(touchDeadZone, 0f, 0.9f);
         if (a <= dz) return 0f;
         a = Mathf.Clamp01((a - dz) / (1f - dz));
-        return Mathf.Sign(v) * Mathf.Pow(a, Mathf.Max(1f, steerCurve));
+        return Mathf.Sign(v) * Mathf.Pow(a, Mathf.Max(0.1f, steerCurve));
     }
 
     // ---------- Physique ----------
@@ -877,4 +882,4 @@ public class DriftCar : MonoBehaviour
 #endif
 
     void LateUpdate() => wallContacts = 0;
-}
+}
