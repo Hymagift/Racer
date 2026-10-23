@@ -514,7 +514,6 @@ public static class MenuStyle
         return img;
     }
 
-<<<<<<< Updated upstream
     /// <summary>
     /// Image de l'UI posée dans le parent à ses proportions (la plus grande qui tient, centrée) ; renvoie son rect,
     /// pour y placer des textes ou des boutons par rapport à l'image elle-même.
@@ -537,77 +536,6 @@ public static class MenuStyle
         t.color = Color.black;
         foreach (var sh in t.GetComponents<Shadow>()) sh.effectColor = Color.white; // Outline compris (c'est un Shadow)
         return t;
-=======
-    /// <summary>Image calée à gauche de son parent, à sa hauteur (titres de section, "VOLUME"...).</summary>
-    public static Image PictureLeft(RectTransform parent, Sprite sprite)
-    {
-        var rt = Node("Image", parent);
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = new Vector2(0f, 1f);
-        rt.pivot = new Vector2(0f, 0.5f);
-        rt.offsetMin = rt.offsetMax = Vector2.zero;
-        var fit = rt.gameObject.AddComponent<AspectRatioFitter>();
-        fit.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
-        fit.aspectRatio = sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
-        return Picture(rt, sprite);
-    }
-
-    /// <summary>
-    /// Remplace le dessin d'une carte (Card) par une image : l'ombre et le fond dessinés sont cachés.
-    /// Renvoie faux (et ne touche à rien) si sprite est null.
-    /// </summary>
-    public static bool SkinCard(RectTransform card, Sprite sprite)
-    {
-        if (card == null || sprite == null) return false;
-        foreach (Transform child in card) child.gameObject.SetActive(false);
-        var pic = Node("Image", card);
-        Stretch(pic);
-        Picture(pic, sprite);
-        return true;
-    }
-
-    /// <summary>Slider de CandySlider avec la barre en image : remplissage noir dans la barre, curseur blanc cerclé de noir.</summary>
-    public static void SkinSlider(Slider slider, Sprite track)
-    {
-        if (slider == null || track == null) return;
-        var rt = (RectTransform)slider.transform;
-        var bg = (RectTransform)rt.Find("Fond");
-        Area(bg, 0f, 0.15f, 1f, 0.85f);
-        var bgImg = bg.GetComponent<Image>();
-        bgImg.sprite = track;
-        bgImg.type = Image.Type.Simple;
-        bgImg.pixelsPerUnitMultiplier = 1f;
-        bgImg.color = Color.white;
-        bgImg.preserveAspect = false;
-
-        var fillArea = (RectTransform)rt.Find("Fill Area");
-        Area(fillArea, 0.012f, 0.37f, 0.985f, 0.63f); // l'intérieur blanc de la barre
-        slider.fillRect.GetComponent<Image>().color = Color.black;
-
-        var handle = slider.handleRect.GetComponent<Image>();
-        handle.color = Color.white;
-        var ring = handle.GetComponent<Outline>();
-        if (ring != null)
-        {
-            ring.effectColor = Color.black;
-            ring.effectDistance = new Vector2(6f, -6f);
-        }
-    }
-
-    /// <summary>Pastille en image (haut de l'écran...) : remplace le dessin de l'Image et prend les proportions de l'image.</summary>
-    public static bool SkinPill(RectTransform pill, Sprite sprite, float height)
-    {
-        if (pill == null || sprite == null) return false;
-        var img = pill.GetComponent<Image>();
-        foreach (var o in pill.GetComponents<Outline>()) o.enabled = false;
-        img.sprite = sprite;
-        img.type = Image.Type.Simple;
-        img.pixelsPerUnitMultiplier = 1f;
-        img.color = Color.white;
-        img.preserveAspect = true;
-        pill.sizeDelta = new Vector2(height * sprite.rect.width / Mathf.Max(1f, sprite.rect.height), height);
-        return true;
->>>>>>> Stashed changes
     }
 
     // ---------- Slider ----------

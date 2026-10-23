@@ -360,39 +360,6 @@ public class AutopilotBoost : MonoBehaviour
         if (skin != null && skin.autopilotCard != null) SkinOfferCard(skin.autopilotCard, timer);
     }
 
-    // Bandeau en image ("PILOTE AUTO" et barre vide dedans) : le jeu ajoute le volant qui tourne,
-    // le temps restant et remplit la barre en noir.
-    void SkinHud(MenuSkin skin, Text title, RectTransform bar)
-    {
-        var sprite = skin.autopilotHud;
-        hud.sizeDelta = new Vector2(600f, 600f * sprite.rect.height / sprite.rect.width);
-        var bg = hud.GetComponent<Image>();
-        bg.sprite = sprite;
-        bg.type = Image.Type.Simple;
-        bg.color = Color.white;
-        var outline = hud.GetComponent<Outline>();
-        if (outline != null) outline.enabled = false;
-        title.gameObject.SetActive(false);
-
-        // Volant : place laissée à gauche de l'image (centre à 165 px sur 1400)
-        hudWheel.gameObject.SetActive(false);
-        if (skin.autopilotWheel != null)
-        {
-            hudWheel = Node("Volant", hud);
-            hudWheel.anchorMin = hudWheel.anchorMax = new Vector2(0.118f, 0.5f);
-            hudWheel.sizeDelta = Vector2.one * hud.sizeDelta.y * 0.9f;
-            Picture(hudWheel, skin.autopilotWheel);
-        }
-
-        Area(hudTime.rectTransform, 0.73f, 0.15f, 0.96f, 0.85f);
-
-        // Barre blanche de l'image : remplissage noir
-        Area(bar, 0.243f, 0.258f, 0.707f, 0.348f);
-        bar.GetComponent<Image>().enabled = false;
-        hudFill.sprite = null;
-        hudFill.color = Color.black;
-    }
-
     // Carte en image (volant, "PILOTE AUTO", durée et barre vide dessinés dedans) :
     // le jeu n'écrit que le sous-titre et remplit la barre en noir.
     void SkinOfferCard(Sprite card, RectTransform timer)
@@ -475,19 +442,6 @@ public class AutopilotBoost : MonoBehaviour
         hudFill.sprite = Round;
         hudFill.type = Image.Type.Filled;
         hudFill.fillMethod = Image.FillMethod.Horizontal;
-<<<<<<< Updated upstream
-=======
-
-        var skin = MenuSkin.Current;
-        if (skin != null && skin.autopilotHud != null) SkinHud(skin, title, bar);
-
-        warnText = Label(root, "", 64, TextAnchor.MiddleCenter, Yellow, 5f);
-        warnText.rectTransform.anchorMin = warnText.rectTransform.anchorMax = new Vector2(0.5f, 0.8f);
-        warnText.rectTransform.sizeDelta = new Vector2(1000f, 120f);
-        warnText.gameObject.SetActive(false);
-
-        hud.gameObject.SetActive(false);
->>>>>>> Stashed changes
     }
 
     static void EnsureEventSystem()
