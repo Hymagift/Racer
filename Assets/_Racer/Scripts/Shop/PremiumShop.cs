@@ -29,7 +29,11 @@ public class PremiumShop : MonoBehaviour
     ScrollRect scroll;
     MenuParticles particles;
     Text rubisText, reserveText, reserveBig;
+<<<<<<< Updated upstream
     bool reserveSkinned; // "Réserve :" est dans l'image : le texte n'affiche que le nombre
+=======
+    bool reserveImage; // pastille "Réserve :" en image : seul le nombre est écrit
+>>>>>>> Stashed changes
     RectTransform reserveBigRect, wheelIcon;
     float reservePunch, scrollTarget = -1f;
     readonly List<PriceTag> tags = new List<PriceTag>();
@@ -76,6 +80,14 @@ public class PremiumShop : MonoBehaviour
         rubisText = FitLabel(rubisPill, "", 44, 22, TextAnchor.MiddleCenter, Color.white, 3f);
         Stretch(rubisText.rectTransform);
         rubisText.rectTransform.offsetMin = new Vector2(90f, 4f);
+        var skin = MenuSkin.Current;
+        if (skin != null && skin.rubisCounter != null)
+        {
+            rubisPill.GetComponent<Image>().enabled = false;
+            ruby.gameObject.SetActive(false);
+            Picture(Under(rubisPill), skin.rubisCounter);
+            Area(rubisText.rectTransform, 0.3f, 0.1f, 0.95f, 0.9f);
+        }
 
         var autoPill = Node("Pilotes", header);
         Area(autoPill, 0.51f, 0.1f, 0.98f, 0.9f);
@@ -86,7 +98,18 @@ public class PremiumShop : MonoBehaviour
         reserveText = FitLabel(autoPill, "", 40, 20, TextAnchor.MiddleCenter, Color.white, 3f);
         Stretch(reserveText.rectTransform);
         reserveText.rectTransform.offsetMin = new Vector2(90f, 4f);
+<<<<<<< Updated upstream
     }
+=======
+        if (skin != null && skin.reserveCounter != null)
+        {
+            autoPill.GetComponent<Image>().enabled = false;
+            wheel.gameObject.SetActive(false);
+            Picture(Under(autoPill), skin.reserveCounter);
+            Area(reserveText.rectTransform, 0.78f, 0.15f, 0.98f, 0.85f);
+            reserveImage = true;
+        }
+>>>>>>> Stashed changes
 
     // Haut de la boutique en images du dossier UI
     void BuildSkinnedHeader(RectTransform header, MenuSkin skin)
@@ -120,17 +143,30 @@ public class PremiumShop : MonoBehaviour
         BuildStarterPack();
         BuildCarPack();
 
+<<<<<<< Updated upstream
         var skin = MenuSkin.Current;
         rubisSection = Section("RUBIS", "Pour acheter des pilotes auto et des pièces", skin != null ? skin.rubisTitle : null);
         var rubisRow = Row(430f);
         foreach (var p in PremiumStore.RubisPacks) RubisCard(rubisRow, p);
 
         Section("PILOTE AUTO", "Proposé au début de chaque partie", skin != null ? skin.autopilotTitle : null);
+=======
+        var skin2 = MenuSkin.Current;
+        rubisSection = Section("RUBIS", "Pour acheter des pilotes auto et des pièces", skin2 != null ? skin2.titleRubis : null);
+        var rubisRow = Row(430f);
+        foreach (var p in PremiumStore.RubisPacks) RubisCard(rubisRow, p);
+
+        Section("PILOTE AUTO", "Proposé au début de chaque partie", skin2 != null ? skin2.titleAutopilot : null);
+>>>>>>> Stashed changes
         BuildAutopilotHero();
         var autoRow = Row(340f);
         for (int i = 0; i < PremiumStore.AutopilotOffers.Length; i++) AutopilotCard(autoRow, PremiumStore.AutopilotOffers[i], i);
 
+<<<<<<< Updated upstream
         Section("PIÈCES", "Pour ouvrir plus de boosters", skin != null ? skin.coinsTitle : null);
+=======
+        Section("PIÈCES", "Pour ouvrir plus de boosters", skin2 != null ? skin2.titleCoins : null);
+>>>>>>> Stashed changes
         var coinRow = Row(320f);
         foreach (var o in PremiumStore.CoinOffers) CoinCard(coinRow, o);
 
@@ -152,7 +188,11 @@ public class PremiumShop : MonoBehaviour
         if (rubisText == null) return;
         rubisText.text = PlayerData.Rubis.ToString();
         int reserve = PlayerData.Autopilots;
+<<<<<<< Updated upstream
         reserveText.text = reserveSkinned ? reserve.ToString() : "Réserve : " + reserve;
+=======
+        reserveText.text = reserveImage ? reserve.ToString() : "Réserve : " + reserve;
+>>>>>>> Stashed changes
         if (reserveBig != null) reserveBig.text = reserve.ToString();
         if (starterCard != null) starterCard.gameObject.SetActive(!PremiumStore.IsSoldOut(PremiumStore.StarterPack));
         if (carPackCard != null) carPackCard.gameObject.SetActive(!PremiumStore.IsSoldOut(PremiumStore.CarPack));
@@ -216,11 +256,13 @@ public class PremiumShop : MonoBehaviour
         }
         starterCard = Card("Pack de démarrage", content, Color.Lerp(Navy, Purple, 0.65f), 48f, 12f);
         starterCard.gameObject.AddComponent<LayoutElement>().preferredHeight = 470f;
+        bool image = SkinCard(starterCard, MenuSkin.Current != null ? MenuSkin.Current.starterPackCard : null);
+        Badge(starterCard, p.badge, Pink, new Vector2(0.84f, 0.93f));
+        if (!image) // carte dessinée (l'image a déjà le titre et le contenu)
+        {
         var glow = starterCard.Find("Fond").gameObject.AddComponent<Outline>();
         glow.effectColor = Yellow;
         glow.effectDistance = new Vector2(6f, -6f);
-
-        Badge(starterCard, p.badge, Pink, new Vector2(0.84f, 0.93f));
 
         var title = FitLabel(starterCard, p.title.ToUpper(), 60, 30, TextAnchor.MiddleLeft, Yellow, 4f);
         Area(title.rectTransform, 0.05f, 0.76f, 0.7f, 0.95f);
@@ -235,6 +277,8 @@ public class PremiumShop : MonoBehaviour
         int value = PremiumStore.ValueInRubis(p);
         var valueText = FitLabel(starterCard, "Contenu d'une valeur de " + value + " rubis", 32, 18, TextAnchor.MiddleLeft, Color.white, 2f);
         Area(valueText.rectTransform, 0.05f, 0.06f, 0.58f, 0.28f);
+
+        }
 
         var buy = PriceButton(starterCard, PremiumStore.PriceOf(p), Yellow, 0, SkinPrice(s => s.euroPrices, PremiumStore.PriceOf(p)), () => BuyReal(p, starterCard));
         Area((RectTransform)buy.transform, 0.6f, 0.06f, 0.96f, 0.28f);
@@ -269,11 +313,13 @@ public class PremiumShop : MonoBehaviour
 
         carPackCard = Card("Pack pilote", content, Color.Lerp(Navy, rc, 0.45f), 48f, 12f);
         carPackCard.gameObject.AddComponent<LayoutElement>().preferredHeight = 500f;
+        bool image = SkinCard(carPackCard, MenuSkin.Current != null ? MenuSkin.Current.carPackCard : null);
+        Badge(carPackCard, p.badge, Pink, new Vector2(0.84f, 0.94f));
+        if (!image) // carte dessinée (l'image a déjà le titre et le contenu)
+        {
         var glow = carPackCard.Find("Fond").gameObject.AddComponent<Outline>();
         glow.effectColor = rc;
         glow.effectDistance = new Vector2(6f, -6f);
-
-        Badge(carPackCard, p.badge, Pink, new Vector2(0.84f, 0.94f));
 
         var title = FitLabel(carPackCard, p.title.ToUpper(), 60, 30, TextAnchor.MiddleLeft, Yellow, 4f);
         Area(title.rectTransform, 0.05f, 0.78f, 0.7f, 0.95f);
@@ -309,6 +355,8 @@ public class PremiumShop : MonoBehaviour
         var note = FitLabel(carPackCard, noteText, 28, 16, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.85f), 2f);
         Area(note.rectTransform, 0.05f, 0.06f, 0.58f, 0.28f);
 
+        }
+
         var buy = PriceButton(carPackCard, PremiumStore.PriceOf(p), Yellow, 0, SkinPrice(s => s.euroPrices, PremiumStore.PriceOf(p)), () => BuyReal(p, carPackCard));
         Area((RectTransform)buy.transform, 0.6f, 0.06f, 0.96f, 0.28f);
     }
@@ -337,6 +385,9 @@ public class PremiumShop : MonoBehaviour
         }
 
         var card = Card(p.id, row, Color.Lerp(Navy, RubyRed, 0.3f), 40f, 10f);
+        bool image = SkinCard(card, MenuSkin.Current != null ? MenuSkin.At(MenuSkin.Current.rubisCards, System.Array.IndexOf(PremiumStore.RubisPacks, p)) : null);
+        if (!image) // carte dessinée (l'image a déjà les rubis, le nombre et le nom)
+        {
         if (!string.IsNullOrEmpty(p.badge)) Badge(card, p.badge, Yellow, new Vector2(0.5f, 0.97f));
         else if (p.bonusPercent > 0) Badge(card, "+" + p.bonusPercent + " % BONUS", Green, new Vector2(0.5f, 0.97f));
 
@@ -353,6 +404,10 @@ public class PremiumShop : MonoBehaviour
         Area(amount.rectTransform, 0.05f, 0.33f, 0.95f, 0.47f);
         var title = FitLabel(card, p.title, 28, 16, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.8f), 2f);
         Area(title.rectTransform, 0.05f, 0.24f, 0.95f, 0.33f);
+
+        }
+        else if (!string.IsNullOrEmpty(p.badge)) Badge(card, p.badge, Yellow, new Vector2(0.5f, 0.97f));
+        else if (p.bonusPercent > 0) Badge(card, "+" + p.bonusPercent + " % BONUS", Green, new Vector2(0.5f, 0.97f));
 
         var buy = PriceButton(card, PremiumStore.PriceOf(p), Yellow, 0, SkinPrice(s => s.euroPrices, PremiumStore.PriceOf(p)), () => BuyReal(p, card));
         Area((RectTransform)buy.transform, 0.07f, 0.04f, 0.93f, 0.22f);
@@ -381,10 +436,15 @@ public class PremiumShop : MonoBehaviour
         reserveBig = FitLabel(reserve, "", 80, 30, TextAnchor.MiddleCenter, Color.white, 4f);
         Area(reserveBig.rectTransform, 0f, 0.05f, 1f, 0.7f);
         reserveBigRect = reserveBig.rectTransform;
+
+        // Bandeau en image (volant, titre et texte dedans) ; la réserve reste affichée en haut de la boutique
+        if (SkinCard(card, MenuSkin.Current != null ? MenuSkin.Current.autopilotBanner : null))
+            card.GetComponent<LayoutElement>().preferredHeight = 210f;
     }
 
     void AutopilotCard(RectTransform row, PremiumStore.RubisOffer o, int index)
     {
+<<<<<<< Updated upstream
         RectTransform card;
         var art = SkinCard(s => s.autopilotCards, o.amount.ToString());
         bool sameAmount = art != null;
@@ -408,11 +468,20 @@ public class PremiumShop : MonoBehaviour
         {
             card = Card("x" + o.amount, row, Color.Lerp(Navy, Teal, 0.25f), 40f, 10f);
             if (o.discount > 0) Badge(card, "-" + o.discount + " %", Green, new Vector2(0.78f, 0.95f));
+=======
+        var card = Card("x" + o.amount, row, Color.Lerp(Navy, Teal, 0.25f), 40f, 10f);
+        bool image = SkinCard(card, MenuSkin.Current != null ? MenuSkin.At(MenuSkin.Current.autopilotCards, System.Array.IndexOf(PremiumStore.AutopilotOffers, o)) : null);
+        if (!image) // carte dessinée (l'image a déjà le volant, la quantité et la réduction)
+        {
+        if (o.discount > 0) Badge(card, "-" + o.discount + " %", Green, new Vector2(0.78f, 0.95f));
+>>>>>>> Stashed changes
 
             var icon = Wheel(card, 100f, Teal);
             icon.anchorMin = icon.anchorMax = new Vector2(0.5f, 0.66f);
             var amount = FitLabel(card, "x" + o.amount, 56, 28, TextAnchor.MiddleCenter, Color.white, 4f);
             Area(amount.rectTransform, 0.05f, 0.3f, 0.95f, 0.47f);
+        }
+
         }
 
         var offer = o;
@@ -438,7 +507,10 @@ public class PremiumShop : MonoBehaviour
         }
 
         var card = Card(o.amount + " pièces", row, Color.Lerp(Navy, Yellow, 0.2f), 40f, 10f);
+        bool image = SkinCard(card, MenuSkin.Current != null ? MenuSkin.At(MenuSkin.Current.coinCards, System.Array.IndexOf(PremiumStore.CoinOffers, o)) : null);
         if (o.discount > 0) Badge(card, "-" + o.discount + " %", Green, new Vector2(0.82f, 0.95f));
+        if (!image) // carte dessinée (l'image a déjà la pièce et le nombre)
+        {
 
         int coins = o.amount >= 5000 ? 3 : 1;
         for (int i = 0; i < coins; i++)
@@ -449,6 +521,8 @@ public class PremiumShop : MonoBehaviour
         }
         var amount = FitLabel(card, o.amount.ToString(), 54, 28, TextAnchor.MiddleCenter, Yellow, 4f);
         Area(amount.rectTransform, 0.05f, 0.3f, 0.95f, 0.46f);
+
+        }
 
         var offer = o;
         var buy = PriceButton(card, o.price.ToString(), RubyRed, o.price, SkinPrice(s => s.coinPrices, o.price.ToString()), () =>
@@ -571,12 +645,17 @@ public class PremiumShop : MonoBehaviour
 
     // ---------- Outils ----------
 
+<<<<<<< Updated upstream
+=======
+    // image : titre et sous-titre en image (dossier UI) à la place des textes
+>>>>>>> Stashed changes
     RectTransform Section(string title, string subtitle, Sprite image = null)
     {
         var rt = Node(title, content);
         rt.gameObject.AddComponent<LayoutElement>().preferredHeight = 120f;
         if (image != null)
         {
+<<<<<<< Updated upstream
             // Titre et sous-titre dans l'image, calée à gauche
             var pic = Node("Image", rt);
             Area(pic, 0f, 0f, 0f, 1f);
@@ -585,6 +664,9 @@ public class PremiumShop : MonoBehaviour
             fit.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
             fit.aspectRatio = image.rect.width / image.rect.height;
             Picture(pic, image);
+=======
+            PictureLeft(rt, image);
+>>>>>>> Stashed changes
             return rt;
         }
         var t = FitLabel(rt, title, 56, 28, TextAnchor.LowerLeft, Color.white, 4f);
@@ -592,6 +674,15 @@ public class PremiumShop : MonoBehaviour
         var s = FitLabel(rt, subtitle, 30, 16, TextAnchor.UpperLeft, new Color(1f, 1f, 1f, 0.7f), 2f);
         Area(s.rectTransform, 0.02f, 0f, 0.98f, 0.4f);
         return rt;
+    }
+
+    // Fond en image d'une pastille : premier enfant, donc derrière les textes
+    static RectTransform Under(RectTransform pill)
+    {
+        var bg = Node("Image", pill);
+        Stretch(bg);
+        bg.SetAsFirstSibling();
+        return bg;
     }
 
     RectTransform Row(float height)

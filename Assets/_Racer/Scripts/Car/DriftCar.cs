@@ -82,16 +82,16 @@ public class DriftCar : MonoBehaviour
     public SteerMode steerMode = SteerMode.PositionEcran;
     [Range(0f, 0.5f)]
     [Tooltip("Zone morte au centre (fraction de la demi-largeur d'écran) : en dessous, roues droites")]
-    public float touchDeadZone = 0.08f;
+    public float touchDeadZone = 0.06f;
     [Range(0.1f, 1f)]
     [Tooltip("Mode PositionEcran : fraction de la demi-largeur d'écran où l'on atteint le braquage max (1 = bord de l'écran)")]
-    public float fullSteerScreenFraction = 0.75f;
+    public float fullSteerScreenFraction = 0.4f; // braquage max quand le doigt est à 30 % / 70 % de la largeur : pas besoin d'aller au bord
     [Range(0.05f, 1f)]
     [Tooltip("Mode Glissement : distance à glisser pour braquer à fond (fraction de la demi-largeur d'écran)")]
     public float fullSteerDragFraction = 0.35f;
     [Range(1f, 3f)]
     [Tooltip("Courbe de réponse : 1 = linéaire, plus haut = plus de précision près du centre, braquage fort réservé aux bords")]
-    public float steerCurve = 1.4f;
+    public float steerCurve = 1.15f;
 
     [Header("Aides au pilotage")]
     [Range(0f, 1.5f)]

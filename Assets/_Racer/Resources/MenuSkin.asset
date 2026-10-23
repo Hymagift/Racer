@@ -20,6 +20,7 @@ MonoBehaviour:
   tabGarage: {fileID: 21300000, guid: b2c7d1cbad61e3a46b5e022328c42e39, type: 3}
   tabOptions: {fileID: 21300000, guid: c658c534383e19a4bb872faf721fdd99, type: 3}
   playButton: {fileID: 21300000, guid: 511bdecf8321c234aabaaced12716547, type: 3}
+<<<<<<< Updated upstream
   logo: {fileID: 21300000, guid: 4d45fd9144dfa599f99510eedae175b0, type: 3}
   swipeHint: {fileID: 21300000, guid: af3e36f632ee72f7b67ced5e14542660, type: 3}
   emptyPanel: {fileID: 21300000, guid: 03c6fa6b19ad3fcf4e868a1e5fdf7d15, type: 3}
@@ -28,6 +29,18 @@ MonoBehaviour:
   sliderKnob: {fileID: 21300000, guid: a0bb46da245af2dd7e813fd45635c49d, type: 3}
   resetButton: {fileID: 21300000, guid: 4a0d5d3565df853d703465e7c8192d9e, type: 3}
   quitButton: {fileID: 21300000, guid: b0c18c94d47974e7925f9c808066c5fc, type: 3}
+=======
+  logo: {fileID: 21300000, guid: 69b346285b6c28f4b8e7439ad281ee8c, type: 3}
+  swipeHint: {fileID: 21300000, guid: d57664610f0d72f4eb9b77c70f94d50a, type: 3}
+  recordPill: {fileID: 21300000, guid: 324cebba3cc576b46a46b0105d3dd3a1, type: 3}
+  rubisPill: {fileID: 21300000, guid: 0b76b520b4043854ea115fa5fc66d1b8, type: 3}
+  coinsPill: {fileID: 21300000, guid: fe37b492723f2d54c85427d9243d8164, type: 3}
+  optionsPanel: {fileID: 0}
+  volumeLabel: {fileID: 21300000, guid: 847a0b83d61c51e4f9dc5da3a0eff98b, type: 3}
+  volumeTrack: {fileID: 21300000, guid: 7ace54ed3af735f4eb8006e285283a69, type: 3}
+  resetButton: {fileID: 21300000, guid: 57c6ae4a89379f146a47f15d29048a5f, type: 3}
+  quitButton: {fileID: 21300000, guid: 966043e18090040449c7fa534d6f1d87, type: 3}
+>>>>>>> Stashed changes
   invocationsPanel: {fileID: 21300000, guid: ba6bdde6e1aaedd4f8e201e0ccd6e497, type: 3}
   tabBoosters: {fileID: 21300000, guid: 386592e8c54b79b4baaf0c4f7fac2cae, type: 3}
   tabBoutique: {fileID: 21300000, guid: 06ef1bc7f72dd1a49869cf6063b75eae, type: 3}
@@ -62,6 +75,7 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 1ac060c551b8bd8428baa202e2facdf7, type: 3}
   - price: 200
     sprite: {fileID: 21300000, guid: c7f06a4278f695548b6b0687c1ecdda7, type: 3}
+<<<<<<< Updated upstream
   rubisBalance: {fileID: 21300000, guid: c61cb21786ed7fffa115c7dd41396f64, type: 3}
   reserveBalance: {fileID: 21300000, guid: 531f746ea151d3f9a273c678e6aaa189, type: 3}
   starterPackCard: {fileID: 21300000, guid: 1944848071f181d949160036549a2797, type: 3}
@@ -89,10 +103,41 @@ MonoBehaviour:
   - price: 6000
     sprite: {fileID: 21300000, guid: 2746fbd0bd3fde7e8a7ecc221b90c365, type: 3}
   autopilotHud: {fileID: 21300000, guid: 755772b23e358eb33295b473a609fcbd, type: 3}
+=======
+  rubisCounter: {fileID: 21300000, guid: c8d1c13654cb4c24da7a6d017f5c314e, type: 3}
+  reserveCounter: {fileID: 21300000, guid: 1424882842d149240afd8041806aad4e, type: 3}
+  starterPackCard: {fileID: 21300000, guid: 57330892318404f4987e88e005c6b910, type: 3}
+  carPackCard: {fileID: 21300000, guid: ca6954bc98dbbd546859c858821ca029, type: 3}
+  rubisCards:
+  - {fileID: 21300000, guid: be5f5ae35fe533e46acb1c00aac87824, type: 3}
+  - {fileID: 21300000, guid: 3ceda691e6bcf764ba2eaa87915290ff, type: 3}
+  - {fileID: 21300000, guid: abda7b99050e5a843844badab30a2c97, type: 3}
+  autopilotCards:
+  - {fileID: 21300000, guid: a15571f0c2688c0458898270caa6af92, type: 3}
+  - {fileID: 21300000, guid: f4af3d69ce3cbd245a6e488433b6da0f, type: 3}
+  - {fileID: 21300000, guid: 399aa53f7e7707a4d8971a2362353d05, type: 3}
+  autopilotBanner: {fileID: 21300000, guid: 82736a4708c49194cacb3a81884f223c, type: 3}
+  coinCards:
+  - {fileID: 21300000, guid: 67203f3c881f8434bb8c774a32802992, type: 3}
+  - {fileID: 21300000, guid: 4f69ae9562b6bc84e9fc520238461015, type: 3}
+  titleRubis: {fileID: 21300000, guid: 615970b21b793b544b4b615f04a7edd2, type: 3}
+  titleAutopilot: {fileID: 21300000, guid: a25efad6b58c74843bbd950a6e16e399, type: 3}
+  titleCoins: {fileID: 21300000, guid: 377450323ed662f4e9b2ce6895a553c4, type: 3}
+  autopilotActivate: {fileID: 21300000, guid: 846a5314eace44348b46fc9862c097dd, type: 3}
+  autopilotCard: {fileID: 21300000, guid: f0f3563269f645bca8ff0e83a106daec, type: 3}
+  autopilotHud: {fileID: 21300000, guid: 394dc4d298b941498c901d613166ff5c, type: 3}
+  autopilotWheel: {fileID: 21300000, guid: b5bf57f7dc3549669436a768a0050a6b, type: 3}
+  continuePrices:
+  - price: 10
+    sprite: {fileID: 21300000, guid: ee6a2e25e21500947b44600f5b3051f9, type: 3}
+  continueGiveUp: {fileID: 21300000, guid: e60d5f7abb3c00a4c9382847788c290f, type: 3}
+  garagePanel: {fileID: 21300000, guid: 975675053475418b9708a6b3ac92784e, type: 3}
+>>>>>>> Stashed changes
   rarityCommune: {fileID: 21300000, guid: 46a588952d8db2b4f918c23849ab3453, type: 3}
   rarityRare: {fileID: 21300000, guid: 9f8acf61cb1a23242be63e899be0ba0a, type: 3}
-  rarityEpique: {fileID: 0}
+  rarityEpique: {fileID: 21300000, guid: acfa5870337b79c4fb79e3e21debaeb8, type: 3}
   rarityLegendaire: {fileID: 21300000, guid: 7838b84e87c32f54db70c693f21185c6, type: 3}
   unknownName: {fileID: 21300000, guid: 02bf42c39b4b5f24f8ce39a1eb69c496, type: 3}
   equipButton: {fileID: 21300000, guid: 3a4753452bb00654d833219f1dd30617, type: 3}
+  equippedButton: {fileID: 21300000, guid: 76d44c8daeab49be9bfb8db93b2eaf3a, type: 3}
   arrows: {fileID: 21300000, guid: 5c412e246dde1694fac85f020ac5a7fa, type: 3}

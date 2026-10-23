@@ -1385,10 +1385,21 @@ public class BoosterShop : MonoBehaviour
         s.equipSide = s.equip.transform.Find("Relief").GetComponent<Image>();
         if (MenuSkin.Current != null && Skin(s.equip, MenuSkin.Current.equipButton))
         {
-            // L'image dit "Equiper" : la voiture équipée affiche un texte à la place du bouton
-            var label = FitLabel(s.root, "ÉQUIPÉE", 52, 24, TextAnchor.MiddleCenter, Yellow, 4f);
-            Area(label.rectTransform, 0.53f, 0.03f, 0.96f, 0.14f);
-            s.equippedLabel = label.gameObject;
+            // L'image dit "Equiper" : la voiture équipée affiche "Equipée" (image, sinon texte) à la place du bouton
+            var equippedImage = MenuSkin.Current.equippedButton;
+            if (equippedImage != null)
+            {
+                var badge = Node("Equipée", s.root);
+                Area(badge, 0.53f, 0.03f, 0.96f, 0.14f);
+                Picture(badge, equippedImage);
+                s.equippedLabel = badge.gameObject;
+            }
+            else
+            {
+                var label = FitLabel(s.root, "ÉQUIPÉE", 52, 24, TextAnchor.MiddleCenter, Yellow, 4f);
+                Area(label.rectTransform, 0.53f, 0.03f, 0.96f, 0.14f);
+                s.equippedLabel = label.gameObject;
+            }
         }
         return s;
     }

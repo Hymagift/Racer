@@ -156,8 +156,7 @@ public class AutopilotBoost : MonoBehaviour
             offerSub.text = "Il prend le volant au GO";
             offerSub.color = Color.white;
             offerButtonText.text = "PRÊT";
-            offerFace.color = Teal;
-            offerSide.color = Darken(Teal, 0.62f);
+            SetOfferColor(IsSkinned(offerFace) ? new Color(0.45f, 0.45f, 0.55f) : Teal); // en image : grisé (il démarre au GO)
         }
     }
 
@@ -173,6 +172,7 @@ public class AutopilotBoost : MonoBehaviour
             offerSub.text = PlayerData.WelcomeAutopilotsJustGranted && reserve == PlayerData.WelcomeAutopilots
                 ? PlayerData.WelcomeAutopilots + " pilotes auto offerts pour essayer !"
                 : "Réserve : " + reserve;
+            SkinOffer(false);
             offerButtonText.text = "ACTIVER";
             SetOfferColor(Green);
         }
@@ -183,19 +183,26 @@ public class AutopilotBoost : MonoBehaviour
             offerRuby.gameObject.SetActive(true);
             offerButtonText.rectTransform.offsetMin = new Vector2(70f, 4f);
             SetOfferColor(RubyRed);
+            SkinOffer(true);
         }
         else
         {
             offerSub.text = "Réserve vide";
+            SkinOffer(false);
             offerButtonText.text = "ACTIVER";
             SetOfferColor(new Color(0.45f, 0.45f, 0.55f));
         }
     }
 
-    void SetOfferColor(Color c)
+    void SetOfferColor(Color c) => SetFaceColor(offerFace, offerSide, c);
+
+    // Bouton en image (dossier UI) : ACTIVER, ou le prix en rubis quand la réserve est vide
+    void SkinOffer(bool price)
     {
-        offerFace.color = c;
-        offerSide.color = Darken(c, 0.62f);
+        var skin = MenuSkin.Current;
+        if (skin == null) return;
+        var button = offerFace.GetComponentInParent<Button>();
+        Skin(button, price ? MenuSkin.Price(skin.autopilotPrices, PremiumStore.AutopilotPrice.ToString()) : skin.autopilotActivate);
     }
 
     void CloseOffer()
@@ -348,6 +355,66 @@ public class AutopilotBoost : MonoBehaviour
         offerTimer = Node("Barre", timer);
         Area(offerTimer, 0f, 0f, 1f, 1f);
         Rounded(offerTimer, Teal, 10f);
+
+        var skin = MenuSkin.Current;
+        if (skin != null && skin.autopilotCard != null) SkinOfferCard(skin.autopilotCard, timer);
+    }
+
+    // Bandeau en image ("PILOTE AUTO" et barre vide dedans) : le jeu ajoute le volant qui tourne,
+    // le temps restant et remplit la barre en noir.
+    void SkinHud(MenuSkin skin, Text title, RectTransform bar)
+    {
+        var sprite = skin.autopilotHud;
+        hud.sizeDelta = new Vector2(600f, 600f * sprite.rect.height / sprite.rect.width);
+        var bg = hud.GetComponent<Image>();
+        bg.sprite = sprite;
+        bg.type = Image.Type.Simple;
+        bg.color = Color.white;
+        var outline = hud.GetComponent<Outline>();
+        if (outline != null) outline.enabled = false;
+        title.gameObject.SetActive(false);
+
+        // Volant : place laissée à gauche de l'image (centre à 165 px sur 1400)
+        hudWheel.gameObject.SetActive(false);
+        if (skin.autopilotWheel != null)
+        {
+            hudWheel = Node("Volant", hud);
+            hudWheel.anchorMin = hudWheel.anchorMax = new Vector2(0.118f, 0.5f);
+            hudWheel.sizeDelta = Vector2.one * hud.sizeDelta.y * 0.9f;
+            Picture(hudWheel, skin.autopilotWheel);
+        }
+
+        Area(hudTime.rectTransform, 0.73f, 0.15f, 0.96f, 0.85f);
+
+        // Barre blanche de l'image : remplissage noir
+        Area(bar, 0.243f, 0.258f, 0.707f, 0.348f);
+        bar.GetComponent<Image>().enabled = false;
+        hudFill.sprite = null;
+        hudFill.color = Color.black;
+    }
+
+    // Carte en image (volant, "PILOTE AUTO", durée et barre vide dessinés dedans) :
+    // le jeu n'écrit que le sous-titre et remplit la barre en noir.
+    void SkinOfferCard(Sprite card, RectTransform timer)
+    {
+        offerCard.Find("Ombre").gameObject.SetActive(false);
+        offerCard.Find("Fond").gameObject.SetActive(false);
+        offerWheel.gameObject.SetActive(false);
+        offerTitle.gameObject.SetActive(false);
+        offerCard.sizeDelta = new Vector2(940f, 940f * card.rect.height / card.rect.width);
+
+        var bg = Node("Image", offerCard);
+        Stretch(bg);
+        bg.SetAsFirstSibling();
+        Picture(bg, card).preserveAspect = false;
+
+        Area(offerSub.rectTransform, 0.225f, 0.37f, 0.64f, 0.54f);
+        Area((RectTransform)offerFace.GetComponentInParent<Button>().transform, 0.65f, 0.26f, 0.96f, 0.93f);
+
+        // Remplissage de la barre blanche de l'image
+        Area(timer, 0.0676f, 0.0723f, 0.9233f, 0.1526f);
+        timer.GetComponent<Image>().color = Color.white;
+        offerTimer.GetComponent<Image>().color = Color.black;
     }
 
     void BuildHud()
@@ -408,6 +475,19 @@ public class AutopilotBoost : MonoBehaviour
         hudFill.sprite = Round;
         hudFill.type = Image.Type.Filled;
         hudFill.fillMethod = Image.FillMethod.Horizontal;
+<<<<<<< Updated upstream
+=======
+
+        var skin = MenuSkin.Current;
+        if (skin != null && skin.autopilotHud != null) SkinHud(skin, title, bar);
+
+        warnText = Label(root, "", 64, TextAnchor.MiddleCenter, Yellow, 5f);
+        warnText.rectTransform.anchorMin = warnText.rectTransform.anchorMax = new Vector2(0.5f, 0.8f);
+        warnText.rectTransform.sizeDelta = new Vector2(1000f, 120f);
+        warnText.gameObject.SetActive(false);
+
+        hud.gameObject.SetActive(false);
+>>>>>>> Stashed changes
     }
 
     static void EnsureEventSystem()

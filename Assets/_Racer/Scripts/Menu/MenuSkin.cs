@@ -38,6 +38,7 @@ public class MenuSkin : ScriptableObject
     [Tooltip("\"Glisse pour les invocations >>\"")]
     public Sprite swipeHint;
 
+<<<<<<< Updated upstream
     [Header("Pages")]
     [Tooltip("Panneau sans titre (Garage, Options) : l'onglet de la page sert de titre par-dessus")]
     public Sprite emptyPanel;
@@ -47,6 +48,19 @@ public class MenuSkin : ScriptableObject
     [Tooltip("Barre du curseur de volume (9-slice)")]
     public Sprite sliderBar;
     public Sprite sliderKnob;
+=======
+    [Header("Haut de l'écran (le nombre est écrit par-dessus)")]
+    public Sprite recordPill;
+    public Sprite rubisPill;
+    public Sprite coinsPill;
+
+    [Header("Options")]
+    [Tooltip("Panneau de la page Options (titre compris). Vide : panneau du Garage avec le titre OPTIONS écrit par-dessus")]
+    public Sprite optionsPanel;
+    public Sprite volumeLabel;
+    [Tooltip("Barre du volume (le point à gauche de l'image est retiré)")]
+    public Sprite volumeTrack;
+>>>>>>> Stashed changes
     public Sprite resetButton;
     public Sprite quitButton;
 
@@ -67,6 +81,7 @@ public class MenuSkin : ScriptableObject
     public PriceSprite[] autopilotPrices;
     [Tooltip("Boutons de prix en rubis des pièces")]
     public PriceSprite[] coinPrices;
+<<<<<<< Updated upstream
     [Tooltip("Rubis possédés (haut de la boutique)")]
     public Sprite rubisBalance;
     [Tooltip("\"Réserve :\" des pilotes auto (haut de la boutique)")]
@@ -86,8 +101,43 @@ public class MenuSkin : ScriptableObject
     [Header("En jeu")]
     [Tooltip("Compteur du pilote auto, sans le temps ni le remplissage de la barre (ajoutés par le jeu)")]
     public Sprite autopilotHud;
+=======
+    [Tooltip("Pastille du nombre de rubis (haut de la boutique)")]
+    public Sprite rubisCounter;
+    [Tooltip("Pastille \"Réserve :\" (le nombre est écrit à droite)")]
+    public Sprite reserveCounter;
+    public Sprite starterPackCard;
+    public Sprite carPackCard;
+    [Tooltip("Cartes des packs de rubis, dans l'ordre de la boutique (80, 500, 1200)")]
+    public Sprite[] rubisCards;
+    [Tooltip("Cartes des pilotes auto, dans l'ordre de la boutique (x1, x5, x15)")]
+    public Sprite[] autopilotCards;
+    [Tooltip("Bandeau \"30s de conduite parfaite\" au-dessus des cartes des pilotes auto")]
+    public Sprite autopilotBanner;
+    [Tooltip("Cartes des pièces, dans l'ordre de la boutique (1000, 6000)")]
+    public Sprite[] coinCards;
+    public Sprite titleRubis;
+    public Sprite titleAutopilot;
+    public Sprite titleCoins;
+
+    [Header("En jeu")]
+    [Tooltip("Bouton ACTIVER du pilote auto au départ")]
+    public Sprite autopilotActivate;
+    [Tooltip("Carte du pilote auto au départ, sans sous-titre ni barre (écrits par le jeu)")]
+    public Sprite autopilotCard;
+    [Tooltip("Bandeau en haut pendant le pilote auto, sans volant ni temps (écrits par le jeu)")]
+    public Sprite autopilotHud;
+    [Tooltip("Volant seul, qui tourne sur le bandeau")]
+    public Sprite autopilotWheel;
+    [Tooltip("Boutons \"continuer\" en rubis, par prix (le prix monte à chaque mort)")]
+    public PriceSprite[] continuePrices;
+    [Tooltip("\"Non merci\" (abandonner)")]
+    public Sprite continueGiveUp;
+>>>>>>> Stashed changes
 
     [Header("Garage")]
+    [Tooltip("Panneau de la page Garage (titre compris)")]
+    public Sprite garagePanel;
     public Sprite rarityCommune;
     public Sprite rarityRare;
     public Sprite rarityEpique;
@@ -95,6 +145,8 @@ public class MenuSkin : ScriptableObject
     [Tooltip("\"???\" : nom d'une voiture verrouillée")]
     public Sprite unknownName;
     public Sprite equipButton;
+    [Tooltip("\"Equipée\" : affiché à la place du bouton sur la voiture équipée")]
+    public Sprite equippedButton;
     [Tooltip("Image avec les deux flèches (gauche au début, droite à la fin)")]
     public Sprite arrows;
 
@@ -142,6 +194,22 @@ public class MenuSkin : ScriptableObject
         var sb = new System.Text.StringBuilder();
         foreach (char c in s) if (char.IsDigit(c)) sb.Append(c);
         return sb.ToString();
+    }
+
+    static Sprite track;
+
+    /// <summary>Barre du volume sans le point de gauche (découpé : les 9 premiers % de l'image).</summary>
+    public static Sprite VolumeTrack()
+    {
+        var s = Current;
+        if (s == null || s.volumeTrack == null) return null;
+        if (track == null)
+        {
+            Rect r = s.volumeTrack.rect;
+            float cut = r.width * 0.09f;
+            track = Sprite.Create(s.volumeTrack.texture, new Rect(r.x + cut, r.y, r.width - cut, r.height), new Vector2(0.5f, 0.5f), 100f);
+        }
+        return track;
     }
 
     static Sprite arrowLeft, arrowRight;

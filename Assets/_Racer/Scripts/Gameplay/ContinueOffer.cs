@@ -40,9 +40,10 @@ public class ContinueOffer : MonoBehaviour
         watchingAd = false;
 
         priceText.text = price.ToString();
+        // Bouton en image pour ce prix s'il existe (le prix monte à chaque mort), sinon le bouton dessiné
+        Skin(rubisButton.GetComponent<Button>(), MenuSkin.Current != null ? MenuSkin.Price(MenuSkin.Current.continuePrices, price.ToString()) : null);
         bool canPay = PlayerData.Rubis >= price;
-        rubisFace.color = canPay ? RubyRed : new Color(0.45f, 0.45f, 0.55f);
-        rubisSide.color = Darken(rubisFace.color, 0.62f);
+        SetFaceColor(rubisFace, rubisSide, canPay ? RubyRed : new Color(0.45f, 0.45f, 0.55f));
         infoText.text = "Tu as " + PlayerData.Rubis + " rubis";
         infoText.color = Color.white;
         adButton.SetActive(adAvailable);
@@ -203,8 +204,7 @@ public class ContinueOffer : MonoBehaviour
     void RefreshPrice()
     {
         bool canPay = PlayerData.Rubis >= price;
-        rubisFace.color = canPay ? RubyRed : new Color(0.45f, 0.45f, 0.55f);
-        rubisSide.color = Darken(rubisFace.color, 0.62f);
+        SetFaceColor(rubisFace, rubisSide, canPay ? RubyRed : new Color(0.45f, 0.45f, 0.55f));
     }
 
     void BuildShop(RectTransform root)
@@ -349,7 +349,13 @@ public class ContinueOffer : MonoBehaviour
         Area(giveUp, 0.3f, 0.02f, 0.7f, 0.11f);
         Fill(giveUp, Color.clear).raycastTarget = true;
         giveUp.gameObject.AddComponent<Button>().onClick.AddListener(OnGiveUp);
-        Stretch(Label(giveUp, "Non merci", 42, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.7f), 2f).rectTransform);
+        if (MenuSkin.Current != null && MenuSkin.Current.continueGiveUp != null)
+        {
+            var pic = Node("Image", giveUp);
+            Stretch(pic);
+            Picture(pic, MenuSkin.Current.continueGiveUp); // "Non merci" en image
+        }
+        else Stretch(Label(giveUp, "Non merci", 42, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.7f), 2f).rectTransform);
 
         BuildShop(root);
 
