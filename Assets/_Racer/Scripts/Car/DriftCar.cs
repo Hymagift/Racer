@@ -5,118 +5,118 @@ using UnityEngine.InputSystem;
 #endif
 
 /// <summary>
-/// Voiture de drift "arcade mais physique" pour mobile, compatible avec le décor qui défile (ZigzagRoadGenerator).
+/// Voiture de drift "arcade mais physique" pour mobile, compatible avec le dÃ©cor qui dÃ©file (ZigzagRoadGenerator).
 ///
-/// MODÈLE PHYSIQUE (vue de dessus, "bicycle model") :
-/// - Chaque essieu génère une force latérale selon l'angle de glissement de ses pneus, limitée par son adhérence max.
+/// MODÃˆLE PHYSIQUE (vue de dessus, "bicycle model") :
+/// - Chaque essieu gÃ©nÃ¨re une force latÃ©rale selon l'angle de glissement de ses pneus, limitÃ©e par son adhÃ©rence max.
 /// - Traction AVANT : le moteur pousse dans la direction des roues avant.
-/// - Quand le joueur braque fort, l'adhérence ARRIÈRE chute : l'arrière décroche et la voiture part en glisse.
-/// - Quand il relâche, l'arrière retrouve de l'adhérence et la voiture se redresse.
+/// - Quand le joueur braque fort, l'adhÃ©rence ARRIÃˆRE chute : l'arriÃ¨re dÃ©croche et la voiture part en glisse.
+/// - Quand il relÃ¢che, l'arriÃ¨re retrouve de l'adhÃ©rence et la voiture se redresse.
 ///
-/// Le modèle est calculé en plusieurs sous-pas par pas de physique (plus fluide et plus stable),
-/// et c'est lui qui décide seul de l'orientation de la voiture (MoveRotation) : rotation et glisse restent synchronisées.
+/// Le modÃ¨le est calculÃ© en plusieurs sous-pas par pas de physique (plus fluide et plus stable),
+/// et c'est lui qui dÃ©cide seul de l'orientation de la voiture (MoveRotation) : rotation et glisse restent synchronisÃ©es.
 ///
-/// La voiture ne bouge pas en Z : sa vitesse vers l'avant fait défiler la route.
-/// CONTRÔLES : le braquage suit la position HORIZONTALE du doigt (souris dans l'éditeur) :
-/// doigt au centre = roues droites, plus il s'écarte du centre, plus on braque. Flèches = braquage à fond.
+/// La voiture ne bouge pas en Z : sa vitesse vers l'avant fait dÃ©filer la route.
+/// CONTRÃ”LES : le braquage suit la position HORIZONTALE du doigt (souris dans l'Ã©diteur) :
+/// doigt au centre = roues droites, plus il s'Ã©carte du centre, plus on braque. FlÃ¨ches = braquage Ã  fond.
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 public class DriftCar : MonoBehaviour
 {
-    [Header("Références")]
+    [Header("RÃ©fÃ©rences")]
     public ZigzagRoadGenerator road;
-    [Tooltip("Optionnel : le modèle 3D de la voiture (ENFANT). Il penche dans les virages et suit la pente.")]
+    [Tooltip("Optionnel : le modÃ¨le 3D de la voiture (ENFANT). Il penche dans les virages et suit la pente.")]
     public Transform body;
-    [Tooltip("Optionnel : fumée des pneus arrière")]
+    [Tooltip("Optionnel : fumÃ©e des pneus arriÃ¨re")]
     public ParticleSystem[] tireSmoke;
 
     [Header("Vitesse")]
-    public float startSpeed = 8f;            // m/s au début (~29 km/h)
-    public float maxSpeed = 16f;              // m/s à la fin (~58 km/h)
-    [Tooltip("Distance pour passer de startSpeed à maxSpeed")]
+    public float startSpeed = 8f;            // m/s au dÃ©but (~29 km/h)
+    public float maxSpeed = 16f;              // m/s Ã  la fin (~58 km/h)
+    [Tooltip("Distance pour passer de startSpeed Ã  maxSpeed")]
     public float speedRampDistance = 4000f;
-    [Tooltip("Accélération max du moteur (m/s²)")]
+    [Tooltip("AccÃ©lÃ©ration max du moteur (m/sÂ²)")]
     public float engineAccel = 5f;
     [Range(0f, 1f)]
     [Tooltip("Puissance moteur en plus pendant un drift (garde de la vitesse en glisse)")]
     public float driftBoost = 0.3f;
     [Range(0f, 1f)]
-    [Tooltip("Part de la vitesse perdue à cause de l'angle de drift qui est rendue (0 = la voiture ralentit beaucoup en glisse, 1 = presque pas). " +
-             "Ne s'applique pas au pilote auto (il garde une conduite sûre).")]
+    [Tooltip("Part de la vitesse perdue Ã  cause de l'angle de drift qui est rendue (0 = la voiture ralentit beaucoup en glisse, 1 = presque pas). " +
+             "Ne s'applique pas au pilote auto (il garde une conduite sÃ»re).")]
     public float driftSpeedKeep = 0.85f;
 
-    [Header("Châssis")]
+    [Header("ChÃ¢ssis")]
     public float mass = 1200f;
     public float yawInertia = 2200f;
-    [Tooltip("Distance centre de gravité -> essieu avant")]
+    [Tooltip("Distance centre de gravitÃ© -> essieu avant")]
     public float frontAxle = 1.2f;
-    [Tooltip("Distance centre de gravité -> essieu arrière")]
+    [Tooltip("Distance centre de gravitÃ© -> essieu arriÃ¨re")]
     public float rearAxle = 1.3f;
 
     [Header("Pneus")]
-    [Tooltip("Raideur latérale (N/rad) : plus haut = réponse plus vive")]
+    [Tooltip("Raideur latÃ©rale (N/rad) : plus haut = rÃ©ponse plus vive")]
     public float frontStiffness = 42000f;
     public float rearStiffness = 48000f;
-    [Tooltip("Adhérence avant (coefficient de friction)")]
+    [Tooltip("AdhÃ©rence avant (coefficient de friction)")]
     public float frontGrip = 1.15f;
-    [Tooltip("Adhérence arrière normale")]
+    [Tooltip("AdhÃ©rence arriÃ¨re normale")]
     public float rearGrip = 1.18f;
-    [Tooltip("Adhérence arrière en drift. Plus bas = l'arrière glisse plus.")]
+    [Tooltip("AdhÃ©rence arriÃ¨re en drift. Plus bas = l'arriÃ¨re glisse plus.")]
     public float rearDriftGrip = 0.47f;
 
     [Header("Direction")]
-    [Tooltip("Angle de braquage max à basse vitesse (degrés)")]
+    [Tooltip("Angle de braquage max Ã  basse vitesse (degrÃ©s)")]
     public float maxSteerLow = 26f;
-    [Tooltip("Angle de braquage max à haute vitesse (degrés)")]
+    [Tooltip("Angle de braquage max Ã  haute vitesse (degrÃ©s)")]
     public float maxSteerHigh = 14f;
-    [Tooltip("Réactivité du volant : plus haut = les roues suivent le doigt plus vite (lissage exponentiel, par seconde)")]
+    [Tooltip("RÃ©activitÃ© du volant : plus haut = les roues suivent le doigt plus vite (lissage exponentiel, par seconde)")]
     public float steerFollowSpeed = 12f;
-    [Tooltip("Vitesse max de rotation du volant (de -1 à 1 en 2/x secondes). Évite les à-coups si le doigt saute.")]
+    [Tooltip("Vitesse max de rotation du volant (de -1 Ã  1 en 2/x secondes). Ã‰vite les Ã -coups si le doigt saute.")]
     public float steerMaxRate = 6f;
-    [Tooltip("Vitesse à laquelle le volant revient au centre quand on lâche l'écran (par seconde)")]
+    [Tooltip("Vitesse Ã  laquelle le volant revient au centre quand on lÃ¢che l'Ã©cran (par seconde)")]
     public float steerReturnSpeed = 5f;
 
     [Header("Doigt / souris")]
-    [Tooltip("PositionEcran : l'angle dépend de la position du doigt par rapport au centre de l'écran.\n" +
-             "Glissement : l'angle dépend de la distance glissée depuis l'endroit où le doigt s'est posé.")]
+    [Tooltip("PositionEcran : l'angle dÃ©pend de la position du doigt par rapport au centre de l'Ã©cran.\n" +
+             "Glissement : l'angle dÃ©pend de la distance glissÃ©e depuis l'endroit oÃ¹ le doigt s'est posÃ©.")]
     public SteerMode steerMode = SteerMode.PositionEcran;
     [Range(0f, 0.5f)]
-    [Tooltip("Zone morte au centre (fraction de la demi-largeur d'écran) : en dessous, roues droites")]
+    [Tooltip("Zone morte au centre (fraction de la demi-largeur d'Ã©cran) : en dessous, roues droites")]
     public float touchDeadZone = 0.06f;
     [Range(0.1f, 1f)]
-    [Tooltip("Mode PositionEcran : fraction de la demi-largeur d'écran où l'on atteint le braquage max (1 = bord de l'écran)")]
-    public float fullSteerScreenFraction = 0.4f; // braquage max quand le doigt est à 30 % / 70 % de la largeur : pas besoin d'aller au bord
+    [Tooltip("Mode PositionEcran : fraction de la demi-largeur d'Ã©cran oÃ¹ l'on atteint le braquage max (1 = bord de l'Ã©cran)")]
+    public float fullSteerScreenFraction = 0.4f; // braquage max quand le doigt est Ã  30 % / 70 % de la largeur : pas besoin d'aller au bord
     [Range(0.05f, 1f)]
-    [Tooltip("Mode Glissement : distance à glisser pour braquer à fond (fraction de la demi-largeur d'écran)")]
+    [Tooltip("Mode Glissement : distance Ã  glisser pour braquer Ã  fond (fraction de la demi-largeur d'Ã©cran)")]
     public float fullSteerDragFraction = 0.35f;
     [Range(1f, 3f)]
-    [Tooltip("Courbe de réponse : 1 = linéaire, plus haut = plus de précision près du centre, braquage fort réservé aux bords")]
+    [Tooltip("Courbe de rÃ©ponse : 1 = linÃ©aire, plus haut = plus de prÃ©cision prÃ¨s du centre, braquage fort rÃ©servÃ© aux bords")]
     public float steerCurve = 1.15f;
 
     [Header("Aides au pilotage")]
     [Range(0f, 1.5f)]
     [Tooltip("Contre-braquage automatique en drift (0 = aucun, 1 = les roues suivent la glisse)")]
     public float countersteerAssist = 0.7f;
-    [Tooltip("Contre-braquage automatique max (degrés). Il plafonne en douceur : plus de bascule d'un coup en contre-braquage complet.")]
+    [Tooltip("Contre-braquage automatique max (degrÃ©s). Il plafonne en douceur : plus de bascule d'un coup en contre-braquage complet.")]
     public float maxCountersteer = 18f;
-    [Tooltip("Angle de drift max (degrés). Au-delà, la rotation est freinée en douceur.")]
+    [Tooltip("Angle de drift max (degrÃ©s). Au-delÃ , la rotation est freinÃ©e en douceur.")]
     public float maxDriftAngle = 44f;
     public float angleLimitStrength = 8f;
-    [Tooltip("Vitesse à partir de laquelle braquer fort déclenche le drift")]
+    [Tooltip("Vitesse Ã  partir de laquelle braquer fort dÃ©clenche le drift")]
     public float minDriftSpeed = 7f;
     [Range(0f, 1f)]
-    [Tooltip("Braquage (0..1) à partir duquel l'arrière commence à décrocher")]
+    [Tooltip("Braquage (0..1) Ã  partir duquel l'arriÃ¨re commence Ã  dÃ©crocher")]
     public float driftStartSteer = 0.38f;
     [Range(0f, 1f)]
-    [Tooltip("Braquage (0..1) pour un drift complet. Entre les deux, l'arrière décroche en proportion du braquage.")]
+    [Tooltip("Braquage (0..1) pour un drift complet. Entre les deux, l'arriÃ¨re dÃ©croche en proportion du braquage.")]
     public float driftFullSteer = 0.95f;
-    [Tooltip("Vitesse à laquelle l'arrière décroche quand on braque")]
+    [Tooltip("Vitesse Ã  laquelle l'arriÃ¨re dÃ©croche quand on braque")]
     public float driftEngageRate = 1.7f;
-    [Tooltip("Vitesse à laquelle l'arrière se raccroche quand on relâche")]
+    [Tooltip("Vitesse Ã  laquelle l'arriÃ¨re se raccroche quand on relÃ¢che")]
     public float driftReleaseRate = 1.4f;
-    [Tooltip("Stabilise la rotation quand on ne touche pas l'écran")]
+    [Tooltip("Stabilise la rotation quand on ne touche pas l'Ã©cran")]
     public float yawDampingNoInput = 3f;
-    [Tooltip("Rotation max (degrés/s)")]
+    [Tooltip("Rotation max (degrÃ©s/s)")]
     public float maxYawRate = 120f;
 
     [Header("Simulation")]
@@ -126,93 +126,93 @@ public class DriftCar : MonoBehaviour
 
     [Header("Murs")]
     [Range(0f, 1f)]
-    [Tooltip("Vitesse conservée après un choc contre un mur")]
+    [Tooltip("Vitesse conservÃ©e aprÃ¨s un choc contre un mur")]
     public float wallSpeedKeep = 0.85f;
-    [Tooltip("Délai minimum entre deux chocs (évite que les frottements répétés arrêtent la voiture)")]
+    [Tooltip("DÃ©lai minimum entre deux chocs (Ã©vite que les frottements rÃ©pÃ©tÃ©s arrÃªtent la voiture)")]
     public float wallHitCooldown = 0.6f;
-    [Tooltip("Vitesse latérale min contre le mur pour compter comme un choc (m/s)")]
+    [Tooltip("Vitesse latÃ©rale min contre le mur pour compter comme un choc (m/s)")]
     public float wallHitMinSpeed = 3f;
-    [Tooltip("Vitesse latérale max (m/s) qu'un choc avec autre chose qu'un mur (jonction de route, cône...) peut donner à la voiture")]
+    [Tooltip("Vitesse latÃ©rale max (m/s) qu'un choc avec autre chose qu'un mur (jonction de route, cÃ´ne...) peut donner Ã  la voiture")]
     public float maxPhysicsKick = 2f;
 
     [Header("Hors de la route")]
-    [Tooltip("Vitesse à laquelle l'arrière se raccroche quand le centre de la voiture sort de la route (plus de drift hors de la route)")]
+    [Tooltip("Vitesse Ã  laquelle l'arriÃ¨re se raccroche quand le centre de la voiture sort de la route (plus de drift hors de la route)")]
     public float offRoadGripRate = 5f;
-    [Tooltip("Distance (m) entre le centre de la voiture et le bord de la route, côté vide, au-delà de laquelle elle tombe")]
+    [Tooltip("Distance (m) entre le centre de la voiture et le bord de la route, cÃ´tÃ© vide, au-delÃ  de laquelle elle tombe")]
     public float fallEdgeMargin = 0.3f;
-    [Tooltip("Gravité pendant la chute (x la gravité normale)")]
+    [Tooltip("GravitÃ© pendant la chute (x la gravitÃ© normale)")]
     public float fallGravity = 2f;
 
     [Header("Visuel")]
-    public float bodyRollMax = 5f;            // degrés d'inclinaison en virage (vers l'extérieur)
-    [Tooltip("Inclinaison max du modèle pour suivre la pente (degrés)")]
+    public float bodyRollMax = 5f;            // degrÃ©s d'inclinaison en virage (vers l'extÃ©rieur)
+    [Tooltip("Inclinaison max du modÃ¨le pour suivre la pente (degrÃ©s)")]
     public float maxGroundTilt = 20f;
     public float smokeMaxRate = 60f;
 
     [Header("Debug")]
-    [Tooltip("Affiche les valeurs de pilotage en haut à gauche de l'écran")]
+    [Tooltip("Affiche les valeurs de pilotage en haut Ã  gauche de l'Ã©cran")]
     public bool debugHUD = false;
 
     [Header("Menu / autopilote")]
-    [Tooltip("Pendant le pilote auto : l'arrière ne décroche pas et accroche au moins autant que rearGrip de pilote auto (son drift est visuel, voir styleDrift). Il reste sûr même sur la route la plus dure.")]
+    [Tooltip("Pendant le pilote auto : l'arriÃ¨re ne dÃ©croche pas et accroche au moins autant que rearGrip de pilote auto (son drift est visuel, voir styleDrift). Il reste sÃ»r mÃªme sur la route la plus dure.")]
     public bool autopilotGrip = true;
     public float autopilotRearGrip = 1.3f;
     public bool useExternalInput;
-    public float externalInput;   // -1 gauche, 0 rien, 1 droite (valeurs intermédiaires = braquage partiel)
+    public float externalInput;   // -1 gauche, 0 rien, 1 droite (valeurs intermÃ©diaires = braquage partiel)
 
     public enum SteerMode { PositionEcran, Glissement }
     // ---------- Infos pour le score / l'UI ----------
 
     /// <summary>Vitesse en m/s.</summary>
     public float Speed => vel.magnitude;
-    /// <summary>Vitesse dans l'axe de la voiture en m/s (sert à faire tourner les roues).</summary>
+    /// <summary>Vitesse dans l'axe de la voiture en m/s (sert Ã  faire tourner les roues).</summary>
     public float ForwardSpeed => Vector2.Dot(vel, new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw)));
-    /// <summary>Angle de braquage des roues avant (degrés, positif = à droite), contre-braquage compris.</summary>
+    /// <summary>Angle de braquage des roues avant (degrÃ©s, positif = Ã  droite), contre-braquage compris.</summary>
     public float SteerAngle => lastSteerDeg - styleShown * 0.6f; // + contre-braquage visuel du drift de style
-    /// <summary>Angle entre le nez de la voiture et sa direction de déplacement (degrés, signé).</summary>
-    /// <remarks>Pendant le pilote auto, c'est la plus forte entre la glisse réelle et le drift "de style" (styleDrift).</remarks>
+    /// <summary>Angle entre le nez de la voiture et sa direction de dÃ©placement (degrÃ©s, signÃ©).</summary>
+    /// <remarks>Pendant le pilote auto, c'est la plus forte entre la glisse rÃ©elle et le drift "de style" (styleDrift).</remarks>
     public float DriftAngle => Mathf.Abs(physicalDriftAngle) >= Mathf.Abs(styleShown) ? physicalDriftAngle : -styleShown;
-    /// <summary>Glisse réelle de la voiture (degrés, signé), sans le drift de style.</summary>
+    /// <summary>Glisse rÃ©elle de la voiture (degrÃ©s, signÃ©), sans le drift de style.</summary>
     public float PhysicalDriftAngle => physicalDriftAngle;
 
     /// <summary>
-    /// Drift "de style" voulu par le pilote auto (degrés, + = nez vers la droite) : la carrosserie pivote,
+    /// Drift "de style" voulu par le pilote auto (degrÃ©s, + = nez vers la droite) : la carrosserie pivote,
     /// les roues contre-braquent, les pneus fument et les points de drift comptent, sans changer la trajectoire.
     /// </summary>
     [System.NonSerialized] public float styleDrift;
     float physicalDriftAngle, styleShown;
-    /// <summary>Vrai quand la voiture est tombée de la route (elle ne peut plus y remonter, voir DriftGameManager).</summary>
+    /// <summary>Vrai quand la voiture est tombÃ©e de la route (elle ne peut plus y remonter, voir DriftGameManager).</summary>
     public bool HasFallen => fallen;
     /// <summary>Vrai quand la voiture glisse franchement.</summary>
     public bool IsDrifting { get; private set; }
     /// <summary>Points du drift en cours (augmente avec l'angle et la vitesse).</summary>
     public float CurrentDriftPoints { get; private set; }
-    /// <summary>Appelé à la fin d'un drift réussi, avec ses points.</summary>
+    /// <summary>AppelÃ© Ã  la fin d'un drift rÃ©ussi, avec ses points.</summary>
     public event Action<float> OnDriftEnded;
-    /// <summary>Appelé quand la voiture touche un mur (le drift en cours est perdu).</summary>
+    /// <summary>AppelÃ© quand la voiture touche un mur (le drift en cours est perdu).</summary>
     public event Action OnWallHit;
 
     Rigidbody rb;
-    Vector2 vel;          // vitesse horizontale "réelle" (x = monde X, y = monde Z)
-    float yaw;            // orientation (rad), seule source de vérité
+    Vector2 vel;          // vitesse horizontale "rÃ©elle" (x = monde X, y = monde Z)
+    float yaw;            // orientation (rad), seule source de vÃ©ritÃ©
     float yawRate;        // rad/s, positif = vers la droite
-    float steerInput;     // -1..1, lissé
-    float driftFactor;    // 0 = arrière accroché, 1 = arrière décroché
+    float steerInput;     // -1..1, lissÃ©
+    float driftFactor;    // 0 = arriÃ¨re accrochÃ©, 1 = arriÃ¨re dÃ©crochÃ©
     float lateralAccel;
     float driftTime;
     float rawInput, lastSteerDeg;
     bool pointerWasDown;
-    float pointerStartX;  // mode Glissement : où le doigt s'est posé
+    float pointerStartX;  // mode Glissement : oÃ¹ le doigt s'est posÃ©
     int wallContacts;
     string inputError;
     float lastWallHitTime = -10f;
     bool wallTouched;     // contact avec un mur pendant le dernier pas de physique
     bool offRoad;         // centre de la voiture hors de la route : pas de drift
-    bool fallen;          // tombée de la route (sous le niveau de la route, à côté) : elle ne peut plus y remonter
+    bool fallen;          // tombÃ©e de la route (sous le niveau de la route, Ã  cÃ´tÃ©) : elle ne peut plus y remonter
     BoxCollider box;
 
-    Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modèle (ex : -90° des modèles Blender)
-    Vector3 bodyBaseLocalPos;                            // position d'origine du modèle (compense un pivot mal placé)
+    Quaternion bodyBaseLocalRot = Quaternion.identity;   // rotation d'origine du modÃ¨le (ex : -90Â° des modÃ¨les Blender)
+    Vector3 bodyBaseLocalPos;                            // position d'origine du modÃ¨le (compense un pivot mal placÃ©)
     Quaternion bodyTilt = Quaternion.identity;
     float smoothedLatAccel;
     readonly RaycastHit[] groundHits = new RaycastHit[8];
@@ -236,17 +236,17 @@ public class DriftCar : MonoBehaviour
 
         if (road == null) road = FindFirstObjectByType<ZigzagRoadGenerator>();
         if (road == null)
-            Debug.LogError("[DriftCar] Aucune ZigzagRoadGenerator trouvée : le décor ne défilera pas.", this);
+            Debug.LogError("[DriftCar] Aucune ZigzagRoadGenerator trouvÃ©e : le dÃ©cor ne dÃ©filera pas.", this);
 
         if (body == transform)
         {
-            Debug.LogWarning("[DriftCar] 'Body' doit être un ENFANT (le modèle 3D), pas la voiture elle-même. Champ ignoré.", this);
+            Debug.LogWarning("[DriftCar] 'Body' doit Ãªtre un ENFANT (le modÃ¨le 3D), pas la voiture elle-mÃªme. Champ ignorÃ©.", this);
             body = null;
         }
 
-        // Modèle 3D de la voiture équipée dans le Garage (remplace celui de la scène, voir CarModelSwap)
+        // ModÃ¨le 3D de la voiture Ã©quipÃ©e dans le Garage (remplace celui de la scÃ¨ne, voir CarModelSwap)
         CarModelSwap.ApplyEquipped(this);
-        if (GetComponent<BlobShadow>() == null) gameObject.AddComponent<BlobShadow>(); // ombre simple (pas d'ombres en temps réel)
+        if (GetComponent<BlobShadow>() == null) gameObject.AddComponent<BlobShadow>(); // ombre simple (pas d'ombres en temps rÃ©el)
 
         if (body != null)
         {
@@ -255,7 +255,7 @@ public class DriftCar : MonoBehaviour
         }
     }
 
-    /// <summary>Remet la voiture en route (après "Continuer") : position, cap (degrés), vitesse de départ, glisse remise à zéro.</summary>
+    /// <summary>Remet la voiture en route (aprÃ¨s "Continuer") : position, cap (degrÃ©s), vitesse de dÃ©part, glisse remise Ã  zÃ©ro.</summary>
     public void Respawn(Vector3 position, float headingDeg)
     {
         yaw = headingDeg * Mathf.Deg2Rad;
@@ -282,7 +282,7 @@ public class DriftCar : MonoBehaviour
         if (road != null) road.ScrollSpeed = Mathf.Max(0f, vel.y);
     }
 
-    /// <summary>Change le modèle 3D affiché (appelé par CarModelSwap). Le nouveau modèle garde la pose donnée.</summary>
+    /// <summary>Change le modÃ¨le 3D affichÃ© (appelÃ© par CarModelSwap). Le nouveau modÃ¨le garde la pose donnÃ©e.</summary>
     public void SetBody(Transform newBody)
     {
         body = newBody;
@@ -292,9 +292,9 @@ public class DriftCar : MonoBehaviour
         bodyBaseLocalPos = body.localPosition;
     }
 
-    // ---------- Conduite propre à chaque voiture ----------
+    // ---------- Conduite propre Ã  chaque voiture ----------
 
-    // Réglages de la scène (= voiture de drift de référence), avant les multiplicateurs de la voiture équipée
+    // RÃ©glages de la scÃ¨ne (= voiture de drift de rÃ©fÃ©rence), avant les multiplicateurs de la voiture Ã©quipÃ©e
     struct Tuning
     {
         public float startSpeed, maxSpeed, engineAccel, driftBoost, driftSpeedKeep, yawInertia;
@@ -305,8 +305,8 @@ public class DriftCar : MonoBehaviour
     Tuning? sceneTuning;
 
     /// <summary>
-    /// Applique le profil de conduite d'une voiture du Garage (multiplicateurs des réglages de la scène, voir CarHandling).
-    /// Appelé par CarModelSwap. null = réglages de la scène tels quels.
+    /// Applique le profil de conduite d'une voiture du Garage (multiplicateurs des rÃ©glages de la scÃ¨ne, voir CarHandling).
+    /// AppelÃ© par CarModelSwap. null = rÃ©glages de la scÃ¨ne tels quels.
     /// </summary>
     public void ApplyHandling(CarHandling h)
     {
@@ -336,7 +336,7 @@ public class DriftCar : MonoBehaviour
         countersteerAssist = Mathf.Clamp(b.countersteerAssist * M(h.countersteer), 0f, 1.5f);
         frontGrip = b.frontGrip * M(h.grip);
         rearGrip = b.rearGrip * M(h.grip);
-        rearDriftGrip = Mathf.Min(b.rearDriftGrip * M(h.driftGrip), rearGrip); // en drift, jamais plus d'adhérence qu'en temps normal
+        rearDriftGrip = Mathf.Min(b.rearDriftGrip * M(h.driftGrip), rearGrip); // en drift, jamais plus d'adhÃ©rence qu'en temps normal
         maxDriftAngle = b.maxDriftAngle * M(h.driftAngle);
         driftStartSteer = Mathf.Clamp(b.driftStartSteer * M(h.driftThreshold), 0f, driftFullSteer - 0.05f);
         driftEngageRate = b.driftEngageRate * M(h.driftEngage);
@@ -348,7 +348,7 @@ public class DriftCar : MonoBehaviour
 
     void Start()
     {
-        // La fumée doit défiler avec le décor, sinon elle reste "collée" à la voiture
+        // La fumÃ©e doit dÃ©filer avec le dÃ©cor, sinon elle reste "collÃ©e" Ã  la voiture
         if (tireSmoke != null && road != null)
             foreach (var ps in tireSmoke)
             {
@@ -361,10 +361,10 @@ public class DriftCar : MonoBehaviour
 
     void OnDisable()
     {
-        if (road != null) road.ScrollSpeed = 0f; // voiture désactivée (game over) : le décor s'arrête
+        if (road != null) road.ScrollSpeed = 0f; // voiture dÃ©sactivÃ©e (game over) : le dÃ©cor s'arrÃªte
     }
 
-    // ---------- Entrées ----------
+    // ---------- EntrÃ©es ----------
 
     void Update()
     {
@@ -373,8 +373,8 @@ public class DriftCar : MonoBehaviour
         // Drift de style (pilote auto) : entre et sort en douceur, comme une vraie glisse
         styleShown = Mathf.MoveTowards(styleShown, styleDrift, 75f * Time.deltaTime);
 
-        // Volant : suit le doigt avec un léger lissage (réactif, mais sans à-coup si le doigt saute),
-        // et revient au centre à vitesse fixe quand on lâche l'écran
+        // Volant : suit le doigt avec un lÃ©ger lissage (rÃ©actif, mais sans Ã -coup si le doigt saute),
+        // et revient au centre Ã  vitesse fixe quand on lÃ¢che l'Ã©cran
         float dt = Time.deltaTime;
         if (Mathf.Abs(rawInput) > 0.001f)
         {
@@ -387,8 +387,8 @@ public class DriftCar : MonoBehaviour
         UpdateVisuals();
     }
 
-    // Lit le doigt / la souris / le clavier, avec l'ancien ET le nouveau système d'Input de Unity.
-    // Renvoie -1..1 : pour le doigt et la souris, c'est proportionnel à leur position horizontale.
+    // Lit le doigt / la souris / le clavier, avec l'ancien ET le nouveau systÃ¨me d'Input de Unity.
+    // Renvoie -1..1 : pour le doigt et la souris, c'est proportionnel Ã  leur position horizontale.
     float ReadInput()
     {
         if (useExternalInput) return externalInput;
@@ -454,7 +454,7 @@ public class DriftCar : MonoBehaviour
             return key;
         }
 
-        // Le doigt vient de se poser : point de départ du mode Glissement
+        // Le doigt vient de se poser : point de dÃ©part du mode Glissement
         if (!pointerWasDown) pointerStartX = x;
         pointerWasDown = true;
 
@@ -465,7 +465,7 @@ public class DriftCar : MonoBehaviour
         return ShapeInput(offset);
     }
 
-    // Zone morte au centre, saturation à ±1, puis courbe de réponse (précision près du centre)
+    // Zone morte au centre, saturation Ã  Â±1, puis courbe de rÃ©ponse (prÃ©cision prÃ¨s du centre)
     float ShapeInput(float v)
     {
         float a = Mathf.Abs(v);
@@ -481,39 +481,39 @@ public class DriftCar : MonoBehaviour
     {
         float dt = Time.fixedDeltaTime;
 
-        // La physique Unity a pu modifier X (collisions). Contre un mur, la route défile et "rentre" dans la voiture :
-        // PhysX la ressort avec une vitesse de dépénétration qui n'est qu'une correction de position. La garder
-        // comme vraie vitesse donnait un gros coup de boost qui envoyait la voiture dans le décor. Les murs sont
-        // gérés par OnCollisionStay (on retire seulement la vitesse qui rentre dedans) : on ignore leur poussée,
+        // La physique Unity a pu modifier X (collisions). Contre un mur, la route dÃ©file et "rentre" dans la voiture :
+        // PhysX la ressort avec une vitesse de dÃ©pÃ©nÃ©tration qui n'est qu'une correction de position. La garder
+        // comme vraie vitesse donnait un gros coup de boost qui envoyait la voiture dans le dÃ©cor. Les murs sont
+        // gÃ©rÃ©s par OnCollisionStay (on retire seulement la vitesse qui rentre dedans) : on ignore leur poussÃ©e,
         // et on plafonne celle des autres contacts.
         float kick = rb.linearVelocity.x - vel.x;
         vel.x += wallTouched ? 0f : Mathf.Clamp(kick, -maxPhysicsKick, maxPhysicsKick);
         wallTouched = false;
 
-        // Déclenchement du drift : l'arrière décroche EN PROPORTION du braquage (à vitesse suffisante),
-        // au lieu de tout ou rien : un petit coup de doigt = légère glisse, doigt au bord = gros drift
-        // Hors de la route (centre de la voiture au-delà du bord) : l'arrière se raccroche vite, plus de drift
+        // DÃ©clenchement du drift : l'arriÃ¨re dÃ©croche EN PROPORTION du braquage (Ã  vitesse suffisante),
+        // au lieu de tout ou rien : un petit coup de doigt = lÃ©gÃ¨re glisse, doigt au bord = gros drift
+        // Hors de la route (centre de la voiture au-delÃ  du bord) : l'arriÃ¨re se raccroche vite, plus de drift
         offRoad = road != null && Mathf.Abs(road.LateralOffset(rb.position)) > road.HalfWidthXAt(road.TrackZ(rb.position.z));
 
         float driftTarget = 0f;
         if (vel.magnitude > minDriftSpeed && !offRoad && !(useExternalInput && autopilotGrip))
         {
             float t = Mathf.InverseLerp(driftStartSteer, Mathf.Max(driftStartSteer + 0.01f, driftFullSteer), Mathf.Abs(steerInput));
-            driftTarget = t * t * (3f - 2f * t); // départ et arrivée en douceur
+            driftTarget = t * t * (3f - 2f * t); // dÃ©part et arrivÃ©e en douceur
         }
         float driftRate = driftTarget > driftFactor ? driftEngageRate : offRoad ? Mathf.Max(driftReleaseRate, offRoadGripRate) : driftReleaseRate;
         driftFactor = Mathf.MoveTowards(driftFactor, driftTarget, driftRate * dt);
 
-        // Modèle de voiture en plusieurs sous-pas (fluide et stable)
+        // ModÃ¨le de voiture en plusieurs sous-pas (fluide et stable)
         int n = Mathf.Max(1, substeps);
         float h = dt / n;
-        if (!fallen)   // en chute : plus de pneus au sol, elle garde son élan
+        if (!fallen)   // en chute : plus de pneus au sol, elle garde son Ã©lan
             for (int i = 0; i < n; i++)
                 SimulateStep(h);
 
         ConstrainToWalls();
 
-        // Application : orientation pilotée par le modèle, X par la physique, Z par le défilement du décor
+        // Application : orientation pilotÃ©e par le modÃ¨le, X par la physique, Z par le dÃ©filement du dÃ©cor
         rb.angularVelocity = Vector3.zero;
         rb.MoveRotation(Quaternion.Euler(0f, yaw * Mathf.Rad2Deg, 0f));
         rb.linearVelocity = new Vector3(vel.x, rb.linearVelocity.y, 0f);
@@ -532,13 +532,13 @@ public class DriftCar : MonoBehaviour
         float vLong = Vector2.Dot(vel, fwd);
         float vLat = Vector2.Dot(vel, right);
         float speed = vel.magnitude;
-        float vRef = Mathf.Max(Mathf.Abs(vLong), 4f); // évite l'instabilité à très basse vitesse
+        float vRef = Mathf.Max(Mathf.Abs(vLong), 4f); // Ã©vite l'instabilitÃ© Ã  trÃ¨s basse vitesse
 
-        // Angle de glisse de la caisse (positif = la voiture se déplace vers sa droite)
+        // Angle de glisse de la caisse (positif = la voiture se dÃ©place vers sa droite)
         float beta = Mathf.Atan2(vLat, vRef);
         physicalDriftAngle = beta * Mathf.Rad2Deg;
 
-        // --- Direction : braquage joueur (réduit avec la vitesse) + contre-braquage auto (surtout en drift)
+        // --- Direction : braquage joueur (rÃ©duit avec la vitesse) + contre-braquage auto (surtout en drift)
         float speed01 = Mathf.InverseLerp(5f, 25f, speed);
         float maxSteer = Mathf.Lerp(maxSteerLow, maxSteerHigh, speed01) * Mathf.Deg2Rad;
         float assist = countersteerAssist * Mathf.Lerp(0.3f, 1f, driftFactor);
@@ -554,7 +554,7 @@ public class DriftCar : MonoBehaviour
         float baseRear = useExternalInput && autopilotGrip ? Mathf.Max(rearGrip, autopilotRearGrip) : rearGrip;
         float maxR = Mathf.Lerp(baseRear, rearDriftGrip, driftFactor) * mass * g * frontAxle / L;
 
-        // --- Forces latérales des pneus (saturation douce : pas de cassure brutale quand ça décroche)
+        // --- Forces latÃ©rales des pneus (saturation douce : pas de cassure brutale quand Ã§a dÃ©croche)
         float slipF = Mathf.Atan2(vLat + yawRate * frontAxle, vRef) - steer;
         float slipR = Mathf.Atan2(vLat - yawRate * rearAxle, vRef);
         float Fyf = SoftClamp(-frontStiffness * slipF, maxF);
@@ -566,7 +566,7 @@ public class DriftCar : MonoBehaviour
         float T = Mathf.Clamp01(throttle) * engineAccel * mass;
         if (vLong > target + 2f) T = -0.5f * engineAccel * mass * Mathf.Clamp01((vLong - target - 2f) / 5f); // frein moteur
 
-        // Cercle d'adhérence avant : traction + force latérale <= adhérence max
+        // Cercle d'adhÃ©rence avant : traction + force latÃ©rale <= adhÃ©rence max
         float combined = Mathf.Sqrt(T * T + Fyf * Fyf);
         if (combined > maxF)
         {
@@ -575,7 +575,7 @@ public class DriftCar : MonoBehaviour
             Fyf *= k;
         }
 
-        // --- Forces dans le repère de la voiture
+        // --- Forces dans le repÃ¨re de la voiture
         float cs = Mathf.Cos(steer), sn = Mathf.Sin(steer);
         float frontLong = T * cs - Fyf * sn;
         float frontLat = T * sn + Fyf * cs;
@@ -584,7 +584,7 @@ public class DriftCar : MonoBehaviour
         Vector2 force = fwd * frontLong + right * (frontLat + Fyr);
         if (speed > 0.01f) force -= vel / speed * drag;
 
-        // --- Intégration
+        // --- IntÃ©gration
         vel += force / mass * h;
         KeepDriftSpeed(speedBefore, Mathf.Abs(beta));
         lateralAccel = (frontLat + Fyr) / mass;
@@ -592,7 +592,7 @@ public class DriftCar : MonoBehaviour
         float torque = frontAxle * frontLat - rearAxle * Fyr;
         yawRate += torque / yawInertia * h;
 
-        // Aide : au-delà de l'angle max, on freine en douceur la rotation qui l'aggrave (pas de tête-à-queue)
+        // Aide : au-delÃ  de l'angle max, on freine en douceur la rotation qui l'aggrave (pas de tÃªte-Ã -queue)
         float maxBeta = maxDriftAngle * Mathf.Deg2Rad;
         float excess = Mathf.Abs(beta) - maxBeta;
         if (excess > 0f)
@@ -604,7 +604,7 @@ public class DriftCar : MonoBehaviour
             yawRate += s * excess * angleLimitStrength * h;
         }
 
-        // Aide : stabilisation quand on ne touche pas l'écran
+        // Aide : stabilisation quand on ne touche pas l'Ã©cran
         if (Mathf.Abs(steerInput) < 0.05f)
             yawRate *= 1f - Mathf.Clamp01(yawDampingNoInput * h);
 
@@ -614,7 +614,7 @@ public class DriftCar : MonoBehaviour
         yaw += yawRate * h;
     }
 
-    // En glisse, les pneus freinent la voiture : on rend une partie de la vitesse perdue (sans dépasser la vitesse visée).
+    // En glisse, les pneus freinent la voiture : on rend une partie de la vitesse perdue (sans dÃ©passer la vitesse visÃ©e).
     // L'angle, la rotation et la trajectoire ne changent pas, seulement la vitesse.
     void KeepDriftSpeed(float speedBefore, float absBeta)
     {
@@ -644,7 +644,7 @@ public class DriftCar : MonoBehaviour
 
     // ---------- Murs ----------
 
-    // Choc : perte de vitesse, drift annulé (un vrai impact, pas un simple frottement)
+    // Choc : perte de vitesse, drift annulÃ© (un vrai impact, pas un simple frottement)
     void OnCollisionEnter(Collision collision)
     {
         if (!TryGetWallNormal(collision, out Vector2 n2)) return;
@@ -662,12 +662,12 @@ public class DriftCar : MonoBehaviour
         vel *= wallSpeedKeep;
         yawRate *= 0.5f;
         driftFactor = 0f;
-        CurrentDriftPoints = 0f;   // drift raté
+        CurrentDriftPoints = 0f;   // drift ratÃ©
         OnWallHit?.Invoke();
     }
 
-    // Murs calculés à partir du tracé de la route, sans compter sur PhysX : la route défile (ses colliders sont
-    // téléportés à chaque pas) et dans les diagonales le mur "rentre" dans la voiture plus vite que PhysX ne la ressort,
+    // Murs calculÃ©s Ã  partir du tracÃ© de la route, sans compter sur PhysX : la route dÃ©file (ses colliders sont
+    // tÃ©lÃ©portÃ©s Ã  chaque pas) et dans les diagonales le mur "rentre" dans la voiture plus vite que PhysX ne la ressort,
     // ce qui permettait de traverser les murs et d'aller dans le terrain. Ici la voiture est remise contre le mur
     // et on retire la vitesse qui rentre dedans (un vrai choc si elle arrive vite).
     void ConstrainToWalls()
@@ -680,19 +680,19 @@ public class DriftCar : MonoBehaviour
         float hw = road.HalfWidthXAt(tz);
         float half = box != null ? box.bounds.extents.x : 1f;   // demi-largeur de la voiture en X (rotation comprise)
 
-        // Tombée à côté de la route : elle ne doit pas pouvoir revenir dessous (PhysX la ressortait par le dessus
-        // de la route et elle remontait dessus). On la garde à côté de la route jusqu'à la chute fatale.
+        // TombÃ©e Ã  cÃ´tÃ© de la route : elle ne doit pas pouvoir revenir dessous (PhysX la ressortait par le dessus
+        // de la route et elle remontait dessus). On la garde Ã  cÃ´tÃ© de la route jusqu'Ã  la chute fatale.
         if (!fallen && box != null)
         {
-            // Tombée : sous le niveau de la route à côté du bord, ou centre au-dessus du vide (côté sans mur).
-            // Sans ça, la voiture restait posée sur le coin de la dalle (elle ne penche pas) et revenait sur la route.
+            // TombÃ©e : sous le niveau de la route Ã  cÃ´tÃ© du bord, ou centre au-dessus du vide (cÃ´tÃ© sans mur).
+            // Sans Ã§a, la voiture restait posÃ©e sur le coin de la dalle (elle ne penche pas) et revenait sur la route.
             float lateral = p.x - cx;
             int side = lateral > 0f ? 1 : -1;
             bool below = Mathf.Abs(lateral) > hw && box.bounds.min.y < road.RoadHeightAt(tz) - 0.15f;
             bool overVoid = Mathf.Abs(lateral) > hw + fallEdgeMargin && !road.WallOffsetAt(tz, side, out _);
             if (below || overVoid)
             {
-                // Elle ne touche plus la route : on coupe sa collision et elle tombe tout droit, en gardant son élan.
+                // Elle ne touche plus la route : on coupe sa collision et elle tombe tout droit, en gardant son Ã©lan.
                 // Sans collision elle ne peut plus remonter sur la route.
                 fallen = true;
                 box.enabled = false;
@@ -716,7 +716,7 @@ public class DriftCar : MonoBehaviour
 
             float limit = cx + side * (hw + offset - half - 0.02f);   // position max du centre de la voiture
             float pen = side * (p.x - limit);                         // > 0 : la voiture rentre dans le mur
-            // Déjà derrière le mur (tombée dans le vide avant qu'il commence) : on la laisse
+            // DÃ©jÃ  derriÃ¨re le mur (tombÃ©e dans le vide avant qu'il commence) : on la laisse
             if (pen <= 0f || pen > road.wallColliderThickness + 2f * half) continue;
 
             p.x = limit;
@@ -744,8 +744,8 @@ public class DriftCar : MonoBehaviour
         if (into < 0f) vel -= n2 * into;
     }
 
-    // Normale du mur calculée à partir du TRACÉ de la route (et non de la normale de contact de Unity,
-    // qui peut pointer vers l'avant aux jonctions entre chunks et "arrêter" la voiture).
+    // Normale du mur calculÃ©e Ã  partir du TRACÃ‰ de la route (et non de la normale de contact de Unity,
+    // qui peut pointer vers l'avant aux jonctions entre chunks et "arrÃªter" la voiture).
     bool TryGetWallNormal(Collision collision, out Vector2 normal)
     {
         normal = Vector2.zero;
@@ -770,7 +770,7 @@ public class DriftCar : MonoBehaviour
             // Contact loin du bord de la route = jonction interne ou autre : on l'ignore
             if (Mathf.Abs(side) < road.HalfWidthXAt(tz) - 1f) continue;
 
-            // Direction de la route à cet endroit, puis normale qui pointe vers le centre de la route
+            // Direction de la route Ã  cet endroit, puis normale qui pointe vers le centre de la route
             float dx = (road.CenterXAt(tz + 1f) - road.CenterXAt(tz - 1f)) * 0.5f;
             Vector2 tangent = new Vector2(dx, 1f).normalized;
             Vector2 rightN = new Vector2(tangent.y, -tangent.x);
@@ -811,7 +811,7 @@ public class DriftCar : MonoBehaviour
     {
         if (body != null)
         {
-            // Pente du sol, en ignorant les colliders de la voiture elle-même
+            // Pente du sol, en ignorant les colliders de la voiture elle-mÃªme
             Vector3 normal = Vector3.up;
             int count = Physics.RaycastNonAlloc(transform.position + Vector3.up * 2f, Vector3.down, groundHits, 6f, ~0, QueryTriggerInteraction.Ignore);
             float best = float.MaxValue;
@@ -826,7 +826,7 @@ public class DriftCar : MonoBehaviour
             Quaternion ground = Quaternion.FromToRotation(Vector3.up, normal);
             ground = Quaternion.RotateTowards(Quaternion.identity, ground, maxGroundTilt);
 
-            // Roulis vers l'EXTÉRIEUR du virage (lissé pour éviter les tremblements)
+            // Roulis vers l'EXTÃ‰RIEUR du virage (lissÃ© pour Ã©viter les tremblements)
             smoothedLatAccel = Mathf.Lerp(smoothedLatAccel, lateralAccel, 6f * Time.deltaTime);
             float roll = Mathf.Clamp(smoothedLatAccel / 9.81f, -1f, 1f) * bodyRollMax;
             Quaternion worldTilt = ground * Quaternion.AngleAxis(roll, transform.forward)
@@ -834,13 +834,13 @@ public class DriftCar : MonoBehaviour
 
             bodyTilt = Quaternion.Slerp(bodyTilt, worldTilt, 10f * Time.deltaTime);
 
-            // Inclinaison appliquée PAR-DESSUS la rotation d'origine du modèle
+            // Inclinaison appliquÃ©e PAR-DESSUS la rotation d'origine du modÃ¨le
             Transform parent = body.parent != null ? body.parent : transform;
             Quaternion localTilt = Quaternion.Inverse(parent.rotation) * bodyTilt * parent.rotation;
             body.localRotation = localTilt * bodyBaseLocalRot;
 
-            // Le modèle pivote autour du centre de la voiture (son parent), pas autour de son propre pivot :
-            // si le pivot du mesh est loin de la carrosserie (origine Blender mal placée), le mesh reste sur la route.
+            // Le modÃ¨le pivote autour du centre de la voiture (son parent), pas autour de son propre pivot :
+            // si le pivot du mesh est loin de la carrosserie (origine Blender mal placÃ©e), le mesh reste sur la route.
             body.localPosition = localTilt * bodyBaseLocalPos;
         }
 
@@ -858,7 +858,7 @@ public class DriftCar : MonoBehaviour
 
     // ---------- Debug ----------
 
-    // OnGUI est très lent sur téléphone : il n'existe que dans l'éditeur et les builds de développement
+    // OnGUI est trÃ¨s lent sur tÃ©lÃ©phone : il n'existe que dans l'Ã©diteur et les builds de dÃ©veloppement
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     void OnGUI()
     {
@@ -866,9 +866,9 @@ public class DriftCar : MonoBehaviour
 
         var style = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(14, Screen.height / 45) };
         string txt =
-            $"Entrée : {rawInput:F2}   Volant : {steerInput:F2}   Braquage : {lastSteerDeg:F0}°\n" +
-            $"Rotation : {yawRate * Mathf.Rad2Deg:F0}°/s   Vitesse : {Speed * 3.6f:F0} km/h\n" +
-            $"Drift : {driftFactor:F2}   Angle : {DriftAngle:F0}°   Contacts mur : {wallContacts}";
+            $"EntrÃ©e : {rawInput:F2}   Volant : {steerInput:F2}   Braquage : {lastSteerDeg:F0}Â°\n" +
+            $"Rotation : {yawRate * Mathf.Rad2Deg:F0}Â°/s   Vitesse : {Speed * 3.6f:F0} km/h\n" +
+            $"Drift : {driftFactor:F2}   Angle : {DriftAngle:F0}Â°   Contacts mur : {wallContacts}";
         if (!string.IsNullOrEmpty(inputError)) txt += "\nERREUR : " + inputError;
 
         GUI.Box(new Rect(10, 10, style.fontSize * 30, style.fontSize * 5f), GUIContent.none);
